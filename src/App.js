@@ -1,88 +1,75 @@
-import React, { useState, useRef, useEffect } from 'react';
-import Section from './components/Section';
-import TitleDisplay from './components/TitleDisplay';
-import NavigationDots from './components/NavigationDots';
-import NavigationArrows from './components/NavigationArrows';
-import { sectionsData } from './data/sectionsData';
+import React, { useRef, useState, useEffect } from "react";
+import Section from "./components/Section";
+import TitleDisplay from "./components/TitleDisplay";
+import NavigationDots from "./components/NavigationDots";
+import NavigationArrows from "./components/NavigationArrows";
+import { sectionsData } from "./data/sectionsData";
 
-function App() {
-  const [activeSection, setActiveSection] = useState(0);
-  const [scrollProgress, setScrollProgress] = useState(0); // AGGIUNGI QUESTA RIGA
-  const scrollContainerRef = useRef(null);
+export default function App() {
+  const [activeIndex, setActiveIndex] = useState(0); // indice intero "attuale"
+  const [scrollIndex, setScrollIndex] = useState(0); // indice continuo, es. 1.23
+  const containerRef = useRef(null);
+  const rafRef = useRef(null);
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (scrollContainerRef.current) {
-        const scrollLeft = scrollContainerRef.current.scrollLeft;
-        const sectionWidth = scrollContainerRef.current.offsetWidth;
-        const currentSection = Math.round(scrollLeft / sectionWidth);
-        setActiveSection(currentSection);
-        setScrollProgress(scrollProgress); 
-      }
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onScroll = () => {
+      // calcola indice continuo
+      const w = container.offsetWidth || 1;
+      const x = container.scrollLeft;
+      const exactIndex = x / w;
+      // throttle con requestAnimationFrame
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        setScrollIndex(exactIndex);
+        // setto activeIndex come floor per tracking dell'intero
+        setActiveIndex(Math.floor(Math.max(0, Math.min(sectionsData.length - 1, exactIndex))));
+      });
     };
 
-    const scrollContainer = scrollContainerRef.current;
-    if (scrollContainer) {
-      scrollContainer.addEventListener('scroll', handleScroll);
-      return () => scrollContainer.removeEventListener('scroll', handleScroll);
-    }
+    // inizializza (caso se già scrollato)
+    onScroll();
+    container.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
-  const scrollToSection = (index) => {
-    if (scrollContainerRef.current) {
-      const sectionWidth = scrollContainerRef.current.offsetWidth;
-      scrollContainerRef.current.scrollTo({
-        left: sectionWidth * index,
-        behavior: 'smooth'
-      });
-    }
+  const scrollTo = (idx) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const w = container.offsetWidth || 1;
+    container.scrollTo({ left: idx * w, behavior: "smooth" });
   };
 
   return (
-    <div className="h-screen w-screen bg-black text-white overflow-hidden">
-      {/* Titoli con transizione */}
-      <TitleDisplay sections={sectionsData} activeSection={activeSection} scrollProgress={scrollProgress} />
+    <div className="h-screen w-screen bg-black text-white overflow-hidden relative">
+      {/* TitleDisplay ora prende lo scrollIndex continuo */}
+      <TitleDisplay sections={sectionsData} scrollIndex={scrollIndex} />
 
-      {/* Horizontal Scroll Container */}
+      {/* Horizontal Scroll */}
       <div
-        ref={scrollContainerRef}
+        ref={containerRef}
         className="h-full w-full overflow-x-scroll overflow-y-hidden scroll-smooth snap-x snap-mandatory"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         <div className="flex h-full" style={{ width: `${sectionsData.length * 100}vw` }}>
-          {sectionsData.map((section) => (
-            <Section
-              key={section.id}
-              section={section}
-              isActive={activeSection === section.id}
-              totalSections={sectionsData.length}
-            />
+          {sectionsData.map((s) => (
+            <Section key={s.id} section={s} isActive={activeIndex === s.id} totalSections={sectionsData.length} />
           ))}
         </div>
       </div>
 
-      {/* Navigazione con pallini */}
-      <NavigationDots
-        sections={sectionsData}
-        activeSection={activeSection}
-        onNavigate={scrollToSection}
-      />
+      <NavigationDots sections={sectionsData} activeSection={activeIndex} onNavigate={scrollTo} />
+      <NavigationArrows activeSection={activeIndex} totalSections={sectionsData.length} onNavigate={scrollTo} />
 
-      {/* Frecce di navigazione */}
-      <NavigationArrows
-        activeSection={activeSection}
-        totalSections={sectionsData.length}
-        onNavigate={scrollToSection}
-      />
-
-      {/* Nascondi scrollbar */}
       <style>{`
-        div::-webkit-scrollbar {
-          display: none;
-        }
+        div::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
   );
 }
-
-export default App;
