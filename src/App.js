@@ -7,6 +7,7 @@ import { sectionsData } from './data/sectionsData';
 
 function App() {
   const [activeSection, setActiveSection] = useState(0);
+  const [scrollProgress, setScrollProgress] = useState(0); // AGGIUNGI QUESTA RIGA
   const scrollContainerRef = useRef(null);
 
   useEffect(() => {
@@ -16,6 +17,7 @@ function App() {
         const sectionWidth = scrollContainerRef.current.offsetWidth;
         const currentSection = Math.round(scrollLeft / sectionWidth);
         setActiveSection(currentSection);
+        setScrollProgress(scrollProgress); 
       }
     };
 
@@ -39,7 +41,7 @@ function App() {
   return (
     <div className="h-screen w-screen bg-black text-white overflow-hidden">
       {/* Titoli con transizione */}
-      <TitleDisplay sections={sectionsData} activeSection={activeSection} />
+      <TitleDisplay sections={sectionsData} activeSection={activeSection} scrollProgress={scrollProgress} />
 
       {/* Horizontal Scroll Container */}
       <div
