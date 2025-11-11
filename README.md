@@ -1,70 +1,69 @@
-# Getting Started with Create React App
+# ProPresent - Presentazione Modulare
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Questo progetto è una presentazione moderna con scroll orizzontale, costruita con React e Tailwind CSS.
 
-## Available Scripts
+## Struttura del Progetto
 
-In the project directory, you can run:
+```
+src/
+├── components/
+│   ├── Section.js              # Componente per le singole sezioni
+│   ├── TitleDisplay.js         # Gestisce la visualizzazione dei titoli con transizioni
+│   ├── NavigationDots.js       # Indicatori di navigazione (pallini)
+│   └── NavigationArrows.js     # Frecce di navigazione laterali
+├── data/
+│   └── sectionsData.js         # Dati delle sezioni
+├── App.js                      # Componente principale
+├── index.js                    # Entry point
+└── index.css                   # Stili globali con Tailwind
+
+public/
+└── index.html                  # HTML template
+```
+
+## Caratteristiche
+
+- ✨ **Architettura Modulare**: Codice ben organizzato in componenti riutilizzabili
+- 🎨 **Design Moderno**: Gradienti animati e transizioni fluide
+- 📱 **Scroll Orizzontale**: Navigazione intuitiva tra le sezioni
+- 🎯 **Transizioni Titoli**: I titoli si animano e cambiano posizione durante lo scroll
+- ⚡ **Performance Ottimizzate**: React hooks e gestione efficiente dello stato
+
+## Componenti
+
+### Section.js
+Gestisce la visualizzazione di una singola sezione con il suo contenuto.
+
+### TitleDisplay.js
+Mostra il titolo corrente (a sinistra, colorato) e il prossimo titolo (a destra, opaco).
+Durante lo scroll, il prossimo titolo si sposta a sinistra e si colora.
+
+### NavigationDots.js
+Indicatori visivi nella parte bassa dello schermo per mostrare la sezione attiva.
+
+### NavigationArrows.js
+Frecce laterali per navigare tra le sezioni.
+
+## Scripts Disponibili
 
 ### `npm start`
-
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
-
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Avvia l'app in modalità development su [http://localhost:3000](http://localhost:3000)
 
 ### `npm run build`
+Crea una build di produzione nella cartella `build`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Personalizzazione
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Per modificare le sezioni, edita il file `src/data/sectionsData.js`:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```javascript
+export const sectionsData = [
+  {
+    id: 0,
+    title: 'Il tuo titolo',
+    subtitle: 'Il tuo sottotitolo',
+    gradient: 'from-purple-600 via-pink-600 to-red-600'
+  },
+  // Aggiungi altre sezioni...
+];
+```
