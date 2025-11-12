@@ -6,11 +6,13 @@ const InteractiveContent = ({
   scrollIndex = 0,
   totalSections = 5,
 }) => {
-  const [molecules, setMolecules] = useState(Array(25).fill(null));
+  const [molecules, setMolecules] = useState(Array(24).fill(null));
   const [showPredictions, setShowPredictions] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const [containerWidth, setContainerWidth] = useState(0);
+
+  const [showTop10, setShowTop10] = useState(false);
 
   useEffect(() => {
     const updateWidth = () => {
@@ -38,20 +40,29 @@ const InteractiveContent = ({
 
   // Reset quando cambia sezione
   useEffect(() => {
-    if (activeIndex !== 1 && activeIndex !== 2) {
-      setMolecules(Array(25).fill(null));
+    if (activeIndex !== 1 && activeIndex !== 2 && activeIndex !== 3) {
+      setMolecules(Array(24).fill(null));
       setShowPredictions(false);
       setIsGenerating(false);
+      setShowTop10(false); // AGGIUNGI QUESTA RIGA
     }
     if (activeIndex === 1) {
       setShowPredictions(false);
     }
+    if (activeIndex === 1 || activeIndex === 2) {
+      // AGGIUNGI QUESTE RIGHE
+      setShowTop10(false);
+    }
   }, [activeIndex]);
+
+  const handleTop10 = () => {
+    setShowTop10(!showTop10);
+  };
 
   const handleGenerate = () => {
     setIsGenerating(true);
     setTimeout(() => {
-      setMolecules(Array(25).fill("molecule"));
+      setMolecules(Array(24).fill("molecule"));
       setIsGenerating(false);
     }, 2000);
   };
@@ -64,8 +75,10 @@ const InteractiveContent = ({
   if (
     activeIndex !== 1 &&
     activeIndex !== 2 &&
+    activeIndex !== 3 && // AGGIUNGI
     nextIndex !== 1 &&
-    nextIndex !== 2
+    nextIndex !== 2 &&
+    nextIndex !== 3 // AGGIUNGI
   ) {
     return null;
   }
@@ -75,6 +88,10 @@ const InteractiveContent = ({
   const isTransitioningToGenerate = nextIndex === 1;
   const isTransitioningToPredict = nextIndex === 2;
   const isTransitioningFromGenerate = currentIndex === 1 && direction !== 0;
+
+  const isSelect = activeIndex === 3;
+  const isTransitioningToSelect = nextIndex === 3;
+  const isTransitioningFromPredict = currentIndex === 2 && direction !== 0;
 
   // PARAMETRI DI ANIMAZIONE SPECIFICI PER QUESTO COMPONENTE
   const buttonEnterDistance = 50; // vw - distanza da cui entrano i pulsanti
@@ -116,8 +133,8 @@ const InteractiveContent = ({
   } else if (isTransitioningToPredict) {
     if (isTransitioningFromGenerate) {
       // Veniamo da generate: slide da destra a sinistra
-      // Calcola la larghezza della griglia (5 colonne * 128px + 4 gap * 12px)
-      const gridWidth = 5 * 128 + 4 * 12; // 688px
+      // Calcola la larghezza della griglia (8 colonne * 128px + 7 gap * 12px)
+      const gridWidth = 8 * 128 + 7 * 12; // 1040px
       const containerWidthPx = containerWidth || window.innerWidth;
       // Distanza da percorrere: dalla posizione right a left
       const totalDistance = containerWidthPx - gridWidth;
@@ -130,12 +147,42 @@ const InteractiveContent = ({
       gridOpacity = nextOpacity;
       gridAlign = "left";
     }
+  } else if (isSelect) {
+    // Su select: griglia torna a destra
+    gridTranslateX = 0;
+    gridOpacity = currentOpacity;
+    gridAlign = "right";
+  } else if (isTransitioningToSelect) {
+    if (isTransitioningFromPredict) {
+      // Veniamo da predict: slide da sinistra a destra
+      const gridWidth = 8 * 128 + 7 * 12;
+      const containerWidthPx = containerWidth || window.innerWidth;
+      const totalDistance = containerWidthPx - gridWidth;
+      gridTranslateX = totalDistance * eased; // movimento verso destra
+      gridOpacity = 1;
+      gridAlign = "left";
+    } else {
+      gridTranslateX = 0;
+      gridOpacity = nextOpacity;
+      gridAlign = "right";
+    }
   }
 
   // === PULSANTE PREDICT (entra/esce da DESTRA, posizione fissa a destra) ===
   let predictTranslateX = 0;
   let predictOpacity = 0;
 
+  // === PULSANTE TOP 10 (entra/esce da SINISTRA in select) ===
+  let top10TranslateX = 0;
+  let top10Opacity = 0;
+
+  if (isSelect) {
+    top10TranslateX = 0;
+    top10Opacity = currentOpacity;
+  } else if (isTransitioningToSelect) {
+    top10TranslateX = -buttonEnterDistance * (1 - eased);
+    top10Opacity = nextOpacity;
+  }
   if (isPredict) {
     // Siamo su predict: il pulsante è fisso a destra, fade out quando si esce
     predictTranslateX = 0;
@@ -145,6 +192,18 @@ const InteractiveContent = ({
     predictTranslateX = buttonEnterDistance * (1 - eased);
     predictOpacity = nextOpacity;
   }
+
+  // Calcola le top 10 molecole in base al primo valore (cyan)
+  const moleculesWithScores = molecules.map((mol, idx) => ({
+    idx,
+    score: mol
+      ? parseFloat(localStorage.getItem(`mol-${idx}`) || Math.random() * 10)
+      : -1,
+  }));
+  const top10Indices = moleculesWithScores
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10)
+    .map((m) => m.idx);
 
   return (
     <div className="absolute inset-0 pointer-events-none">
@@ -184,11 +243,15 @@ const InteractiveContent = ({
             willChange: "transform, opacity",
           }}
         >
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-8 gap-3">
             {molecules.map((mol, idx) => (
               <div
                 key={idx}
-                className="w-32 h-32 rounded-lg bg-gray-700 relative overflow-hidden flex items-center justify-center"
+                className={`w-28 h-28 rounded-lg bg-[#1a1a1a] relative overflow-hidden flex items-center justify-center ${
+                  showTop10 && top10Indices.includes(idx)
+                    ? "ring-2 ring-green-500"
+                    : ""
+                }`}
               >
                 {/* Shimmer effect durante il caricamento */}
                 {isGenerating && (
@@ -202,10 +265,26 @@ const InteractiveContent = ({
                 {mol && showPredictions && !isGenerating && (
                   <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-xs">
                     <div className="text-cyan-400 font-mono">
-                      {(Math.random() * 10).toFixed(2)}
+                      {(() => {
+                        const key = `mol-${idx}`;
+                        let value = localStorage.getItem(key);
+                        if (!value) {
+                          value = (Math.random() * 10).toFixed(2);
+                          localStorage.setItem(key, value);
+                        }
+                        return value;
+                      })()}
                     </div>
                     <div className="text-orange-400 font-mono">
-                      {(Math.random() * 100).toFixed(1)}
+                      {(() => {
+                        const key = `mol-${idx}-orange`;
+                        let value = localStorage.getItem(key);
+                        if (!value) {
+                          value = (Math.random() * 100).toFixed(1);
+                          localStorage.setItem(key, value);
+                        }
+                        return value;
+                      })()}
                     </div>
                   </div>
                 )}
@@ -234,6 +313,27 @@ const InteractiveContent = ({
             </button>
           )}
         </div>
+
+        {/* Pulsante Top 10 - posizione assoluta a SINISTRA in select */}
+        <div
+          className="absolute left-16 top-1/2 -translate-y-1/2"
+          style={{
+            transform: `translateX(${top10TranslateX}vw) translateY(-50%)`,
+            opacity: top10Opacity,
+            transition: "none",
+            willChange: "transform, opacity",
+          }}
+        >
+          {top10Opacity > 0 && (
+            <button
+              onClick={handleTop10}
+              disabled={!showPredictions}
+              className="px-8 py-4 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 rounded-xl text-white text-xl font-semibold hover:shadow-2xl hover:shadow-green-500/50 transition-shadow disabled:opacity-50 disabled:cursor-not-allowed pointer-events-auto"
+            >
+              select
+            </button>
+          )}
+        </div>
       </div>
 
       {/* CSS per shimmer effect */}
@@ -254,7 +354,7 @@ const InteractiveContent = ({
             rgba(255, 255, 255, 0.1) 50%,
             transparent 100%
           );
-          animation: shimmer 1.5s infinite;
+          animation: shimmer 1.0s infinite;
         }
       `}</style>
     </div>
