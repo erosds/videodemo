@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getAnimationProgress } from "../utils/animationConfig";
+import { getRandomMolecules } from "../data/moleculesData";
+import MoleculeRenderer from "./MoleculeRenderer";
 
 const InteractiveContent = ({
   activeIndex,
@@ -62,7 +64,8 @@ const InteractiveContent = ({
   const handleGenerate = () => {
     setIsGenerating(true);
     setTimeout(() => {
-      setMolecules(Array(24).fill("molecule"));
+      // Genera molecole casuali diverse ogni volta
+      setMolecules(getRandomMolecules(24));
       setIsGenerating(false);
     }, 2000);
   };
@@ -233,7 +236,7 @@ const InteractiveContent = ({
 
         {/* Griglia - posizione assoluta al CENTRO, si sposta */}
         <div
-          className="absolute top-1/2 -translate-y-1/2"
+          className="absolute top-2/3 -translate-y-1/2"
           style={{
             left: gridAlign === "left" ? 64 : undefined,
             right: gridAlign === "right" ? 64 : undefined,
@@ -259,7 +262,9 @@ const InteractiveContent = ({
                 )}
 
                 {/* Molecola generata */}
-                {mol && !isGenerating && <div className="text-4xl">⬢</div>}
+                {mol && !isGenerating && (
+                  <MoleculeRenderer smiles={mol} size={120} />
+                )}
 
                 {/* Predizioni */}
                 {mol && showPredictions && !isGenerating && (
