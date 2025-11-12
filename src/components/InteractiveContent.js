@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { getAnimationProgress } from "../utils/animationConfig";
 import { getRandomMolecules } from "../data/moleculesData";
 import MoleculeRenderer from "./MoleculeRenderer";
+import ImpactMetrics from "./ImpactMetrics";
 
 // Definizioni delle sezioni per maggiore leggibilità
 const SECTION_GENERATE = 1;
@@ -443,6 +444,12 @@ const InteractiveContent = ({
           animation: shimmer 1.0s infinite;
         }
       `}</style>
+
+      <ImpactMetrics
+        activeIndex={activeIndex}
+        scrollIndex={scrollIndex}
+        totalSections={totalSections}
+      />
     </div>
   );
 };
