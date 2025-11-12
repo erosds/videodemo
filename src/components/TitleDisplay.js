@@ -1,8 +1,7 @@
 import React from "react";
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
-const easeInOutCubic = (t) =>
-  1 - Math.pow(1 - t, 3); // curva veloce → lenta
+const easeInOutCubic = (t) => 1 - Math.pow(1 - t, 3); // curva veloce → lenta
 
 export default function TitleDisplay({
   sections = [],
@@ -32,10 +31,14 @@ export default function TitleDisplay({
   // Traslazioni X: tengono conto della direction
   const nextTranslateVW = enterOffsetVW * (1 - eased) * direction; // entra da destra (dir=1) o da sinistra (dir=-1)
   const exitProgress = clamp((absP - exitTrigger) / (1 - exitTrigger), 0, 1);
-  const currentTranslateVW = -exitDistanceVW * easeInOutCubic(exitProgress) * direction; // esce nella direzione dello scroll
+  const currentTranslateVW =
+    -exitDistanceVW * easeInOutCubic(exitProgress) * direction; // esce nella direzione dello scroll
 
   // Opacità current
   const currentOpacity = clamp(1 - easeInOutCubic(exitProgress), 0, 1);
+
+  // Opacità next: fade in graduale durante l'animazione
+  const nextOpacity = easeInOutCubic(absP);
 
   // Color interpolation per next (crossfade)
   const colorSwitchProgress = clamp(
@@ -114,6 +117,7 @@ export default function TitleDisplay({
             className="absolute left-0 top-0 w-full"
             style={{
               transform: `translateX(${nextTranslateVW}vw)`,
+              opacity: nextOpacity,
               willChange: "transform, opacity",
             }}
           >

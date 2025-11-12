@@ -2,19 +2,19 @@ export const sectionsData = [
   {
     id: 0,
     title: 'overview',
-    subtitle: 'imagine you want to discover new materials. You would start from existing ones and change their structure one at a time, testing each variation to see if it has the desired properties. This is a slow and expensive process. Now, imagine if you had a tool that could predict the properties of new materials before you even made them. This is where AI comes in.',
+    subtitle: 'Imagine you want to discover new materials. You would start from existing ones and change their structure one at a time, testing each variation to see if it has the desired properties. This is a slow and expensive process. Now, imagine if you had a tool that could predict the properties of new materials before you even made them. This is where AI comes in.',
     gradient: 'from-purple-600 via-pink-600 to-red-600'
   },
   {
     id: 1,
     title: 'generate',
-    subtitle: 'leverage combinatorial and data-driven techniques to explore vast chemical spaces and identify promising candidates for synthesis. Use GenAI models to create novel material structures with desired properties.',
+    subtitle: 'Leverage combinatorial and data-driven techniques to explore vast chemical spaces and identify promising candidates based on desired structures. Use GenAI models to create novel material structures with desired properties.',
     gradient: 'from-blue-600 via-cyan-600 to-teal-600'
   },
   {
     id: 2,
     title: 'predict',
-    subtitle: 'trained on extensive, modern and up-to-date datasets, advanced Machine Learning and Deep Learning models accurately predict material properties',
+    subtitle: 'trained on extensive and modern datasets, advanced Machine Learning and Deep Learning models accurately predict material properties',
     gradient: 'from-orange-600 via-red-600 to-pink-600'
   },
   {
