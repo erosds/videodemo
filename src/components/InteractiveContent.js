@@ -1,10 +1,29 @@
 import React, { useState, useEffect } from "react";
 import { getAnimationProgress } from "../utils/animationConfig";
 
-const InteractiveContent = ({ activeIndex, scrollIndex = 0, totalSections = 5 }) => {
+const InteractiveContent = ({
+  activeIndex,
+  scrollIndex = 0,
+  totalSections = 5,
+}) => {
   const [molecules, setMolecules] = useState(Array(25).fill(null));
   const [showPredictions, setShowPredictions] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const updateWidth = () => {
+      const titleContainer = document.getElementById("title-container");
+      if (titleContainer) {
+        setContainerWidth(titleContainer.offsetWidth);
+      }
+    };
+
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, [containerWidth]);
 
   // Ottieni solo i valori di progressione base
   const {
@@ -14,7 +33,7 @@ const InteractiveContent = ({ activeIndex, scrollIndex = 0, totalSections = 5 })
     absP,
     eased,
     currentOpacity,
-    nextOpacity
+    nextOpacity,
   } = getAnimationProgress(scrollIndex, activeIndex, totalSections);
 
   // Reset quando cambia sezione
@@ -42,7 +61,12 @@ const InteractiveContent = ({ activeIndex, scrollIndex = 0, totalSections = 5 })
   };
 
   // Non mostrare nulla se non siamo in generate, predict o in transizione verso di esse
-  if (activeIndex !== 1 && activeIndex !== 2 && nextIndex !== 1 && nextIndex !== 2) {
+  if (
+    activeIndex !== 1 &&
+    activeIndex !== 2 &&
+    nextIndex !== 1 &&
+    nextIndex !== 2
+  ) {
     return null;
   }
 
@@ -54,8 +78,6 @@ const InteractiveContent = ({ activeIndex, scrollIndex = 0, totalSections = 5 })
 
   // PARAMETRI DI ANIMAZIONE SPECIFICI PER QUESTO COMPONENTE
   const buttonEnterDistance = 50; // vw - distanza da cui entrano i pulsanti
-  const gridLeftPosition = 20; // vw - posizione griglia a sinistra (in generate)
-  const gridRightPosition = -20; // vw - posizione griglia a destra (in predict)
 
   // === PULSANTE GENERATE (entra/esce da SINISTRA, posizione fissa a sinistra) ===
   let generateTranslateX = 0;
@@ -74,30 +96,39 @@ const InteractiveContent = ({ activeIndex, scrollIndex = 0, totalSections = 5 })
   // === GRIGLIA (posizionata a DESTRA in generate, a SINISTRA in predict) ===
   let gridTranslateX = 0;
   let gridOpacity = 0;
+  let gridAlign = "right"; // 'right' in generate, 'left' in predict
 
   if (isGenerate) {
-    // Su generate: griglia a destra del centro
-    gridTranslateX = gridRightPosition;
+    // Su generate: griglia a destra, nessun offset
+    gridTranslateX = 0;
     gridOpacity = currentOpacity;
+    gridAlign = "right";
   } else if (isPredict) {
-    // Su predict: griglia a sinistra del centro
-    gridTranslateX = gridLeftPosition;
+    // Su predict: griglia a sinistra, nessun offset
+    gridTranslateX = 0;
     gridOpacity = currentOpacity;
+    gridAlign = "left";
   } else if (isTransitioningToGenerate) {
     // Entrando in generate: appare a destra
-    gridTranslateX = gridRightPosition;
+    gridTranslateX = 0;
     gridOpacity = nextOpacity;
+    gridAlign = "right";
   } else if (isTransitioningToPredict) {
     if (isTransitioningFromGenerate) {
       // Veniamo da generate: slide da destra a sinistra
-      const startPos = gridRightPosition;
-      const endPos = gridLeftPosition;
-      gridTranslateX = startPos + (endPos - startPos) * eased;
-      gridOpacity = 1; // resta visibile durante la transizione
+      // Calcola la larghezza della griglia (5 colonne * 128px + 4 gap * 12px)
+      const gridWidth = 5 * 128 + 4 * 12; // 688px
+      const containerWidthPx = containerWidth || window.innerWidth;
+      // Distanza da percorrere: dalla posizione right a left
+      const totalDistance = containerWidthPx - gridWidth;
+      gridTranslateX = -totalDistance * eased; // movimento progressivo
+      gridOpacity = 1;
+      gridAlign = "right"; // mantieni allineamento a destra durante transizione
     } else {
       // Arriviamo da altra sezione: appare già spostata a sinistra
-      gridTranslateX = gridLeftPosition;
+      gridTranslateX = 0;
       gridOpacity = nextOpacity;
+      gridAlign = "left";
     }
   }
 
@@ -117,17 +148,17 @@ const InteractiveContent = ({ activeIndex, scrollIndex = 0, totalSections = 5 })
 
   return (
     <div className="absolute inset-0 pointer-events-none">
-      {/* Container posizionamento assoluto */}
-      <div className="absolute inset-0 w-full h-full">
-        
-        {/* Pulsante Generate - posizione assoluta a SINISTRA */}
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+        style={{ width: containerWidth || "100%", height: "60vh" }}
+      >
         <div
           className="absolute left-16 top-1/2 -translate-y-1/2"
           style={{
             transform: `translateX(${generateTranslateX}vw) translateY(-50%)`,
             opacity: generateOpacity,
-            transition: 'none',
-            willChange: 'transform, opacity'
+            transition: "none",
+            willChange: "transform, opacity",
           }}
         >
           {generateOpacity > 0 && (
@@ -143,12 +174,14 @@ const InteractiveContent = ({ activeIndex, scrollIndex = 0, totalSections = 5 })
 
         {/* Griglia - posizione assoluta al CENTRO, si sposta */}
         <div
-          className="absolute left-1/2 top-1/2 -translate-y-1/2"
+          className="absolute top-1/2 -translate-y-1/2"
           style={{
-            transform: `translateX(calc(-50% + ${gridTranslateX}vw)) translateY(-50%)`,
+            left: gridAlign === "left" ? 64 : undefined,
+            right: gridAlign === "right" ? 64 : undefined,
+            transform: `translateX(${gridTranslateX}px) translateY(-50%)`,
             opacity: gridOpacity,
-            transition: 'none',
-            willChange: 'transform, opacity'
+            transition: "none",
+            willChange: "transform, opacity",
           }}
         >
           <div className="grid grid-cols-5 gap-3">
@@ -187,8 +220,8 @@ const InteractiveContent = ({ activeIndex, scrollIndex = 0, totalSections = 5 })
           style={{
             transform: `translateX(${predictTranslateX}vw) translateY(-50%)`,
             opacity: predictOpacity,
-            transition: 'none',
-            willChange: 'transform, opacity'
+            transition: "none",
+            willChange: "transform, opacity",
           }}
         >
           {predictOpacity > 0 && (
@@ -202,7 +235,7 @@ const InteractiveContent = ({ activeIndex, scrollIndex = 0, totalSections = 5 })
           )}
         </div>
       </div>
-      
+
       {/* CSS per shimmer effect */}
       <style>{`
         @keyframes shimmer {

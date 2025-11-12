@@ -1,28 +1,31 @@
 import React from "react";
-import { getAnimationProgress, ANIMATION_CONFIG } from "../utils/animationConfig";
+import {
+  getAnimationProgress,
+  ANIMATION_CONFIG,
+} from "../utils/animationConfig";
 
 export default function TitleDisplay({
   sections = [],
   scrollIndex = 0,
   activeIndex = 0,
 }) {
-  const { clamp, easeInOutCubic, colorSwitchStart, colorSwitchEnd } = ANIMATION_CONFIG;
-  
-  const {
-    currentIndex,
-    nextIndex,
-    absP,
-    currentOpacity,
-    nextOpacity
-  } = getAnimationProgress(scrollIndex, activeIndex, sections.length);
+  const { clamp, easeInOutCubic, colorSwitchStart, colorSwitchEnd } =
+    ANIMATION_CONFIG;
+
+  const { currentIndex, nextIndex, absP, currentOpacity, nextOpacity } =
+    getAnimationProgress(scrollIndex, activeIndex, sections.length);
 
   // PARAMETRI DI ANIMAZIONE SPECIFICI PER I TITOLI
   const enterOffsetVW = 60; // distanza iniziale del titolo entrante (vw)
   const exitDistanceVW = 60; // distanza a cui il current esce (vw)
 
   // Calcolo delle traslazioni per i titoli
-  const { direction, eased, exitProgressEased } = getAnimationProgress(scrollIndex, activeIndex, sections.length);
-  
+  const { direction, eased, exitProgressEased } = getAnimationProgress(
+    scrollIndex,
+    activeIndex,
+    sections.length
+  );
+
   const nextTranslateVW = enterOffsetVW * (1 - eased) * direction;
   const currentTranslateVW = -exitDistanceVW * exitProgressEased * direction;
 
@@ -52,7 +55,10 @@ export default function TitleDisplay({
 
   return (
     <div className="fixed top-24 left-0 right-0 z-50 px-12 pointer-events-none">
-      <div className="max-w-screen-2xl mx-auto relative h-28 overflow-visible">
+      <div
+        className="max-w-screen-2xl mx-auto relative h-28 overflow-visible"
+        id="title-container"
+      >
         {/* CURRENT title */}
         {current && (
           <div

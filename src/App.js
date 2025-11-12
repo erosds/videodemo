@@ -92,14 +92,14 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-screen bg-black text-white overflow-hidden relative">
+    <div className="h-screen w-screen bg-[#111111] text-white overflow-hidden relative">
+      {" "}
       {/* TitleDisplay ora prende lo scrollIndex continuo */}
       <TitleDisplay
         sections={sectionsData}
         scrollIndex={scrollIndex}
         activeIndex={activeIndex}
       />
-
       {/* Horizontal Scroll */}
       <div
         ref={containerRef}
@@ -131,13 +131,13 @@ export default function App() {
         </div>
       </div>
 
+      
       {/* Interactive Content Layer */}
       <InteractiveContent
         activeIndex={activeIndex}
         scrollIndex={scrollIndex}
         totalSections={sectionsData.length}
       />
-      
       <NavigationDots
         sections={sectionsData}
         activeSection={activeIndex}
@@ -148,7 +148,6 @@ export default function App() {
         totalSections={sectionsData.length}
         onNavigate={scrollTo}
       />
-
       <style>{`
         /* Nascondi scrollbar solo per il container con classe .no-scrollbar */
         .no-scrollbar::-webkit-scrollbar { display: none; }

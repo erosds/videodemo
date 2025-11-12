@@ -14,19 +14,19 @@ export const sectionsData = [
   {
     id: 2,
     title: 'predict',
-    subtitle: 'trained on extensive and modern datasets, advanced Machine Learning and Deep Learning models accurately predict material properties',
+    subtitle: 'Trained on extensive and modern datasets, advanced Machine Learning and Deep Learning models can accurately predict material properties, enabling rapid screening of candidates.',
     gradient: 'from-orange-600 via-red-600 to-pink-600'
   },
   {
     id: 3,
     title: 'select',
-    subtitle: 'utilize AI-driven selection methods to identify the most promising materials for further development and application. Scientists can focus their efforts in lab on high-potential candidates, reducing time and resources spent on less promising options.',
+    subtitle: 'Scientists can focus their efforts in lab on high-potential candidates, reducing time and resources spent on less promising options.',
     gradient: 'from-green-600 via-emerald-600 to-teal-600'
   },
   {
     id: 4,
     title: 'overhead',
-    subtitle: 'commitment to sustainability and environmental responsibility. Our AI-driven material discovery processes are designed to minimize waste and energy consumption, aligning with our goal to create eco-friendly solutions.',
+    subtitle: 'Commitment to sustainability and environmental responsibility. Our AI-driven material discovery processes are designed to minimize waste and energy consumption, aligning with our goal to create eco-friendly solutions.',
     gradient: 'from-indigo-600 via-purple-600 to-pink-600'
   }
 ];
