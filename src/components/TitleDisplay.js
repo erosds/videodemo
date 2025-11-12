@@ -1,49 +1,62 @@
 import React from "react";
 
-/*
-  Versione ottimizzata per eliminare lo sdoppiamento:
-  - Rimosso il doppio layer per il titolo next
-  - Eliminate le transition CSS che causavano lag
-  - Interpolazione diretta del colore tramite opacità
-*/
-
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const easeInOutCubic = (t) =>
   t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-export default function TitleDisplay({ sections = [], scrollIndex = 0 }) {
-  const currentIndex = Math.floor(
-    clamp(scrollIndex, 0, Math.max(0, sections.length - 1))
-  );
-  const rawProgress = clamp(scrollIndex - currentIndex, 0, 1);
-  const p = rawProgress;
-  const eased = easeInOutCubic(p);
+export default function TitleDisplay({
+  sections = [],
+  scrollIndex = 0,
+  activeIndex = 0,
+}) {
+  // Anchor stabile: activeIndex (deve venire da App, es. Math.round(exactIndex))
+  const currentIndex = Math.max(0, Math.min(sections.length - 1, activeIndex));
 
-  // Parametri
-  const enterOffsetVW = 60;
-  const exitDistanceVW = 60;
-  const exitTrigger = 0.6; // cambia da 0.5 a 0.6
-  const colorSwitchStart = 0.1; // cambia da 0.2 a 0.1
-  const colorSwitchEnd = 0.95; // cambia da 0.9 a 0.95
+  // Progress signed e assoluto
+  const signedProgress = scrollIndex - currentIndex; // negativo quando scendi
+  const direction = signedProgress === 0 ? 0 : Math.sign(signedProgress); // 1 avanti, -1 indietro
+  const absP = clamp(Math.abs(signedProgress), 0, 1);
+  const eased = easeInOutCubic(absP);
+
+  // Parametri di animazione (modificabili)
+  const enterOffsetVW = 60; // distanza iniziale del titolo entrante (vw)
+  const exitDistanceVW = 60; // distanza a cui il current esce (vw)
+  const exitTrigger = 0.6; // quando inizia la fase di "exit"
+  const colorSwitchStart = 0.1;
+  const colorSwitchEnd = 0.95;
 
   const current = sections[currentIndex] || null;
-  const next = sections[currentIndex + 1] || null;
+  const nextIndex = direction >= 0 ? currentIndex + 1 : currentIndex - 1;
+  const next = sections[nextIndex] || null;
 
-  // Posizioni
-  const nextTranslateVW = enterOffsetVW * (1 - eased);
-  const exitProgress = clamp((p - exitTrigger) / (1 - exitTrigger), 0, 1);
-  const currentTranslateVW = -exitDistanceVW * easeInOutCubic(exitProgress);
+  // Traslazioni X: tengono conto della direction
+  const nextTranslateVW = enterOffsetVW * (1 - eased) * direction; // entra da destra (dir=1) o da sinistra (dir=-1)
+  const exitProgress = clamp((absP - exitTrigger) / (1 - exitTrigger), 0, 1);
+  const currentTranslateVW = -exitDistanceVW * easeInOutCubic(exitProgress) * direction; // esce nella direzione dello scroll
 
-  // Opacità
+  // Opacità current
   const currentOpacity = clamp(1 - easeInOutCubic(exitProgress), 0, 1);
 
-  // Interpolazione colore per next (da grigio a colorato)
+  // Color interpolation per next (crossfade)
   const colorSwitchProgress = clamp(
-    (p - colorSwitchStart) / (colorSwitchEnd - colorSwitchStart),
+    (absP - colorSwitchStart) / (colorSwitchEnd - colorSwitchStart),
     0,
     1
   );
   const colorEased = easeInOutCubic(colorSwitchProgress);
+
+  // Sottotitoli (usa absP per animazioni simmetriche)
+  // Current subtitle (quello che sta uscendo): scompare nei primi 20% dell'animazione
+  const currentSubtitleProgress = clamp(1 - absP / 0.2, 0, 1);
+  const currentSubtitleEased = easeInOutCubic(currentSubtitleProgress);
+  const currentSubtitleTranslateY = -20 * (1 - currentSubtitleEased);
+  const currentSubtitleOpacity = currentSubtitleEased;
+
+  // Entering subtitle: appare negli ultimi 20% dell'animazione
+  const enteringSubtitleProgress = clamp((absP - 0.8) / 0.2, 0, 1);
+  const enteringSubtitleEased = easeInOutCubic(enteringSubtitleProgress);
+  const enteringSubtitleTranslateY = -20 * (1 - enteringSubtitleEased);
+  const enteringSubtitleOpacity = enteringSubtitleEased;
 
   return (
     <div className="fixed top-24 left-0 right-0 z-50 px-12 pointer-events-none">
@@ -54,79 +67,104 @@ export default function TitleDisplay({ sections = [], scrollIndex = 0 }) {
             className="absolute left-0 top-0 w-full"
             style={{
               transform: `translateX(${currentTranslateVW}vw)`,
-              filter: `opacity(${currentOpacity})`,
+              opacity: currentOpacity,
+              willChange: "transform, opacity",
             }}
+            aria-live="polite"
           >
             <h1
-              className={`text-6xl font-bold mb-2 bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}
-              style={{ margin: 0 }}
+              role="heading"
+              aria-level={1}
+              className="text-6xl font-bold"
+              style={{
+                margin: 0,
+              }}
             >
-              {current.title}
+              <span
+                className={`bg-gradient-to-r ${current.gradient}`}
+                style={{
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                {current.title}
+              </span>
             </h1>
+
+            {/* Sottotitolo del current */}
             <p
               className="text-2xl text-gray-300 font-light"
-              style={{ margin: 0 }}
+              style={{
+                margin: 0,
+                marginTop: "0.5rem",
+                transform: `translateY(${currentSubtitleTranslateY}px)`,
+                opacity: currentSubtitleOpacity,
+                willChange: "transform, opacity",
+              }}
             >
               {current.subtitle}
             </p>
           </div>
         )}
 
-        {/* NEXT title - con interpolazione colore */}
-        {next && p > 0 && (
+        {/* NEXT title */}
+        {next && absP > 0 && (
           <div
             className="absolute left-0 top-0 w-full"
             style={{
               transform: `translateX(${nextTranslateVW}vw)`,
+              willChange: "transform, opacity",
             }}
           >
-            {/* Titolo con crossfade da grigio a gradient */}
-            <div className="relative h-16">
-              {/* Layer grigio (fade out) */}
-              <h1
-                className="text-6xl font-bold text-gray-400 absolute top-0 left-0"
-                style={{
-                  margin: 0,
-                  filter: `opacity(${1 - colorEased})`,
-                }}
-              >
-                {next.title}
-              </h1>
-              {/* Layer colorato (fade in) */}
-              <h1
-                className={`text-6xl font-bold bg-gradient-to-r ${next.gradient} bg-clip-text text-transparent absolute top-0 left-0`}
-                style={{
-                  margin: 0,
-                  filter: `opacity(${colorEased})`,
-                }}
-              >
-                {next.title}
-              </h1>
-            </div>
+            {/* Crossfade: layer grigio decorativo */}
+            <h1
+              aria-hidden="true"
+              className="text-6xl font-bold text-gray-400 absolute top-0 left-0"
+              style={{
+                margin: 0,
+                opacity: 1 - colorEased,
+                transform: "translateZ(0)",
+              }}
+            >
+              {next.title}
+            </h1>
 
-            {/* Sottotitolo con crossfade da grigio a bianco */}
-            <div className="relative h-8 mt-2">
-              {/* Layer grigio (fade out) */}
-              <p
-                className="text-2xl text-gray-400 font-light absolute top-0 left-0"
+            {/* Layer colorato decorativo */}
+            <h1
+              aria-hidden="true"
+              className="text-6xl font-bold absolute top-0 left-0"
+              style={{
+                margin: 0,
+                opacity: colorEased,
+                transform: "translateZ(0)",
+              }}
+            >
+              <span
+                className={`bg-gradient-to-r ${next.gradient}`}
                 style={{
-                  margin: 0,
-                  opacity: 1 - colorEased,
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
                 }}
               >
-                {next.subtitle}
-              </p>
-              {/* Layer bianco (fade in) */}
-              <p
-                className="text-2xl text-gray-300 font-light absolute top-0 left-0"
-                style={{
-                  margin: 0,
-                  opacity: colorEased,
-                }}
-              >
-                {next.subtitle}
-              </p>
-            </div>
+                {next.title}
+              </span>
+            </h1>
+
+            {/* Sottotitolo entrante (semantico) */}
+            <p
+              className="text-2xl text-gray-300 font-light"
+              style={{
+                margin: 0,
+                marginTop: "0.5rem",
+                transform: `translateY(${enteringSubtitleTranslateY}px)`,
+                opacity: enteringSubtitleOpacity,
+                willChange: "transform, opacity",
+              }}
+            >
+              {next.subtitle}
+            </p>
           </div>
         )}
       </div>
