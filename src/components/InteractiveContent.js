@@ -11,6 +11,7 @@ const InteractiveContent = ({
   const [molecules, setMolecules] = useState(Array(24).fill(null));
   const [showPredictions, setShowPredictions] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPredicting, setIsPredicting] = useState(false);
 
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -67,11 +68,15 @@ const InteractiveContent = ({
       // Genera molecole casuali diverse ogni volta
       setMolecules(getRandomMolecules(24));
       setIsGenerating(false);
-    }, 2000);
+    }, 1500);
   };
 
   const handlePredict = () => {
-    setShowPredictions(true);
+    setIsPredicting(true);
+    setTimeout(() => {
+      setShowPredictions(true);
+      setIsPredicting(false);
+    }, 1500);
   };
 
   // Non mostrare nulla se non siamo in generate, predict o in transizione verso di esse
@@ -236,7 +241,7 @@ const InteractiveContent = ({
 
         {/* Griglia - posizione assoluta al CENTRO, si sposta */}
         <div
-          className="absolute top-2/3 -translate-y-1/2"
+          className="absolute top-1/2 -translate-y-1/2"
           style={{
             left: gridAlign === "left" ? 64 : undefined,
             right: gridAlign === "right" ? 64 : undefined,
@@ -256,9 +261,11 @@ const InteractiveContent = ({
                     : ""
                 }`}
               >
-                {/* Shimmer effect durante il caricamento */}
+                {/* Shimmer effect durante il caricamento generate */}
                 {isGenerating && (
-                  <div className="absolute inset-0 shimmer-effect" />
+                  <div className="absolute inset-0 bg-black/80">
+                    <div className="absolute inset-0 shimmer-effect" />
+                  </div>
                 )}
 
                 {/* Molecola generata */}
@@ -266,30 +273,39 @@ const InteractiveContent = ({
                   <MoleculeRenderer smiles={mol} size={120} />
                 )}
 
+                {/* Shimmer durante predict */}
+                {mol && isPredicting && !isGenerating && (
+                  <div className="absolute inset-0 bg-black/80">
+                    <div className="absolute inset-0 shimmer-effect" />
+                  </div>
+                )}
+
                 {/* Predizioni */}
-                {mol && showPredictions && !isGenerating && (
-                  <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-xs">
-                    <div className="text-cyan-400 font-mono">
-                      {(() => {
-                        const key = `mol-${idx}`;
-                        let value = localStorage.getItem(key);
-                        if (!value) {
-                          value = (Math.random() * 10).toFixed(2);
-                          localStorage.setItem(key, value);
-                        }
-                        return value;
-                      })()}
-                    </div>
-                    <div className="text-orange-400 font-mono">
-                      {(() => {
-                        const key = `mol-${idx}-orange`;
-                        let value = localStorage.getItem(key);
-                        if (!value) {
-                          value = (Math.random() * 100).toFixed(1);
-                          localStorage.setItem(key, value);
-                        }
-                        return value;
-                      })()}
+                {mol && showPredictions && !isGenerating && !isPredicting && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-end pb-1 text-xs">
+                    <div className="flex items-center justify-between w-full px-2">
+                      <div className="text-cyan-400 font-mono">
+                        {(() => {
+                          const key = `mol-${idx}`;
+                          let value = localStorage.getItem(key);
+                          if (!value) {
+                            value = (Math.random() * 10).toFixed(2);
+                            localStorage.setItem(key, value);
+                          }
+                          return value;
+                        })()}
+                      </div>
+                      <div className="text-orange-400 font-mono">
+                        {(() => {
+                          const key = `mol-${idx}-orange`;
+                          let value = localStorage.getItem(key);
+                          if (!value) {
+                            value = (Math.random() * 100).toFixed(1);
+                            localStorage.setItem(key, value);
+                          }
+                          return value;
+                        })()}
+                      </div>
                     </div>
                   </div>
                 )}

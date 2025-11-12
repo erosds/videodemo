@@ -54,7 +54,7 @@ export default function TitleDisplay({
   const next = sections[nextIndex] || null;
 
   return (
-    <div className="fixed top-24 left-0 right-0 z-50 px-12 pointer-events-none">
+    <div className="fixed top-10 left-0 right-0 z-50 px-12 pointer-events-none">
       <div
         className="max-w-screen-2xl mx-auto relative h-28 overflow-visible"
         id="title-container"
