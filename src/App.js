@@ -1,9 +1,10 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import Section from "./components/Section";
+import SectionDem from "./components/SectionDem";
 import TitleDisplay from "./components/TitleDisplay";
 import NavigationDots from "./components/NavigationDots";
 import NavigationArrows from "./components/NavigationArrows";
 import { sectionsData } from "./data/sectionsData";
+import InteractiveContent from "./components/InteractiveContent";
 
 export default function App() {
   const [activeIndex, setActiveIndex] = useState(0); // indice intero "attuale"
@@ -119,7 +120,7 @@ export default function App() {
               key={s.id ?? i}
               className="w-screen snap-start h-full flex-shrink-0"
             >
-              <Section
+              <SectionDem
                 section={s}
                 isActive={activeIndex === i}
                 totalSections={sectionsData.length}
@@ -129,6 +130,9 @@ export default function App() {
           ))}
         </div>
       </div>
+
+      {/* Interactive Content Layer */}
+      <InteractiveContent activeIndex={activeIndex} />
 
       <NavigationDots
         sections={sectionsData}
