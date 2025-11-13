@@ -254,8 +254,18 @@ const InteractiveContent = ({
 
   // Non mostrare la UI interattiva se non siamo in generate/predict/select/validate o in transizione verso di esse.
   if (
-    ![SECTION_GENERATE, SECTION_PREDICT, SECTION_SELECT, SECTION_VALIDATE].includes(activeIndex) &&
-    ![SECTION_GENERATE, SECTION_PREDICT, SECTION_SELECT, SECTION_VALIDATE].includes(nextIndex)
+    ![
+      SECTION_GENERATE,
+      SECTION_PREDICT,
+      SECTION_SELECT,
+      SECTION_VALIDATE,
+    ].includes(activeIndex) &&
+    ![
+      SECTION_GENERATE,
+      SECTION_PREDICT,
+      SECTION_SELECT,
+      SECTION_VALIDATE,
+    ].includes(nextIndex)
   ) {
     return (
       <>
@@ -347,10 +357,7 @@ const InteractiveContent = ({
     .map((m) => m.idx);
 
   // Determina se mostrare griglia 5 colonne (validate) o 8 colonne
-  const isValidateGrid = activeIndex === SECTION_VALIDATE || nextIndex === SECTION_VALIDATE;
-  const displayMolecules = isValidateGrid
-    ? molecules.filter((_, idx) => top10Indices.includes(idx))
-    : molecules;
+  const isValidateGrid = activeIndex === SECTION_VALIDATE;
 
   return (
     <div className="absolute inset-0 pointer-events-none">
@@ -419,26 +426,91 @@ const InteractiveContent = ({
         <div
           className="absolute top-1/2 -translate-y-1/2"
           style={{
-            right: 64, // Mantieni sempre right: 64 come punto di riferimento
+            right: 64,
             transform: `translateX(${gridTranslateX}px) translateY(-50%)`,
             opacity: gridOpacity,
             transition: "none",
             willChange: "transform, opacity",
           }}
         >
-          <div className={`grid gap-3 ${isValidateGrid ? 'grid-cols-5' : 'grid-cols-8'}`}>
-            {displayMolecules.map((mol, displayIdx) => {
-              // Mantieni l'indice originale per recuperare i dati corretti
-              const idx = isValidateGrid ? top10Indices[displayIdx] : displayIdx;
-              
+          {/* Contenitore relativo per posizionamento assoluto delle celle */}
+          <div
+            className="relative"
+            style={{
+              width: isValidateGrid ? GRID_WIDTH_PX_5COL : GRID_WIDTH_PX_8COL,
+              height: isValidateGrid
+                ? `${2 * 128 + 1 * 12}px`
+                : `${3 * 128 + 2 * 12}px`,
+            }}
+          >
+            {molecules.map((mol, idx) => {
+              const isTop10 = top10Indices.includes(idx);
+              const shouldShow = !isValidateGrid || isTop10;
+
+              if (!shouldShow && isValidateGrid) return null;
+
+              // Calcola posizione nella griglia 8x3
+              const col8 = idx % 8;
+              const row8 = Math.floor(idx / 8);
+              const x8 = col8 * (128 + 12);
+              const y8 = row8 * (128 + 12);
+
+              // Calcola posizione nella griglia 5x2 (solo per top10)
+              const top10Position = top10Indices.indexOf(idx);
+              const col5 = top10Position % 5;
+              const row5 = Math.floor(top10Position / 5);
+              const x5 = col5 * (128 + 12);
+              const y5 = row5 * (128 + 12);
+
+              // Interpola tra le due posizioni
+              const isTransitioningToValidate =
+                currentIndex === SECTION_SELECT &&
+                nextIndex === SECTION_VALIDATE;
+              const isTransitioningFromValidate =
+                currentIndex === SECTION_VALIDATE &&
+                nextIndex === SECTION_SELECT;
+
+              let finalX = x8;
+              let finalY = y8;
+              let cellOpacity = 1;
+
+              if (activeIndex === SECTION_VALIDATE) {
+                finalX = x5;
+                finalY = y5;
+              } else if (isTransitioningToValidate) {
+                if (isTop10) {
+                  finalX = x8 + (x5 - x8) * eased;
+                  finalY = y8 + (y5 - y8) * eased;
+                } else {
+                  cellOpacity = 1 - eased;
+                }
+              } else if (isTransitioningFromValidate && isTop10) {
+                finalX = x5 + (x8 - x5) * eased;
+                finalY = y5 + (y8 - y5) * eased;
+              }
+
+              // Fade out non-top10 quando si transita verso validate
+              if (!isTop10 && isTransitioningToValidate) {
+                cellOpacity = 1 - eased;
+              } else if (!isTop10 && isTransitioningFromValidate) {
+                cellOpacity = eased;
+              }
+
               return (
                 <div
                   key={idx}
-                  className={`w-28 h-28 rounded-lg bg-[#1a1a1a] relative overflow-hidden flex items-center justify-center ${
-                    showTop10 && top10Indices.includes(idx) && !isValidateGrid
-                      ? "ring-2 ring-green-500" // Aggiunge bordo verde per i Top 10 solo in select
+                  className={`absolute w-28 h-28 rounded-lg bg-[#1a1a1a] overflow-hidden flex items-center justify-center ${
+                    showTop10 && isTop10 && !isValidateGrid
+                      ? "ring-2 ring-green-500"
                       : ""
                   }`}
+                  style={{
+                    left: `${finalX}px`,
+                    top: `${finalY}px`,
+                    opacity: cellOpacity,
+                    transition: "none",
+                    willChange: "left, top, opacity",
+                  }}
                 >
                   {/* Shimmer effect durante generate */}
                   {isGenerating && (
@@ -463,7 +535,6 @@ const InteractiveContent = ({
                   {mol && showPredictions && !isGenerating && !isPredicting && (
                     <div className="absolute inset-0 flex flex-col items-center justify-end pb-1 text-xs">
                       <div className="flex items-center justify-between w-full px-2">
-                        {/* Valore 1 (Cyan) - usato per Top 10 */}
                         <div className="text-cyan-400 font-mono">
                           {(() => {
                             const key = `mol-${idx}`;
@@ -475,7 +546,6 @@ const InteractiveContent = ({
                             return value;
                           })()}
                         </div>
-                        {/* Valore 2 (Orange) */}
                         <div className="text-orange-400 font-mono">
                           {(() => {
                             const key = `mol-${idx}-orange`;
