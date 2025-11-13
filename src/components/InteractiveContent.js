@@ -3,14 +3,18 @@ import { getAnimationProgress } from "../utils/animationConfig";
 import { getRandomMolecules } from "../data/moleculesData";
 import MoleculeRenderer from "./MoleculeRenderer";
 import ImpactMetrics from "./ImpactMetrics";
+import IndustriesContent from "./IndustriesContent";
 
 // Definizioni delle sezioni per maggiore leggibilità
 const SECTION_GENERATE = 1;
 const SECTION_PREDICT = 2;
 const SECTION_SELECT = 3;
+const SECTION_VALIDATE = 4;
+const SECTION_INDUSTRIES = 5;
 
 // Larghezza fissa della griglia
-const GRID_WIDTH_PX = 8 * 128 + 7 * 12; // 8 colonne * 128px + 7 gap * 12px = 1112px (corretto da 1040)
+const GRID_WIDTH_PX_8COL = 8 * 128 + 7 * 12; // 8 colonne * 128px + 7 gap * 12px = 1112px
+const GRID_WIDTH_PX_5COL = 5 * 128 + 4 * 12; // 5 colonne * 128px + 4 gap * 12px = 688px
 
 /**
  * Hook personalizzato per ottenere la larghezza del container
@@ -92,9 +96,11 @@ const getGridAnimation = ({
     currentIndex === SECTION_GENERATE && nextIndex === SECTION_PREDICT;
   const isTransitioningFromPredictToSelect =
     currentIndex === SECTION_PREDICT && nextIndex === SECTION_SELECT;
+  const isTransitioningFromSelectToValidate =
+    currentIndex === SECTION_SELECT && nextIndex === SECTION_VALIDATE;
 
-  // Calcola la distanza totale di traslazione
-  const totalDistance = containerWidth - GRID_WIDTH_PX;
+  // Calcola la distanza totale di traslazione (per griglia 8 colonne)
+  const totalDistance = containerWidth - GRID_WIDTH_PX_8COL;
 
   if (activeIndex === SECTION_GENERATE || activeIndex === SECTION_SELECT) {
     // Su generate o select: griglia a destra (posizione base)
@@ -104,6 +110,11 @@ const getGridAnimation = ({
   } else if (activeIndex === SECTION_PREDICT) {
     // Su predict: griglia a sinistra (traslata)
     gridTranslateX = -totalDistance; // Spostamento completo a sinistra
+    gridOpacity = currentOpacity;
+    gridAlign = "left";
+  } else if (activeIndex === SECTION_VALIDATE) {
+    // Su validate: griglia a sinistra (griglia 2x5)
+    gridTranslateX = -totalDistance;
     gridOpacity = currentOpacity;
     gridAlign = "left";
   } else if (nextIndex === SECTION_GENERATE) {
@@ -137,6 +148,17 @@ const getGridAnimation = ({
       gridOpacity = nextOpacity;
       gridAlign = "right";
     }
+  } else if (nextIndex === SECTION_VALIDATE) {
+    if (isTransitioningFromSelectToValidate) {
+      // Venendo da select (right -> left): movimento da 0 a -totalDistance
+      gridTranslateX = -totalDistance * eased;
+      gridOpacity = 1;
+      gridAlign = "right";
+    } else {
+      gridTranslateX = -totalDistance;
+      gridOpacity = nextOpacity;
+      gridAlign = "left";
+    }
   }
 
   return { gridTranslateX, gridOpacity, gridAlign };
@@ -149,7 +171,7 @@ const getGridAnimation = ({
 const InteractiveContent = ({
   activeIndex,
   scrollIndex = 0,
-  totalSections = 5,
+  totalSections = 7,
 }) => {
   const [molecules, setMolecules] = useState(Array(24).fill(null));
   const [showPredictions, setShowPredictions] = useState(false);
@@ -176,7 +198,8 @@ const InteractiveContent = ({
     if (
       activeIndex !== SECTION_GENERATE &&
       activeIndex !== SECTION_PREDICT &&
-      activeIndex !== SECTION_SELECT
+      activeIndex !== SECTION_SELECT &&
+      activeIndex !== SECTION_VALIDATE
     ) {
       setMolecules(Array(24).fill(null));
       setShowPredictions(false);
@@ -224,14 +247,30 @@ const InteractiveContent = ({
     }, 1500);
   }, []);
 
-  // Non mostrare nulla se non siamo in generate, predict, select o in transizione verso di esse
+  const handleValidate = useCallback(() => {
+    // Da implementare
+    console.log("Validate clicked");
+  }, []);
+
+  // Non mostrare la UI interattiva se non siamo in generate/predict/select/validate o in transizione verso di esse.
   if (
-    ![SECTION_GENERATE, SECTION_PREDICT, SECTION_SELECT].includes(
-      activeIndex
-    ) &&
-    ![SECTION_GENERATE, SECTION_PREDICT, SECTION_SELECT].includes(nextIndex)
+    ![SECTION_GENERATE, SECTION_PREDICT, SECTION_SELECT, SECTION_VALIDATE].includes(activeIndex) &&
+    ![SECTION_GENERATE, SECTION_PREDICT, SECTION_SELECT, SECTION_VALIDATE].includes(nextIndex)
   ) {
-    return null;
+    return (
+      <>
+        <IndustriesContent
+          activeIndex={activeIndex}
+          scrollIndex={scrollIndex}
+          totalSections={totalSections}
+        />
+        <ImpactMetrics
+          activeIndex={activeIndex}
+          scrollIndex={scrollIndex}
+          totalSections={totalSections}
+        />
+      </>
+    );
   }
 
   // Costanti per la logica di animazione
@@ -283,6 +322,16 @@ const InteractiveContent = ({
     top10Opacity = nextOpacity;
   }
 
+  // === PULSANTE VALIDATE (a destra, solo su validate) ===
+  let validateTranslateX = 0;
+  let validateOpacity = 0;
+  if (activeIndex === SECTION_VALIDATE) {
+    validateOpacity = currentOpacity;
+  } else if (nextIndex === SECTION_VALIDATE) {
+    validateTranslateX = buttonEnterDistance * (1 - eased); // Slide in da destra
+    validateOpacity = nextOpacity;
+  }
+
   // ------------------------------------------
   // Logica per Top 10
   // ------------------------------------------
@@ -296,6 +345,12 @@ const InteractiveContent = ({
     .sort((a, b) => b.score - a.score)
     .slice(0, 10)
     .map((m) => m.idx);
+
+  // Determina se mostrare griglia 5 colonne (validate) o 8 colonne
+  const isValidateGrid = activeIndex === SECTION_VALIDATE || nextIndex === SECTION_VALIDATE;
+  const displayMolecules = isValidateGrid
+    ? molecules.filter((_, idx) => top10Indices.includes(idx))
+    : molecules;
 
   return (
     <div className="absolute inset-0 pointer-events-none">
@@ -346,6 +401,20 @@ const InteractiveContent = ({
           select
         </InteractiveButton>
 
+        {/* Pulsante VALIDATE */}
+        <InteractiveButton
+          onClick={handleValidate}
+          disabled={!showTop10}
+          style={{
+            right: "8rem",
+            transform: `translateX(${validateTranslateX}vw) translateY(-50%)`,
+            opacity: validateOpacity,
+          }}
+          className="bg-gradient-to-r from-yellow-600 via-amber-600 to-orange-600 hover:shadow-yellow-500/50"
+        >
+          validate
+        </InteractiveButton>
+
         {/* Griglia - posizione assoluta al CENTRO, si sposta */}
         <div
           className="absolute top-1/2 -translate-y-1/2"
@@ -357,68 +426,73 @@ const InteractiveContent = ({
             willChange: "transform, opacity",
           }}
         >
-          <div className="grid grid-cols-8 gap-3">
-            {molecules.map((mol, idx) => (
-              <div
-                key={idx}
-                className={`w-28 h-28 rounded-lg bg-[#1a1a1a] relative overflow-hidden flex items-center justify-center ${
-                  showTop10 && top10Indices.includes(idx)
-                    ? "ring-2 ring-green-500" // Aggiunge bordo verde per i Top 10
-                    : ""
-                }`}
-              >
-                {/* Shimmer effect durante generate */}
-                {isGenerating && (
-                  <div className="absolute inset-0 bg-black/80">
-                    <div className="absolute inset-0 shimmer-effect" />
-                  </div>
-                )}
+          <div className={`grid gap-3 ${isValidateGrid ? 'grid-cols-5' : 'grid-cols-8'}`}>
+            {displayMolecules.map((mol, displayIdx) => {
+              // Mantieni l'indice originale per recuperare i dati corretti
+              const idx = isValidateGrid ? top10Indices[displayIdx] : displayIdx;
+              
+              return (
+                <div
+                  key={idx}
+                  className={`w-28 h-28 rounded-lg bg-[#1a1a1a] relative overflow-hidden flex items-center justify-center ${
+                    showTop10 && top10Indices.includes(idx) && !isValidateGrid
+                      ? "ring-2 ring-green-500" // Aggiunge bordo verde per i Top 10 solo in select
+                      : ""
+                  }`}
+                >
+                  {/* Shimmer effect durante generate */}
+                  {isGenerating && (
+                    <div className="absolute inset-0 bg-black/80">
+                      <div className="absolute inset-0 shimmer-effect" />
+                    </div>
+                  )}
 
-                {/* Molecola generata */}
-                {mol && !isGenerating && (
-                  <MoleculeRenderer smiles={mol} size={120} />
-                )}
+                  {/* Molecola generata */}
+                  {mol && !isGenerating && (
+                    <MoleculeRenderer smiles={mol} size={120} />
+                  )}
 
-                {/* Shimmer durante predict */}
-                {mol && isPredicting && !isGenerating && (
-                  <div className="absolute inset-0 bg-black/80">
-                    <div className="absolute inset-0 shimmer-effect" />
-                  </div>
-                )}
+                  {/* Shimmer durante predict */}
+                  {mol && isPredicting && !isGenerating && (
+                    <div className="absolute inset-0 bg-black/80">
+                      <div className="absolute inset-0 shimmer-effect" />
+                    </div>
+                  )}
 
-                {/* Predizioni */}
-                {mol && showPredictions && !isGenerating && !isPredicting && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-end pb-1 text-xs">
-                    <div className="flex items-center justify-between w-full px-2">
-                      {/* Valore 1 (Cyan) - usato per Top 10 */}
-                      <div className="text-cyan-400 font-mono">
-                        {(() => {
-                          const key = `mol-${idx}`;
-                          let value = localStorage.getItem(key);
-                          if (!value) {
-                            value = (Math.random() * 10).toFixed(2);
-                            localStorage.setItem(key, value);
-                          }
-                          return value;
-                        })()}
-                      </div>
-                      {/* Valore 2 (Orange) */}
-                      <div className="text-orange-400 font-mono">
-                        {(() => {
-                          const key = `mol-${idx}-orange`;
-                          let value = localStorage.getItem(key);
-                          if (!value) {
-                            value = (Math.random() * 100).toFixed(1);
-                            localStorage.setItem(key, value);
-                          }
-                          return value;
-                        })()}
+                  {/* Predizioni */}
+                  {mol && showPredictions && !isGenerating && !isPredicting && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-end pb-1 text-xs">
+                      <div className="flex items-center justify-between w-full px-2">
+                        {/* Valore 1 (Cyan) - usato per Top 10 */}
+                        <div className="text-cyan-400 font-mono">
+                          {(() => {
+                            const key = `mol-${idx}`;
+                            let value = localStorage.getItem(key);
+                            if (!value) {
+                              value = (Math.random() * 10).toFixed(2);
+                              localStorage.setItem(key, value);
+                            }
+                            return value;
+                          })()}
+                        </div>
+                        {/* Valore 2 (Orange) */}
+                        <div className="text-orange-400 font-mono">
+                          {(() => {
+                            const key = `mol-${idx}-orange`;
+                            let value = localStorage.getItem(key);
+                            if (!value) {
+                              value = (Math.random() * 100).toFixed(1);
+                              localStorage.setItem(key, value);
+                            }
+                            return value;
+                          })()}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
