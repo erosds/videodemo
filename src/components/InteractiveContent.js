@@ -13,8 +13,8 @@ const SECTION_VALIDATE = 4;
 const SECTION_INDUSTRIES = 5;
 
 // Larghezza fissa della griglia
-const GRID_WIDTH_PX_8COL = 8 * 128 + 7 * 12; // 8 colonne * 128px + 7 gap * 12px = 1112px
-const GRID_WIDTH_PX_5COL = 5 * 128 + 4 * 12; // 5 colonne * 128px + 4 gap * 12px = 688px
+const GRID_WIDTH_PX_8COL = 8 * 128 + 7 * 1; // 8 colonne * 128px + 7 gap * 1px = 1031px
+const GRID_WIDTH_PX_5COL = 5 * 128 + 4 * 1; // 5 colonne * 128px + 4 gap * 1px = 648px
 
 /**
  * Hook personalizzato per ottenere la larghezza del container
@@ -181,6 +181,8 @@ const InteractiveContent = ({
   // Riga ~133, dopo gli altri useState:
   const [validationResults, setValidationResults] = useState([]); // Array di indici validati con successo
   const [isValidating, setIsValidating] = useState(false);
+  const [lastVisitedSection, setLastVisitedSection] =
+    useState(SECTION_GENERATE);
 
   const containerWidth = useContainerWidth();
 
@@ -208,25 +210,36 @@ const InteractiveContent = ({
       setIsGenerating(false);
       setIsPredicting(false);
       setShowTop10(false);
-    }
-    // Su Generate, nascondi predictions
-    if (activeIndex === SECTION_GENERATE) {
-      setShowPredictions(false);
-    }
-    // Su Generate e Predict, nascondi top 10
-    if (activeIndex === SECTION_GENERATE || activeIndex === SECTION_PREDICT) {
-      setShowTop10(false);
-    }
-
-    // AGGIUNGI QUESTE RIGHE:
-    if (activeIndex !== SECTION_VALIDATE) {
       setValidationResults([]);
       setIsValidating(false);
+      setLastVisitedSection(SECTION_GENERATE);
+      return;
     }
-  }, [activeIndex]);
+
+    // Logica per tornare indietro: annulla solo l'azione della tab corrente precedente
+    if (activeIndex < lastVisitedSection) {
+      // Tornando indietro, annulla l'azione della sezione da cui veniamo
+      switch (lastVisitedSection) {
+        case SECTION_PREDICT:
+          setShowPredictions(false);
+          setIsPredicting(false);
+          break;
+        case SECTION_SELECT:
+          setShowTop10(false); // AGGIUNGI QUESTA RIGA
+          break;
+        case SECTION_VALIDATE:
+          setValidationResults([]);
+          setIsValidating(false);
+          break;
+      }
+    }
+
+    // Aggiorna l'ultima sezione visitata
+    setLastVisitedSection(activeIndex);
+  }, [activeIndex, lastVisitedSection]);
 
   const handleTop10 = useCallback(() => {
-    setShowTop10((prev) => !prev);
+    setShowTop10(true);
   }, []);
 
   const handleGenerate = useCallback(() => {
@@ -278,7 +291,7 @@ const InteractiveContent = ({
       const validated = shuffled.slice(0, 8);
       setValidationResults(validated);
       setIsValidating(false);
-    }, 1000);
+    }, 1500);
   }, [top10Indices]);
 
   // Non mostrare la UI interattiva se non siamo in generate/predict/select/validate o in transizione verso di esse.
@@ -412,12 +425,11 @@ const InteractiveContent = ({
           predict
         </InteractiveButton>
 
-        {/* Pulsante SELECT/TOP 10 */}
         <InteractiveButton
           onClick={handleTop10}
-          disabled={!showPredictions}
+          disabled={!showPredictions || showTop10} // AGGIUNGI || showTop10
           style={{
-            left: "8rem", // left-16
+            left: "8rem",
             transform: `translateX(${top10TranslateX}vw) translateY(-50%)`,
             opacity: top10Opacity,
           }}
@@ -470,15 +482,15 @@ const InteractiveContent = ({
               // Calcola posizione nella griglia 8x3
               const col8 = idx % 8;
               const row8 = Math.floor(idx / 8);
-              const x8 = col8 * (128 + 12);
-              const y8 = row8 * (128 + 12);
+              const x8 = col8 * (128 + 1);
+              const y8 = row8 * (128 + 1);
 
               // Calcola posizione nella griglia 5x2 (solo per top10)
               const top10Position = top10Indices.indexOf(idx);
               const col5 = top10Position % 5;
               const row5 = Math.floor(top10Position / 5);
-              const x5 = col5 * (128 + 12);
-              const y5 = row5 * (128 + 12);
+              const x5 = col5 * (128 + 1);
+              const y5 = row5 * (128 + 1);
 
               // Interpola tra le due posizioni
               const isTransitioningToValidate =
