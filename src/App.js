@@ -117,29 +117,6 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen bg-[#111111] text-white overflow-hidden relative">
-      {/* Back button - solo se non siamo su home */}
-      {!isHome && (
-        <button
-          onClick={handleBackToHome}
-          className="fixed top-8 left-8 z-50 w-12 h-12 rounded-full bg-white/5 backdrop-blur-xl flex items-center justify-center hover:bg-white/10 transition-all"
-          aria-label="Back to home"
-        >
-          <svg
-            className="w-6 h-6 text-white"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-        </button>
-      )}
-
       <TitleDisplay
         sections={currentSections}
         scrollIndex={scrollIndex}
@@ -150,9 +127,6 @@ export default function App() {
       <div
         ref={containerRef}
         className="h-full w-full overflow-x-scroll overflow-y-hidden scroll-smooth snap-x snap-mandatory no-scrollbar"
-        style={{ msOverflowStyle: "none" }}
-        role="region"
-        aria-label="Sezioni orizzontali"
       >
         <div
           className="flex h-full"
@@ -174,7 +148,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Content specifico per workflow */}
       {isHome && <HomePage onSelectWorkflow={handleSelectWorkflow} />}
 
       {currentWorkflow === "materialsInformatics" && (
@@ -193,19 +166,39 @@ export default function App() {
         />
       )}
 
-      {/* Nascondi navigation su home */}
       {!isHome && (
         <>
-          <NavigationDots
-            sections={currentSections}
-            activeSection={activeIndex}
-            onNavigate={scrollToSection}
-          />
           <NavigationArrows
             activeSection={activeIndex}
             totalSections={currentSections.length}
             onNavigate={scrollToSection}
           />
+
+          {/* Barra di navigazione integrata: Home + Dots */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 z-50">
+            <button
+              onClick={handleBackToHome}
+              className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+            >
+              <svg
+                className="w-4 h-4 text-white/80"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              </svg>
+            </button>
+
+            <NavigationDots
+              sections={currentSections}
+              activeSection={activeIndex}
+              onNavigate={scrollToSection}
+            />
+          </div>
         </>
       )}
 
