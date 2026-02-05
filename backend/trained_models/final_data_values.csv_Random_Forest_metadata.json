@@ -7,23 +7,19 @@
     "precision": 0.9796873987632827,
     "recall": 0.9796828543111992,
     "f1_score": 0.9796405895224065,
-    "r2_score": 0.9113584743946861,
+    "r2_score": null,
+    "train_r2": null,
     "train_accuracy": 1.0,
-    "train_r2": 1.0,
     "overfit_gap": 0.02031714568880083,
-    "training_time_seconds": 0.668,
+    "training_time_seconds": 5.976,
     "n_train_samples": 8068,
-    "n_test_samples": 2018,
-    "cv_score": null,
-    "parameters": {
-      "n_estimators": 100,
-      "max_depth": null,
-      "min_samples_split": 2,
-      "min_samples_leaf": 1,
-      "random_state": 42,
-      "n_jobs": -1
-    }
+    "n_test_samples": 2018
   },
   "feature_count": 42,
-  "trained_at": "2026-02-05 16:15:15"
+  "trained_at": "2026-02-05 21:19:41",
+  "parameters": {
+    "n_estimators": 100,
+    "random_state": 42,
+    "n_jobs": -1
+  }
 }

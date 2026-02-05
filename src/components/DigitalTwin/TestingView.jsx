@@ -57,10 +57,15 @@ const TestingView = ({ dataset, trainedModels }) => {
     );
   }
 
+  // Check se R² è disponibile
+  const hasR2 = metrics?.r2_score !== null && metrics?.r2_score !== undefined;
+
   return (
-    <div className="flex flex-col h-full p-8">
-      {/* Model selector tabs */}
-      <div className="flex gap-2 mb-6">
+    <div className="flex items-center justify-center h-full px-8 pt-32">
+      {/* Container centrato e più stretto */}
+      <div className="w-full max-w-6xl flex flex-col" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+        {/* Model selector tabs */}
+        <div className="flex gap-2 mb-4">
         {trainedModels.map((model) => (
           <button
             key={model}
@@ -86,43 +91,45 @@ const TestingView = ({ dataset, trainedModels }) => {
 
       {!loading && metrics && predictions && (
         <>
-          {/* Metrics - AGGIORNATO: 5 colonne con R² */}
-          <div className="grid grid-cols-5 gap-4 mb-6">
-            <div className="bg-[#1a1a1a] rounded-xl p-4 border border-gray-900 text-center">
-              <div className="text-3xl font-bold text-green-400">
+          {/* Metrics - Mostra 4 o 5 colonne in base a presenza R² */}
+          <div className={`grid ${hasR2 ? 'grid-cols-5' : 'grid-cols-4'} gap-3 mb-4`}>
+            <div className="bg-[#1a1a1a] rounded-xl p-3 border border-gray-900 text-center">
+              <div className="text-2xl font-bold text-green-400">
                 {(metrics.accuracy * 100).toFixed(1)}%
               </div>
-              <div className="text-xs text-gray-500 mt-2">Accuracy</div>
+              <div className="text-xs text-gray-500 mt-1">Accuracy</div>
             </div>
 
-            <div className="bg-[#1a1a1a] rounded-xl p-4 border border-gray-900 text-center">
-              <div className="text-3xl font-bold text-emerald-400">
+            <div className="bg-[#1a1a1a] rounded-xl p-3 border border-gray-900 text-center">
+              <div className="text-2xl font-bold text-emerald-400">
                 {(metrics.precision * 100).toFixed(1)}%
               </div>
-              <div className="text-xs text-gray-500 mt-2">Precision</div>
+              <div className="text-xs text-gray-500 mt-1">Precision</div>
             </div>
 
-            <div className="bg-[#1a1a1a] rounded-xl p-4 border border-gray-900 text-center">
-              <div className="text-3xl font-bold text-teal-400">
+            <div className="bg-[#1a1a1a] rounded-xl p-3 border border-gray-900 text-center">
+              <div className="text-2xl font-bold text-teal-400">
                 {(metrics.recall * 100).toFixed(1)}%
               </div>
-              <div className="text-xs text-gray-500 mt-2">Recall</div>
+              <div className="text-xs text-gray-500 mt-1">Recall</div>
             </div>
 
-            <div className="bg-[#1a1a1a] rounded-xl p-4 border border-gray-900 text-center">
-              <div className="text-3xl font-bold text-cyan-400">
+            <div className="bg-[#1a1a1a] rounded-xl p-3 border border-gray-900 text-center">
+              <div className="text-2xl font-bold text-cyan-400">
                 {(metrics.f1_score * 100).toFixed(1)}%
               </div>
-              <div className="text-xs text-gray-500 mt-2">F1-Score</div>
+              <div className="text-xs text-gray-500 mt-1">F1-Score</div>
             </div>
 
-            {/* NUOVA COLONNA: R² Score */}
-            <div className="bg-[#1a1a1a] rounded-xl p-4 border border-gray-900 text-center">
-              <div className="text-3xl font-bold text-blue-400">
-                {(metrics.r2_score * 100).toFixed(1)}%
+            {/* Mostra R² solo se disponibile (regressione) */}
+            {hasR2 && (
+              <div className="bg-[#1a1a1a] rounded-xl p-3 border border-gray-900 text-center">
+                <div className="text-2xl font-bold text-blue-400">
+                  {(metrics.r2_score * 100).toFixed(1)}%
+                </div>
+                <div className="text-xs text-gray-500 mt-1">R² Score</div>
               </div>
-              <div className="text-xs text-gray-500 mt-2">R² Score</div>
-            </div>
+            )}
           </div>
 
           {/* Results table */}
@@ -131,16 +138,16 @@ const TestingView = ({ dataset, trainedModels }) => {
               <table className="w-full">
                 <thead className="bg-[#0a0a0a] sticky top-0">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-400 uppercase">
                       Sample ID
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-400 uppercase">
                       True Value
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-400 uppercase">
                       Predicted Value
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase">
+                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-400 uppercase">
                       Result
                     </th>
                   </tr>
@@ -151,16 +158,16 @@ const TestingView = ({ dataset, trainedModels }) => {
                       key={pred.sample_id}
                       className="border-b border-gray-800 hover:bg-[#0a0a0a] transition-colors"
                     >
-                      <td className="px-4 py-3 text-sm text-gray-300 font-mono">
+                      <td className="px-3 py-2 text-sm text-gray-300 font-mono">
                         {pred.sample_id}
                       </td>
-                      <td className="px-4 py-3 text-sm text-white font-semibold">
+                      <td className="px-3 py-2 text-sm text-white font-semibold">
                         {pred.true_value}
                       </td>
-                      <td className="px-4 py-3 text-sm text-cyan-400 font-semibold">
+                      <td className="px-3 py-2 text-sm text-cyan-400 font-semibold">
                         {pred.predicted_value}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-2 text-center">
                         {pred.correct !== null ? (
                           pred.correct ? (
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400">
@@ -197,6 +204,7 @@ const TestingView = ({ dataset, trainedModels }) => {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 };

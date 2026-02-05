@@ -7,20 +7,19 @@
     "precision": 0.9705946392906881,
     "recall": 0.9702675916749257,
     "f1_score": 0.9700883464385242,
-    "r2_score": 0.8702806942361261,
+    "r2_score": null,
+    "train_r2": null,
     "train_accuracy": 0.9802925136341101,
-    "train_r2": 0.914010615178982,
     "overfit_gap": 0.010024921959184363,
-    "training_time_seconds": 6.811,
+    "training_time_seconds": 17.687,
     "n_train_samples": 8068,
-    "n_test_samples": 2018,
-    "cv_score": null,
-    "parameters": {
-      "n_estimators": 100,
-      "learning_rate": 1.0,
-      "random_state": 42
-    }
+    "n_test_samples": 2018
   },
   "feature_count": 42,
-  "trained_at": "2026-02-05 16:15:14"
+  "trained_at": "2026-02-05 21:20:02",
+  "parameters": {
+    "n_estimators": 100,
+    "learning_rate": 1.0,
+    "random_state": 42
+  }
 }

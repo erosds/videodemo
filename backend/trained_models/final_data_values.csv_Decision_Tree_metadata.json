@@ -1,1 +1,23 @@
-{"dataset": "final_data_values.csv", "model_name": "Decision Tree", "metrics": {"accuracy": 0.9593657086223984, "precision": 0.9594590897164574, "recall": 0.9593657086223984, "f1_score": 0.9594032518141984}, "feature_count": 42}
+{
+  "dataset": "final_data_values.csv",
+  "model_name": "Decision Tree",
+  "task_type": "classification",
+  "metrics": {
+    "accuracy": 0.9593657086223984,
+    "precision": 0.9594590897164574,
+    "recall": 0.9593657086223984,
+    "f1_score": 0.9594032518141984,
+    "r2_score": null,
+    "train_r2": null,
+    "train_accuracy": 1.0,
+    "overfit_gap": 0.04063429137760155,
+    "training_time_seconds": 1.988,
+    "n_train_samples": 8068,
+    "n_test_samples": 2018
+  },
+  "feature_count": 42,
+  "trained_at": "2026-02-05 21:19:32",
+  "parameters": {
+    "random_state": 42
+  }
+}
