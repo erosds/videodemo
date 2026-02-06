@@ -56,7 +56,7 @@ export default function TitleDisplay({
 
   return (
     <div
-      className={`fixed top-10 left-0 right-0 z-50 pr-12 pointer-events-none ${showBackButton ? "pl-24" : "pl-12"}`}
+      className={`fixed top-10 left-0 right-0 z-50 pr-12 pointer-events-none ${showBackButton ? "pl-12" : "pl-12"}`}
     >
       <div
         className="max-w-screen-2xl mx-auto relative h-28 overflow-visible"
