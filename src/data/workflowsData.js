@@ -75,7 +75,7 @@ export const workflows = {
       {
         id: 0,
         title: "select dataset",
-        subtitle: "Choose an <strong>industrial sensor dataset</strong> to begin your machine learning workflow",
+        subtitle: "Choose a <strong>dataset</strong> to begin your machine learning workflow",
         gradient: "from-cyan-600 via-blue-600 to-indigo-600",
       },
       {

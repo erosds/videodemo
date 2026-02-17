@@ -6,9 +6,12 @@ class DatasetInfo(BaseModel):
     rows: int
     columns: int
     features: List[str]
+    non_numeric_features: List[str] = []
     target: str
     task_type: str = "classification"
     n_classes: Optional[int] = None
+    class_type: Optional[str] = None
+    classes_dtype: Optional[str] = None
     class_distribution: Dict[str, int]
     rows_with_nan: int = 0
     preview: List[Dict[str, Any]] = []

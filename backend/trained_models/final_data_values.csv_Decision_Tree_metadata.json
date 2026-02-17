@@ -3,20 +3,20 @@
   "model_name": "Decision Tree",
   "task_type": "classification",
   "metrics": {
-    "accuracy": 0.8300297324083251,
-    "precision": 0.830772477705213,
-    "recall": 0.8300297324083251,
-    "f1_score": 0.8303651329523136,
+    "accuracy": 0.9593657086223984,
+    "precision": 0.9594590897164574,
+    "recall": 0.9593657086223984,
+    "f1_score": 0.9594032518141984,
     "r2_score": null,
     "train_r2": null,
-    "auc_roc": 0.8166359545746733,
+    "auc_roc": 0.9566145275337475,
     "train_accuracy": 1.0,
-    "overfit_gap": 0.16997026759167488,
-    "training_time_seconds": 1.01,
+    "overfit_gap": 0.04063429137760155,
+    "training_time_seconds": 0.656,
     "n_train_samples": 8068,
     "n_test_samples": 2018
   },
-  "feature_count": 41,
+  "feature_count": 42,
   "selected_features": [
     " total_captures_queue_A_per_week",
     " total_captures_queue_B_per_week",
@@ -44,6 +44,7 @@
     " machine_D_step2_per_week",
     " machine_D_step4_per_week",
     " machine_E_step3_per_week",
+    " machine_E_step6_per_week",
     " machine_A_available_production_time_with_idle per week",
     " machine_B_available_production_time_with_idle per week",
     " machine_C_available_production_time_with_idle per week",
@@ -60,7 +61,7 @@
     " machine_D_idle_time_percentage per week",
     " machine_E_idle_time_percentage per week"
   ],
-  "trained_at": "2026-02-11 11:27:02",
+  "trained_at": "2026-02-17 10:32:17",
   "parameters": {
     "random_state": 42
   }

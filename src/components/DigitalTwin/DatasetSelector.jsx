@@ -111,6 +111,10 @@ const DatasetSelector = ({ onSelect, selectedDataset, onColumnsChange }) => {
     try {
       const response = await fetch(`${API_URL}/datasets/${filename}`);
       const info = await response.json();
+      if (!response.ok || !Array.isArray(info.features)) {
+        console.error("Invalid dataset info:", info);
+        return;
+      }
       setDatasetInfo(info);
       onSelect(filename);
       // Di default tutte le feature sono selezionate
@@ -209,9 +213,16 @@ const DatasetSelector = ({ onSelect, selectedDataset, onColumnsChange }) => {
                 </div>
                 <div className="text-center">
                   <div className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    {Object.keys(datasetInfo.class_distribution).length}
+                    {datasetInfo.n_classes ?? "—"}
                   </div>
-                  <div className="text-gray-400 text-sm mt-2">Classes</div>
+                  <div className="text-gray-400 text-sm mt-2">
+                    {datasetInfo.class_type === "binary" ? "Binary" : datasetInfo.class_type === "multiclass" ? "Multiclass" : "Classes"}
+                    {datasetInfo.classes_dtype && (
+                      <span className="ml-1 text-gray-500">
+                        ({datasetInfo.classes_dtype === "numeric" ? "num" : "cat"})
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-center">
                   <div className={`text-4xl font-bold ${datasetInfo.rows_with_nan > 0

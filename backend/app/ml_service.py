@@ -55,11 +55,19 @@ class MLService:
             return self.datasets_cache[filename]["info"]
             
         filepath = self.datasets_dir / filename
-        df = pd.read_csv(filepath)
+        try:
+            df = pd.read_csv(filepath)
+        except UnicodeDecodeError:
+            df = pd.read_csv(filepath, encoding='latin-1')
         
         # Assume che l'ultima colonna sia il target
         target_col = df.columns[-1]
-        feature_cols = df.columns[:-1].tolist()
+        all_feature_cols = df.columns[:-1].tolist()
+
+        # Separa colonne numeriche (bool incluso) da non-numeriche
+        numeric_features = [c for c in all_feature_cols if pd.api.types.is_numeric_dtype(df[c]) or pd.api.types.is_bool_dtype(df[c])]
+        non_numeric_features = [c for c in all_feature_cols if c not in numeric_features]
+        feature_cols = numeric_features
         
         # Rileva task type
         task_type = self._detect_task_type(df[target_col].values)
@@ -68,9 +76,15 @@ class MLService:
         if task_type == 'classification':
             class_dist = df[target_col].value_counts().to_dict()
             n_classes = len(class_dist)
+            class_type = "binary" if n_classes == 2 else "multiclass"
+            # Rileva se le classi sono numeriche o stringhe
+            unique_vals = df[target_col].unique()
+            classes_dtype = "numeric" if np.issubdtype(df[target_col].dtype, np.number) else "categorical"
         else:
             class_dist = {}
             n_classes = None
+            class_type = None
+            classes_dtype = None
         
         # Conta righe con almeno un NaN o stringa vuota
         nan_mask = df.isna()
@@ -95,9 +109,12 @@ class MLService:
             "rows": len(df),
             "columns": len(df.columns),
             "features": feature_cols,
+            "non_numeric_features": non_numeric_features,
             "target": target_col,
             "task_type": task_type,
             "n_classes": n_classes,
+            "class_type": class_type,
+            "classes_dtype": classes_dtype,
             "class_distribution": {str(k): int(v) for k, v in class_dist.items()},
             "rows_with_nan": rows_with_nan,
             "preview": preview,
@@ -115,22 +132,28 @@ class MLService:
         if filename not in self.datasets_cache:
             self.load_dataset(filename)
 
-        df = self.datasets_cache[filename]["data"]
+        df = self.datasets_cache[filename]["data"].copy()
         target_col = df.columns[-1]
         task_type = self.datasets_cache[filename]["info"]["task_type"]
+        numeric_features = self.datasets_cache[filename]["info"]["features"]
 
         if selected_features:
-            X = df[selected_features].values
+            # Filtra solo le colonne numeriche tra quelle selezionate
+            cols = [c for c in selected_features if c in numeric_features]
         else:
-            X = df.iloc[:, :-1].values
-        y = df[target_col].values
-        
+            cols = numeric_features
+
+        # Rimuovi righe con NaN nelle colonne usate
+        subset = df[cols + [target_col]].dropna()
+        X = subset[cols].values
+        y = subset[target_col].values
+
         stratify = y if task_type == 'classification' else None
-        
+
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=test_size, random_state=random_state, stratify=stratify
         )
-        
+
         return X_train, X_test, y_train, y_test
     
     def train_model(self, dataset: str, model_name: str, X_train, y_train, X_test, y_test, selected_features=None):
