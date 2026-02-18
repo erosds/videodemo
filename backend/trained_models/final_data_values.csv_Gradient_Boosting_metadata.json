@@ -12,7 +12,7 @@
     "auc_roc": 0.9928337261624169,
     "train_accuracy": 0.9810361923648984,
     "overfit_gap": 0.002344418331201581,
-    "training_time_seconds": 18.16,
+    "training_time_seconds": 40.346,
     "n_train_samples": 8068,
     "n_test_samples": 2018
   },
@@ -61,7 +61,7 @@
     " machine_D_idle_time_percentage per week",
     " machine_E_idle_time_percentage per week"
   ],
-  "trained_at": "2026-02-17 16:43:47",
+  "trained_at": "2026-02-18 09:24:19",
   "parameters": {
     "n_estimators": 100,
     "learning_rate": 0.1,

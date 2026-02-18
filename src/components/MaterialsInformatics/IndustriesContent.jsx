@@ -8,8 +8,10 @@ import { LuFactory } from "react-icons/lu";
 const IndustriesContent = ({ activeIndex, scrollIndex, totalSections }) => {
   const SECTION_INDUSTRIES = 5;
   const SECTION_IMPACT = 6;
-  const { currentIndex, nextIndex, currentOpacity, nextOpacity } =
+  const { currentIndex, nextIndex, absP } =
     getAnimationProgress(scrollIndex, activeIndex, totalSections);
+
+  const clamp = (v) => Math.max(0, Math.min(1, v));
 
   const isOnIndustries = activeIndex === SECTION_INDUSTRIES;
   const isEnteringIndustries = nextIndex === SECTION_INDUSTRIES;
@@ -18,11 +20,12 @@ const IndustriesContent = ({ activeIndex, scrollIndex, totalSections }) => {
   let containerOpacity = 0;
   if (isOnIndustries && !isExitingIndustries) {
     containerOpacity = 1;
-
   } else if (isEnteringIndustries) {
-    containerOpacity = nextOpacity;
+    // Appare solo nell'ultimo 15% della transizione (absP 0.85 → 1.0)
+    containerOpacity = clamp((absP - 0.85) / 0.15);
   } else if (isExitingIndustries) {
-    containerOpacity = currentOpacity; // Usa currentOpacity quando esci verso Impact
+    // Scompare nel primo 15% della transizione (absP 0 → 0.15)
+    containerOpacity = clamp(1 - absP / 0.15);
   }
 
   // usa una soglia invece di confronto esatto a 0

@@ -18,9 +18,10 @@ const ImpactMetrics = ({ activeIndex, scrollIndex, totalSections }) => {
   const {
     currentIndex,
     nextIndex,
-    currentOpacity,
-    nextOpacity,
+    absP,
   } = getAnimationProgress(scrollIndex, activeIndex, totalSections);
+
+  const clamp = (v) => Math.max(0, Math.min(1, v));
 
   const isOnImpact = activeIndex === SECTION_IMPACT;
   const isEnteringFromIndustries = currentIndex === SECTION_INDUSTRIES && nextIndex === SECTION_IMPACT;
@@ -30,9 +31,11 @@ const ImpactMetrics = ({ activeIndex, scrollIndex, totalSections }) => {
   if (isOnImpact && !isExitingImpact) {
     containerOpacity = 1;
   } else if (isEnteringFromIndustries) {
-    containerOpacity = nextOpacity; // Usa nextOpacity quando entri da Industries
+    // Appare solo nell'ultimo 15% della transizione (dopo che Industries è sparito)
+    containerOpacity = clamp((absP - 0.85) / 0.15);
   } else if (isExitingImpact) {
-    containerOpacity = currentOpacity;
+    // Scompare nel primo 15% della transizione
+    containerOpacity = clamp(1 - absP / 0.15);
   }
 
   useEffect(() => {
