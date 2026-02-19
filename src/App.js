@@ -76,17 +76,14 @@ export default function App() {
     const start = container.scrollLeft;
     const end = idx * w;
     const distance = end - start;
-    const duration = 1000;
+    const duration = 600;
     const startTime = performance.now();
-
-    const easeOutQuint = (t) => 1 - Math.pow(1 - t, 5);
 
     const animate = (now) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      const eased = easeOutQuint(progress);
 
-      container.scrollLeft = start + distance * eased;
+      container.scrollLeft = start + distance * progress;
 
       if (progress < 1) requestAnimationFrame(animate);
     };
@@ -126,7 +123,7 @@ export default function App() {
 
       <div
         ref={containerRef}
-        className="h-full w-full overflow-x-scroll overflow-y-hidden scroll-smooth snap-x snap-mandatory no-scrollbar"
+        className="h-full w-full overflow-x-scroll overflow-y-hidden snap-x snap-mandatory no-scrollbar"
       >
         <div
           className="flex h-full"

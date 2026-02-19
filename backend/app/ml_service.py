@@ -353,10 +353,16 @@ class MLService:
             X_train, X_test, y_train, y_test = self.prepare_data(
                 dataset, 0.2, 42, selected_features
             )
-            result = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
+            # Subsampla il test set per velocizzare (max 200 campioni)
+            if len(X_test) > 200:
+                idx = np.random.RandomState(42).choice(len(X_test), 200, replace=False)
+                X_eval, y_eval = X_test[idx], y_test[idx]
+            else:
+                X_eval, y_eval = X_test, y_test
+            result = permutation_importance(model, X_eval, y_eval, n_repeats=5, random_state=42)
             importances = result.importances_mean
-            # Normalizza (evita negativi)
-            importances = np.maximum(importances, 0)
+            # Normalizza sui valori assoluti (evita il caso tutto-zero da negativi)
+            importances = np.abs(importances)
             total = importances.sum()
             if total > 0:
                 importances = importances / total

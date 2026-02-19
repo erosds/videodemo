@@ -184,7 +184,13 @@ async def predict(request: PredictionRequest):
 async def feature_importance(request: FeatureImportanceRequest):
     """Restituisce feature importances per un modello trainato"""
     try:
-        importances = ml_service.get_feature_importance(request.dataset, request.model_name)
+        loop = asyncio.get_running_loop()
+        importances = await loop.run_in_executor(
+            None,
+            ml_service.get_feature_importance,
+            request.dataset,
+            request.model_name
+        )
         return {"feature_importances": importances}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

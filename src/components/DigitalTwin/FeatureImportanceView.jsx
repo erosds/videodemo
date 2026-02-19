@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
 const API_URL = "http://localhost:8000";
 
@@ -6,8 +6,9 @@ const FeatureImportanceView = ({ dataset, trainedModels, trainingResults = {} })
   const [selectedModel, setSelectedModel] = useState("");
   const [featureImportances, setFeatureImportances] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const abortRef = useRef(null);
 
-  // Filter out models that failed training
   const successfulModels = trainedModels.filter(
     (m) => trainingResults[m]?.status !== "error"
   );
@@ -16,34 +17,46 @@ const FeatureImportanceView = ({ dataset, trainedModels, trainingResults = {} })
     if (successfulModels.length > 0 && !selectedModel) {
       setSelectedModel(successfulModels[0]);
     }
-  }, [successfulModels, selectedModel]);
+  }, [successfulModels.length, selectedModel]);
+
+  const fetchFeatureImportance = useCallback(async () => {
+    // Cancella eventuale fetch precedente ancora in volo
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setLoading(true);
+    setError(null);
+    setFeatureImportances(null);
+    try {
+      const response = await fetch(`${API_URL}/feature-importance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataset, model_name: selectedModel }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Server error ${response.status}`);
+      }
+
+      const data = await response.json();
+      setFeatureImportances(data.feature_importances);
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        setError(err.message || "Request failed");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedModel, dataset]);
 
   useEffect(() => {
     if (selectedModel && dataset) {
       fetchFeatureImportance();
     }
-  }, [selectedModel, dataset]);
-
-  const fetchFeatureImportance = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/feature-importance`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dataset,
-          model_name: selectedModel,
-        }),
-      });
-
-      const data = await response.json();
-      setFeatureImportances(data.feature_importances);
-    } catch (error) {
-      console.error("Error fetching feature importances:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchFeatureImportance]);
 
   if (trainedModels.length === 0) {
     return (
@@ -128,7 +141,13 @@ const FeatureImportanceView = ({ dataset, trainedModels, trainingResults = {} })
           </div>
         )}
 
-        {!loading && featureImportances && (
+        {!loading && error && (
+          <div className="flex items-center justify-center py-16 text-red-400 text-sm">
+            {error}
+          </div>
+        )}
+
+        {!loading && !error && featureImportances && (
           <div className="flex-1 overflow-y-auto min-h-0">
             <div className="flex flex-col gap-3">
               {featureImportances.map((item, idx) => {

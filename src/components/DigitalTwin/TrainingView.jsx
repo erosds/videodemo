@@ -11,6 +11,7 @@ const TrainingView = ({ dataset, selectedModels, selectedFeatures, onTrainingCom
   const [modelPredictions, setModelPredictions] = useState({});
   const wsRef = useRef(null);
   const tableRef = useRef(null);
+  const trainingProgressRef = useRef({});
   const [tableHeight, setTableHeight] = useState(null);
 
   const canTrain = dataset && selectedModels.length > 0 && !isTraining && !trainingStarted;
@@ -54,15 +55,17 @@ const TrainingView = ({ dataset, selectedModels, selectedFeatures, onTrainingCom
       const data = JSON.parse(event.data);
       
       if (data.status === "training" || data.status === "completed") {
-        setTrainingProgress(prev => ({
-          ...prev,
+        const updated = {
+          ...trainingProgressRef.current,
           [data.model]: {
             progress: data.progress,
-            metrics: data.metrics || prev[data.model]?.metrics,
+            metrics: data.metrics || trainingProgressRef.current[data.model]?.metrics,
             status: data.status,
-            trainingTime: data.metrics?.training_time_seconds || prev[data.model]?.trainingTime
+            trainingTime: data.metrics?.training_time_seconds || trainingProgressRef.current[data.model]?.trainingTime
           }
-        }));
+        };
+        trainingProgressRef.current = updated;
+        setTrainingProgress(updated);
 
         if (data.status === "completed") {
           setCompletedModels(prev => [...prev, data.model]);
@@ -70,8 +73,8 @@ const TrainingView = ({ dataset, selectedModels, selectedFeatures, onTrainingCom
       }
 
       if (data.status === "model_error") {
-        setTrainingProgress(prev => ({
-          ...prev,
+        const updated = {
+          ...trainingProgressRef.current,
           [data.model]: {
             progress: 0,
             metrics: null,
@@ -79,17 +82,15 @@ const TrainingView = ({ dataset, selectedModels, selectedFeatures, onTrainingCom
             trainingTime: null,
             errorMessage: data.message
           }
-        }));
+        };
+        trainingProgressRef.current = updated;
+        setTrainingProgress(updated);
         setCompletedModels(prev => [...prev, data.model]);
       }
 
       if (data.status === "all_completed") {
         setIsTraining(false);
-        // Pass training results (trainingProgress state) to parent
-        setTrainingProgress(prev => {
-          onTrainingComplete(true, prev);
-          return prev;
-        });
+        onTrainingComplete(true, trainingProgressRef.current);
       }
 
       if (data.status === "error") {

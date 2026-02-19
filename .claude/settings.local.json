@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python -c:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(chmod:*)"
     ]
   }
 }

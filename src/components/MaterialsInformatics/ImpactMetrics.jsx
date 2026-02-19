@@ -84,7 +84,7 @@ const ImpactMetrics = ({ activeIndex, scrollIndex, totalSections }) => {
         <div className="grid grid-cols-3 gap-8">
           {/* Card 1: Time-to-Market */}
           <div
-            className="bg-[#1a1a1a] rounded-2xl p-8 border border-gray-900 transform transition-all duration-300"
+            className="bg-[#1a1a1a] rounded p-8 transform transition-all duration-300"
             style={{
               // piccoli offset per singola card in base all'opacità per "entrata" più naturale
               transform: `translateY(${(1 - containerOpacity) * 10}px)`,
@@ -128,7 +128,7 @@ const ImpactMetrics = ({ activeIndex, scrollIndex, totalSections }) => {
 
           {/* Card 2: Accuracy */}
           <div
-            className="bg-[#1a1a1a] rounded-2xl p-8 border border-gray-900 transform transition-all duration-300"
+            className="bg-[#1a1a1a] rounded p-8 transform transition-all duration-300"
             style={{
               transform: `translateY(${(1 - containerOpacity) * 6}px)`,
               opacity: Math.max(0.85, containerOpacity),
@@ -171,7 +171,7 @@ const ImpactMetrics = ({ activeIndex, scrollIndex, totalSections }) => {
 
           {/* Card 3: ROI/Savings */}
           <div
-            className="bg-[#1a1a1a] rounded-2xl p-8 border border-gray-900 transform transition-all duration-300"
+            className="bg-[#1a1a1a] rounded p-8 transform transition-all duration-300"
             style={{
               transform: `translateY(${(1 - containerOpacity) * 2}px)`,
               opacity: Math.max(0.85, containerOpacity),

@@ -5,6 +5,20 @@ import { HiOutlineBolt } from "react-icons/hi2";
 import { GiMedicines } from "react-icons/gi";
 import { LuFactory } from "react-icons/lu";
 
+const GradientIcon = ({ icon: Icon, id, from, to }) => (
+  <>
+    <svg width="0" height="0" style={{ position: "absolute", overflow: "hidden" }}>
+      <defs>
+        <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={from} />
+          <stop offset="100%" stopColor={to} />
+        </linearGradient>
+      </defs>
+    </svg>
+    <Icon className="w-10 h-10" style={{ fill: `url(#${id})`, stroke: `url(#${id})` }} />
+  </>
+);
+
 const IndustriesContent = ({ activeIndex, scrollIndex, totalSections }) => {
   const SECTION_INDUSTRIES = 5;
   const SECTION_IMPACT = 6;
@@ -35,38 +49,34 @@ const IndustriesContent = ({ activeIndex, scrollIndex, totalSections }) => {
   const industries = [
     {
       title: "Automotive",
-      icon: <IoCarSportOutline className="w-10 h-10" />,
+      icon: <GradientIcon icon={IoCarSportOutline} id="grad-auto" from="#60a5fa" to="#22d3ee" />,
       useCases: [
-        "Lightweight alloys for fuel efficiency",
-        "Battery materials for EVs",
-        "High-temperature resistant polymers"
+        "Selecting the right alloy composition for a structural component based on target weight and strength.",
+        "Comparing candidate battery materials on conductivity and stability before running lab experiments."
       ]
     },
     {
       title: "Energy",
-      icon: <HiOutlineBolt className="w-10 h-10" />,
+      icon: <GradientIcon icon={HiOutlineBolt} id="grad-energy" from="#facc15" to="#f97316" />,
       useCases: [
-        "Solar cell materials optimization",
-        "Catalyst design for hydrogen production",
-        "Grid-scale energy storage materials"
+        "Screening solar cell material formulations to find the best trade-off between efficiency and durability.",
+        "Identifying which catalyst variants are worth testing for hydrogen production, reducing lab iterations."
       ]
     },
     {
       title: "Pharma",
-      icon: <GiMedicines className="w-10 h-10" />,
+      icon: <GradientIcon icon={GiMedicines} id="grad-pharma" from="#34d399" to="#059669" />,
       useCases: [
-        "Drug formulation optimization",
-        "Biocompatible polymers",
-        "Active ingredient stability prediction"
+        "Predicting how a drug formulation will behave over time based on its ingredient composition.",
+        "Selecting excipients that improve shelf life and dissolution without running extensive stability tests."
       ]
     },
     {
       title: "Manufacturing",
-      icon: <LuFactory className="w-10 h-10" />,
+      icon: <GradientIcon icon={LuFactory} id="grad-mfg" from="#a78bfa" to="#ec4899" />,
       useCases: [
-        "Corrosion-resistant coatings",
-        "3D printing materials",
-        "Smart materials for IoT sensors"
+        "Choosing the right protective coating for a given environment based on properties and conditions.",
+        "Evaluating new powder materials for 3D printing before committing to full production runs."
       ]
     }
   ];
@@ -80,12 +90,12 @@ const IndustriesContent = ({ activeIndex, scrollIndex, totalSections }) => {
         willChange: "opacity",
       }}
     >
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-6xl px-24">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-7xl px-24">
         <div className="grid grid-cols-2 gap-6">
           {industries.map((industry, idx) => (
             <div
               key={idx}
-              className="bg-[#1a1a1a] rounded-2xl p-6 flex items-stretch gap-5"
+              className="bg-[#1a1a1a] rounded p-6 flex items-stretch gap-5"
             >
               {/* Icon a sinistra, altezza piena */}
               <div className="flex items-center justify-center shrink-0 w-14 text-gray-100">
