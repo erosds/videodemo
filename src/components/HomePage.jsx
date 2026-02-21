@@ -13,8 +13,8 @@ const HomePage = ({ onSelectWorkflow }) => {
       gradient: 'from-cyan-600 via-blue-600 to-indigo-600'
     },
     {
-      id: 'foodBeverage',
-      label: 'testing station for...',
+      id: 'neuralSafety',
+      label: 'neuralSafety-MS',
       gradient: 'from-amber-600 via-orange-600 to-red-600'
     },
   ];

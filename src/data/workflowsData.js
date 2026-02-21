@@ -58,8 +58,8 @@ export const workflows = {
       },
     ]
   },
-  foodBeverage: {
-    id: 'foodBeverage',
+  neuralSafety: {
+    id: 'neuralSafety',
     sections: [
       {
         id: 0,
