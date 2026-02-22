@@ -34,7 +34,7 @@ const SpectrumBar = ({ peaks }) => {
   const W = 600, H = 120, PAD = 4;
   const iW = W - PAD * 2, iH = H - PAD * 2;
 
-  if (!peaks?.length) return <div style={{ height: H }} className="w-full bg-[#0a0a0a] rounded" />;
+  if (!peaks?.length) return <div className="w-full h-full bg-[#0a0a0a] rounded" />;
 
   const byIntensity = [...peaks].sort((a, b) => b.intensity - a.intensity).slice(0, 60);
   const maxI  = byIntensity[0]?.intensity || 1;
@@ -46,8 +46,8 @@ const SpectrumBar = ({ peaks }) => {
     <svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
-      className="w-full"
-      style={{ height: H, display: "block" }}
+      className="w-full h-full"
+      style={{ display: "block" }}
     >
       <rect x={0} y={0} width={W} height={H} fill="#0a0a0a" rx={4} />
       <g transform={`translate(${PAD},${PAD})`}>
@@ -323,6 +323,8 @@ const Canvas3D = ({ points }) => {
 //  Main component
 // ──────────────────────────────────────────────────────────────
 const VectorizationEngine = () => {
+  const [activated, setActivated] = useState(false);
+  const [activating, setActivating] = useState(false);
   const [library, setLibrary] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [spectrum, setSpectrum] = useState(null);
@@ -342,11 +344,25 @@ const VectorizationEngine = () => {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  const handleActivate = () => {
+    setActivating(true);
+    setActivated(true);
+  };
+
   useEffect(() => {
-    fetch(`${BACKEND}/neural-safety/library`)
-      .then((r) => r.json())
-      .then((data) => { setLibrary(data); if (data.length) setSelectedId(data[0].id); });
-  }, []);
+    if (!activated) return;
+    const minDelay = new Promise((r) => setTimeout(r, 1800));
+    Promise.all([
+      fetch(`${BACKEND}/neural-safety/library`).then((r) => r.json()),
+      minDelay,
+    ])
+      .then(([data]) => {
+        setLibrary(data);
+        if (data.length) setSelectedId(data[0].id);
+        setActivating(false);
+      })
+      .catch(() => setActivating(false));
+  }, [activated]);
 
   useEffect(() => {
     if (selectedId === null) return;
@@ -371,55 +387,58 @@ const VectorizationEngine = () => {
   const embMax = embedding ? Math.max(...embedding.map(Math.abs)) : 1;
 
   // Stage 1: top 7 by intensity
-  const top7 = spectrum?.peaks
-    ? [...spectrum.peaks].sort((a, b) => b.intensity - a.intensity).slice(0, 7)
+  const top17 = spectrum?.peaks
+    ? [...spectrum.peaks].sort((a, b) => b.intensity - a.intensity).slice(0, 17)
     : null;
-  const maxI7 = top7 ? Math.max(...top7.map((p) => p.intensity)) : 1;
+  const maxI7 = top17 ? Math.max(...top17.map((p) => p.intensity)) : 1;
 
   // Stage 2: token chips
-  const tokens = top7 ? top7.map((p) => p.mz.toFixed(2)) : [];
+  const tokens = top17 ? top17.map((p) => p.mz.toFixed(2)) : [];
 
   // Stage 3: first 4 embedding dims
-  const embPreview = embedding ? embedding.slice(0, 4) : [];
+  const embPreview = embedding ? embedding.slice(0, 40) : [];
 
   return (
     <div
-      className="absolute inset-0 flex items-stretch justify-center px-12"
-      style={{ paddingTop: "200px", paddingBottom: "120px" }}
+      className="absolute inset-0 flex items-center justify-center px-12"
+      style={{ paddingTop: "200px", paddingBottom: "100px" }}
     >
-      <div className="flex flex-col w-full max-w-6xl rounded overflow-hidden border border-gray-800/60">
+      <div className="flex flex-col w-full max-w-6xl rounded overflow-hidden border border-gray-800/60"
+        style={{ height: "min(calc(100vh - 300px), 760px)" }}>
 
         {/* ── TOP BAR ── */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-[#0e0e0e] border-b border-gray-800 flex-shrink-0">
+        <div className={`flex items-center ${activated && !activating ? "justify-between" : "justify-center"} px-4 py-2.5 bg-[#0e0e0e] border-b border-gray-800 flex-shrink-0`}>
 
-          {/* Molecule dropdown */}
-          <div ref={dropdownRef} className="relative">
-            <button
-              onClick={() => setDropdownOpen((o) => !o)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-gray-700 rounded text-xs text-gray-300 hover:border-amber-500/50 transition-colors"
-            >
-              <LuDatabase className="w-3 h-3 text-amber-400" />
-              <span className="max-w-[200px] truncate">{selectedMol?.name ?? "Select molecule…"}</span>
-              <svg className={`w-3 h-3 text-gray-500 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {dropdownOpen && (
-              <div className="absolute z-50 mt-1 w-64 bg-[#1a1a1a] border border-gray-700 rounded shadow-2xl max-h-60 overflow-y-auto"
-                style={{ scrollbarWidth: "none" }}>
-                {library.map((mol) => (
-                  <button key={mol.id}
-                    onClick={() => { setSelectedId(mol.id); setDropdownOpen(false); }}
-                    className={`w-full text-left px-3 py-2 text-xs border-b border-gray-800/50 transition-colors ${
-                      mol.id === selectedId ? "text-amber-300 bg-amber-600/10" : "text-gray-300 hover:bg-white/5"
-                    }`}>
-                    {mol.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Molecule dropdown — only when activated */}
+          {activated && !activating && (
+            <div ref={dropdownRef} className="relative">
+              <button
+                onClick={() => setDropdownOpen((o) => !o)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-gray-700 rounded text-xs text-gray-300 hover:border-amber-500/50 transition-colors"
+              >
+                <LuDatabase className="w-3 h-3 text-amber-400" />
+                <span className="max-w-[200px] truncate">{selectedMol?.name ?? "Select molecule…"}</span>
+                <svg className={`w-3 h-3 text-gray-500 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {dropdownOpen && (
+                <div className="absolute z-50 mt-1 w-64 bg-[#1a1a1a] border border-gray-700 rounded shadow-2xl max-h-60 overflow-y-auto"
+                  style={{ scrollbarWidth: "none" }}>
+                  {library.map((mol) => (
+                    <button key={mol.id}
+                      onClick={() => { setSelectedId(mol.id); setDropdownOpen(false); }}
+                      className={`w-full text-left px-3 py-2 text-xs border-b border-gray-800/50 transition-colors ${
+                        mol.id === selectedId ? "text-amber-300 bg-amber-600/10" : "text-gray-300 hover:bg-white/5"
+                      }`}>
+                      {mol.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Centre label */}
           <div className="flex items-center gap-2">
@@ -429,28 +448,46 @@ const VectorizationEngine = () => {
             </span>
           </div>
 
-          {/* 3D toggle */}
-          <button
-            onClick={() => setShow3D((s) => !s)}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded text-xs font-semibold transition-all duration-300 ${show3D
-              ? "bg-[#1a1a1a] border border-gray-700 text-gray-300 hover:bg-white/5"
-              : "bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 text-white hover:shadow-lg hover:scale-105"
-              }`}
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-              <line x1="12" y1="22.08" x2="12" y2="12" />
-            </svg>
-            {show3D ? "← Back" : "3D Landscape"}
-          </button>
+          {/* 3D toggle — only when activated */}
+          {activated && !activating && (
+            <button
+              onClick={() => setShow3D((s) => !s)}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded text-xs font-semibold transition-all duration-300 ${show3D
+                ? "bg-[#1a1a1a] border border-gray-700 text-gray-300 hover:bg-white/5"
+                : "bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 text-white hover:shadow-lg hover:scale-105"
+                }`}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                <line x1="12" y1="22.08" x2="12" y2="12" />
+              </svg>
+              {show3D ? "← Back" : "3D Landscape"}
+            </button>
+          )}
         </div>
 
         {/* ── CONTENT ── */}
         <div className="flex-1 overflow-hidden bg-[#111111] flex flex-col">
 
-          {show3D ? (
+          {(!activated || activating) ? (
+            /* ── GATE: button or spinner ── */
+            <div className="flex-1 flex items-center justify-center">
+              {activating ? (
+                <div className="flex flex-col items-center gap-3 text-gray-600 text-xs">
+                  <LuAtom className="w-6 h-6 text-amber-500/40 animate-spin" />
+                  <span>Initializing Spec2Vec embeddings…</span>
+                </div>
+              ) : (
+                <button onClick={handleActivate}
+                  className="flex items-center gap-2 px-6 py-3 rounded text-sm font-semibold bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 text-white hover:shadow-lg hover:scale-105 transition-all">
+                  <LuAtom className="w-4 h-4" />
+                  Use Spec2Vec
+                </button>
+              )}
+            </div>
+          ) : show3D ? (
             /* ── 3D VIEW ── */
             <div className="flex flex-col h-full">
               <div className="px-5 pt-3 pb-2 border-b border-gray-800/50 flex-shrink-0">
@@ -474,54 +511,57 @@ const VectorizationEngine = () => {
             /* ── SPLIT VIEW (no scroll, fills height) ── */
             <div className="flex-1 flex min-h-0">
 
-              {/* LEFT · Spectrum + Pipeline */}
-              <div className="flex-1 flex flex-col px-5 py-4 border-r border-gray-800 min-w-0">
+              {/* LEFT · Spectrum + Pipeline — two equal halves */}
+              <div className="flex-1 flex flex-col border-r border-gray-800 min-w-0">
 
-                <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-                  <LuActivity className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-                  <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                    Raw MS/MS Spectrum
-                  </span>
-                </div>
+                {/* TOP HALF — Spectrum */}
+                <div className="flex-1 flex flex-col px-5 py-4 border-b border-gray-800 min-h-0 overflow-hidden">
+                  <div className="flex items-center gap-2 mb-3 flex-shrink-0">
+                    <LuActivity className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                    <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                      Raw MS/MS Spectrum
+                    </span>
+                  </div>
 
-                <div className="flex-shrink-0">
-                  {spectrum
-                    ? <SpectrumBar peaks={spectrum.peaks} />
-                    : <div className="rounded bg-[#0a0a0a] animate-pulse" style={{ height: 120 }} />}
-                </div>
+                  <div className="flex-1 min-h-0">
+                    {spectrum
+                      ? <SpectrumBar peaks={spectrum.peaks} />
+                      : <div className="w-full h-full rounded bg-[#0a0a0a] animate-pulse" />}
+                  </div>
 
-                {selectedMol && (
-                  <div className="grid grid-cols-3 gap-2 mt-3 flex-shrink-0">
-                    <div className="bg-[#1a1a1a] rounded p-2.5">
-                      <div className="text-[10px] text-gray-600 uppercase tracking-wide">Molecule</div>
-                      <div className="text-xs text-gray-200 mt-0.5 truncate">{selectedMol.name}</div>
-                    </div>
-                    <div className="bg-[#1a1a1a] rounded p-2.5">
-                      <div className="text-[10px] text-gray-600 uppercase tracking-wide">Exact Mass</div>
-                      <div className="text-xs text-gray-200 mt-0.5 font-mono">
-                        {selectedMol.exact_mass !== "N/A" ? `${parseFloat(selectedMol.exact_mass).toFixed(3)} Da` : "N/A"}
+                  {selectedMol && (
+                    <div className="grid grid-cols-3 gap-2 mt-3 flex-shrink-0">
+                      <div className="bg-[#1a1a1a] rounded p-2.5">
+                        <div className="text-[10px] text-gray-600 uppercase tracking-wide">Molecule</div>
+                        <div className="text-xs text-gray-200 mt-0.5 truncate">{selectedMol.name}</div>
+                      </div>
+                      <div className="bg-[#1a1a1a] rounded p-2.5">
+                        <div className="text-[10px] text-gray-600 uppercase tracking-wide">Exact Mass</div>
+                        <div className="text-xs text-gray-200 mt-0.5 font-mono">
+                          {selectedMol.exact_mass !== "N/A" ? `${parseFloat(selectedMol.exact_mass).toFixed(3)} Da` : "N/A"}
+                        </div>
+                      </div>
+                      <div className="bg-[#1a1a1a] rounded p-2.5">
+                        <div className="text-[10px] text-gray-600 uppercase tracking-wide">Peaks</div>
+                        <div className="text-xs text-gray-200 mt-0.5">{selectedMol.peak_count}</div>
                       </div>
                     </div>
-                    <div className="bg-[#1a1a1a] rounded p-2.5">
-                      <div className="text-[10px] text-gray-600 uppercase tracking-wide">Peaks</div>
-                      <div className="text-xs text-gray-200 mt-0.5">{selectedMol.peak_count}</div>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
-                {/* Vectorization Pipeline */}
-                <div className="border-t border-gray-800 mt-4 pt-4 flex-shrink-0">
-                  <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-3">
+                {/* BOTTOM HALF — Vectorization Pipeline */}
+                <div className="flex-1 flex flex-col px-5 py-4 min-h-0 overflow-hidden">
+                  <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-3 flex-shrink-0">
                     Vectorization Pipeline
                   </div>
-                  <div className="flex items-stretch gap-2">
+                  <div className="flex items-stretch gap-2 flex-1 min-h-0">
 
-                    <div className="flex-1 bg-[#0e0e0e] rounded p-3 border border-gray-800 overflow-hidden">
-                      <div className="text-[10px] font-semibold text-amber-500 uppercase tracking-wide mb-2">
+                    <div className="flex-1 bg-[#0e0e0e] rounded p-3 border border-gray-800 overflow-hidden flex flex-col">
+                      <div className="text-[10px] font-semibold text-amber-500 uppercase tracking-wide mb-2 flex-shrink-0">
                         1 · Spectrum
                       </div>
-                      <div className="flex items-end gap-0.5 overflow-hidden" style={{ height: 32 }}>
-                        {(top7 ?? Array.from({ length: 7 }, (_, i) => ({ intensity: (7 - i) / 7 }))).map((p, i) => {
+                      <div className="flex items-end gap-0.5 overflow-hidden flex-1">
+                        {(top17 ?? Array.from({ length: 7 }, (_, i) => ({ intensity: (7 - i) / 7 }))).map((p, i) => {
                           const rel = p.intensity / maxI7;
                           return (
                             <div key={i} className="flex-1 rounded-sm"
@@ -534,36 +574,40 @@ const VectorizationEngine = () => {
                           );
                         })}
                       </div>
-                      <div className="text-[10px] text-gray-600 mt-1.5">MS/MS fingerprint</div>
+                      <div className="text-[10px] text-gray-600 mt-1.5 flex-shrink-0">MS/MS fingerprint</div>
                     </div>
 
                     <Arrow />
 
-                    <div className="flex-1 bg-[#0e0e0e] rounded p-3 border border-gray-800 overflow-hidden">
-                      <div className="text-[10px] font-semibold text-orange-500 uppercase tracking-wide mb-2">
+                    <div className="flex-1 bg-[#0e0e0e] rounded p-3 border border-gray-800 overflow-hidden flex flex-col">
+                      <div className="text-[10px] font-semibold text-orange-500 uppercase tracking-wide mb-2 flex-shrink-0">
                         2 · Tokens
                       </div>
-                      <div className="flex flex-wrap gap-1" style={{ maxHeight: 32, overflow: "hidden" }}>
+                      <div className="flex-1 min-h-0 overflow-y-auto flex flex-wrap items-start content-start gap-1"
+                        style={{ scrollbarWidth: "none" }}>
                         {(tokens.length ? tokens : ["—", "—", "—", "—", "—", "—"]).map((t, i) => (
                           <span key={i} className="text-[9px] font-mono bg-gray-800/80 text-amber-400/80 px-1 py-0.5 rounded">
                             {t}
                           </span>
                         ))}
+                        {tokens.length > 0 && (
+                          <span className="text-[9px] font-mono text-gray-600 px-1 py-0.5">…</span>
+                        )}
                       </div>
-                      <div className="text-[10px] text-gray-600 mt-1.5">peaks as words</div>
+                      <div className="text-[10px] text-gray-600 mt-1.5 flex-shrink-0">peaks as words</div>
                     </div>
 
                     <Arrow />
 
-                    <div className="flex-1 bg-[#0e0e0e] rounded p-3 border border-gray-800 overflow-hidden">
-                      <div className="text-[10px] font-semibold text-red-500 uppercase tracking-wide mb-2">
+                    <div className="flex-1 bg-[#0e0e0e] rounded p-3 border border-gray-800 overflow-hidden flex flex-col">
+                      <div className="text-[10px] font-semibold text-red-500 uppercase tracking-wide mb-2 flex-shrink-0">
                         3 · Embedding
                       </div>
-                      <div className="font-mono text-[9px] text-emerald-400/80 leading-relaxed"
-                        style={{ height: 32, overflow: "hidden" }}>
+                      <div className="flex-1 min-h-0 overflow-y-auto font-mono text-[9px] text-emerald-400/80 leading-relaxed"
+                        style={{ scrollbarWidth: "none" }}>
                         [{embPreview.map((v) => v.toFixed(2)).join(", ")}{embedding ? "…]" : "…]"}
                       </div>
-                      <div className="text-[10px] text-gray-600 mt-1.5">300D vector</div>
+                      <div className="text-[10px] text-gray-600 mt-1.5 flex-shrink-0">300D vector</div>
                     </div>
                   </div>
                 </div>

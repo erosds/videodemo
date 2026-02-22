@@ -5,7 +5,15 @@ import SpectralMatching from "./SpectralMatching";
 import { getAnimationProgress } from "../../utils/animationConfig";
 import { LuFlaskConical } from "react-icons/lu";
 
-// Placeholder for tabs 2-5 (coming in next iterations)
+const OverviewTab = () => (
+  <div className="absolute inset-0 flex items-center justify-center px-12"
+    style={{ paddingTop: "200px", paddingBottom: "100px" }}>
+    <div className="w-full max-w-2xl">
+      
+    </div>
+  </div>
+);
+
 const ComingSoonTab = ({ title }) => (
   <div className="absolute inset-0 flex items-center justify-center">
     <div className="text-center">
@@ -22,16 +30,18 @@ const NeuralSafetyContent = ({ activeIndex, scrollIndex, totalSections }) => {
   let content = null;
 
   if (activeIndex === 0) {
-    content = <KnowledgeBaseExplorer />;
+    content = <OverviewTab />;
   } else if (activeIndex === 1) {
-    content = <VectorizationEngine />;
+    content = <KnowledgeBaseExplorer />;
   } else if (activeIndex === 2) {
-    content = <SpectralMatching />;
+    content = <VectorizationEngine />;
   } else if (activeIndex === 3) {
-    content = <ComingSoonTab title="Spec2Vec Analysis" />;
+    content = <SpectralMatching />;
   } else if (activeIndex === 4) {
-    content = <ComingSoonTab title="Risk Assessment" />;
+    content = <ComingSoonTab title="Spec2Vec Analysis" />;
   } else if (activeIndex === 5) {
+    content = <ComingSoonTab title="Risk Assessment" />;
+  } else if (activeIndex === 6) {
     content = <ComingSoonTab title="Compliance Report" />;
   }
 

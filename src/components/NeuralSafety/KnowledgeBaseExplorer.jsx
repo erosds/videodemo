@@ -301,10 +301,11 @@ const KnowledgeBaseExplorer = () => {
 
   return (
     <div
-      className="absolute rounded inset-0 flex items-stretch justify-center px-12"
-      style={{ paddingTop: "200px", paddingBottom: "120px" }}
+      className="absolute rounded inset-0 flex items-center justify-center px-12"
+      style={{ paddingTop: "200px", paddingBottom: "100px" }}
     >
-      <div className="flex w-full max-w-6xl rounded overflow-hidden border border-gray-800/60">
+      <div className="flex w-full max-w-6xl rounded overflow-hidden border border-gray-800/60"
+        style={{ height: "min(calc(100vh - 300px), 760px)" }}>
       {/* ── SIDEBAR ─────────────────────────────────────────── */}
       <div className="w-64 flex-shrink-0 flex flex-col border-r border-gray-800 bg-[#0e0e0e]">
         {/* Header */}
