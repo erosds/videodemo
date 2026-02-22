@@ -1,48 +1,51 @@
-import React from "react";
+import React, { useState } from "react";
+import OverviewInput from "./OverviewInput";
 import KnowledgeBaseExplorer from "./KnowledgeBaseExplorer";
 import VectorizationEngine from "./VectorizationEngine";
 import SpectralMatching from "./SpectralMatching";
+import Spec2VecAnalysis from "./Spec2VecAnalysis";
+import AnomalyDetection from "./AnomalyDetection";
+import ComparativeResults from "./ComparativeResults";
+import SummaryImpact from "./SummaryImpact";
+import FuturePerspective from "./FuturePerspective";
 import { getAnimationProgress } from "../../utils/animationConfig";
-import { LuFlaskConical } from "react-icons/lu";
-
-const OverviewTab = () => (
-  <div className="absolute inset-0 flex items-center justify-center px-12"
-    style={{ paddingTop: "200px", paddingBottom: "100px" }}>
-    <div className="w-full max-w-2xl">
-      
-    </div>
-  </div>
-);
-
-const ComingSoonTab = ({ title }) => (
-  <div className="absolute inset-0 flex items-center justify-center">
-    <div className="text-center">
-      <LuFlaskConical className="w-12 h-12 mx-auto mb-4 text-amber-500/30" />
-      <div className="text-lg font-semibold text-gray-400 mb-1">{title}</div>
-      <div className="text-sm text-gray-600">This analysis step is under development</div>
-    </div>
-  </div>
-);
 
 const NeuralSafetyContent = ({ activeIndex, scrollIndex, totalSections }) => {
   const { currentOpacity } = getAnimationProgress(scrollIndex, activeIndex, totalSections);
 
+  const [selectedFile, setSelectedFile] = useState(() => localStorage.getItem("ns_file") ?? null);
+  const [activeLib,    setActiveLib]    = useState(() => localStorage.getItem("ns_lib")  ?? null);
+
+  const handleFileChange = (f) => { setSelectedFile(f); f ? localStorage.setItem("ns_file", f) : localStorage.removeItem("ns_file"); };
+  const handleLibChange  = (l) => { setActiveLib(l);    l ? localStorage.setItem("ns_lib",  l) : localStorage.removeItem("ns_lib");  };
+
   let content = null;
 
   if (activeIndex === 0) {
-    content = <OverviewTab />;
+    content = (
+      <OverviewInput
+        selectedFile={selectedFile}
+        activeLib={activeLib}
+        onFileChange={handleFileChange}
+        onLibChange={handleLibChange}
+      />
+    );
   } else if (activeIndex === 1) {
-    content = <KnowledgeBaseExplorer />;
+    content = <AnomalyDetection selectedFile={selectedFile} />;
   } else if (activeIndex === 2) {
-    content = <VectorizationEngine />;
+    content = <KnowledgeBaseExplorer activeLib={activeLib} />;
   } else if (activeIndex === 3) {
-    content = <SpectralMatching />;
+    content = <SpectralMatching selectedFile={selectedFile} activeLib={activeLib} />;
   } else if (activeIndex === 4) {
-    content = <ComingSoonTab title="Spec2Vec Analysis" />;
+    content = <VectorizationEngine selectedFile={selectedFile} />;
   } else if (activeIndex === 5) {
-    content = <ComingSoonTab title="Risk Assessment" />;
+    content = <Spec2VecAnalysis selectedFile={selectedFile} />;
   } else if (activeIndex === 6) {
-    content = <ComingSoonTab title="Compliance Report" />;
+    content = <ComparativeResults selectedFile={selectedFile} activeLib={activeLib} />;
+  } else if (activeIndex === 7) {
+    content = <SummaryImpact />;
+  } else if (activeIndex === 8) {
+    content = <FuturePerspective />;
   }
 
   if (currentOpacity <= 0.01) return null;

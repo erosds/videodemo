@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional, Dict, Any
 
 class DatasetInfo(BaseModel):
@@ -23,6 +23,7 @@ class TrainingRequest(BaseModel):
     random_state: int = 42
 
 class PredictionRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     dataset: str
     model_name: str
 
@@ -37,5 +38,6 @@ class PredictionResult(BaseModel):
     metrics: Dict[str, float]
 
 class FeatureImportanceRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     dataset: str
     model_name: str

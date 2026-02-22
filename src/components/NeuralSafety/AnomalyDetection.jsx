@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
-import { LuActivity, LuDatabase, LuFlaskConical } from "react-icons/lu";
+import { LuActivity, LuDatabase, LuGlobe } from "react-icons/lu";
 
 const BACKEND = "http://localhost:8000";
 
-function simCategory(sim, n_matches) {
-  if (sim >= 0.65 && n_matches >= 10) return "HIGH";
-  if (sim >= 0.40 && n_matches >= 3) return "UNCERTAIN";
+function scoreCategory(score) {
+  if (score >= 0.65) return "HIGH";
+  if (score >= 0.40) return "UNCERTAIN";
   return "NONE";
 }
 
-function simColor(sim, n_matches) {
-  const cat = simCategory(sim, n_matches);
-  if (cat === "HIGH") return "#ef4444";
-  if (cat === "UNCERTAIN") return "#eab308";
+function scoreColor(score) {
+  const cat = scoreCategory(score);
+  if (cat === "HIGH")      return "#f97316";
+  if (cat === "UNCERTAIN") return "#fbbf24";
   return "#4b5563";
 }
 
@@ -29,7 +29,7 @@ const Chromatogram = ({ tic, peaks, selectedPeakId, onSelectPeak }) => {
   const intMax = Math.max(...tic.intensity);
 
   const tx = (rt) => PL + ((rt - rtMin) / (rtMax - rtMin)) * iW;
-  const ty = (v) => PT + iH - (v / intMax) * iH;
+  const ty = (v)  => PT + iH - (v / intMax) * iH;
 
   const pts = tic.rt.map((rt, i) => `${tx(rt).toFixed(1)},${ty(tic.intensity[i]).toFixed(1)}`).join(" ");
   const xTicks = Array.from({ length: 7 }, (_, i) => Math.round(rtMax / 6 * i * 10) / 10);
@@ -38,7 +38,7 @@ const Chromatogram = ({ tic, peaks, selectedPeakId, onSelectPeak }) => {
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
       className="w-full" style={{ height: H, display: "block", cursor: "crosshair" }}>
       <defs>
-        <linearGradient id="ticGrad" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="adTicGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#f59e0b" />
           <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
         </linearGradient>
@@ -49,7 +49,7 @@ const Chromatogram = ({ tic, peaks, selectedPeakId, onSelectPeak }) => {
           stroke="#1f1f1f" strokeWidth={1} />
       ))}
       <polygon points={`${PL},${ty(0)} ${pts} ${W - PR},${ty(0)}`}
-        fill="url(#ticGrad)" opacity={0.25} />
+        fill="url(#adTicGrad)" opacity={0.25} />
       <polyline points={pts} fill="none" stroke="#f59e0b" strokeWidth={1.5} opacity={0.7} />
 
       {peaks.map((pk) => {
@@ -89,14 +89,14 @@ const Chromatogram = ({ tic, peaks, selectedPeakId, onSelectPeak }) => {
   );
 };
 
-// ─── MS2 Spectrum ────────────────────────────────────────────────────────────
+// ─── MS2 Spectrum ─────────────────────────────────────────────────────────────
 const MS2Chart = ({ peaks, height = 110 }) => {
   if (!peaks?.length) return <div className="w-full bg-[#0a0a0a] rounded" style={{ height }} />;
 
   const W = 600, H = height, PAD = 8, PB = 16;
   const iW = W - PAD * 2, iH = H - PAD - PB;
 
-  const maxI = Math.max(...peaks.map((p) => p.intensity));
+  const maxI  = Math.max(...peaks.map((p) => p.intensity));
   const mzMin = Math.min(...peaks.map((p) => p.mz));
   const mzMax = Math.max(...peaks.map((p) => p.mz));
   const mzRng = (mzMax - mzMin) || 1;
@@ -112,9 +112,9 @@ const MS2Chart = ({ peaks, height = 110 }) => {
       <g transform={`translate(${PAD},${PAD})`}>
         {peaks.map((p, i) => {
           const rel = p.intensity / maxI;
-          const x = ((p.mz - mzMin) / mzRng) * iW;
-          const h = rel * iH;
-          const c = rel > 0.75 ? "#ef4444" : rel > 0.4 ? "#f97316" : "#f59e0b";
+          const x   = ((p.mz - mzMin) / mzRng) * iW;
+          const h   = rel * iH;
+          const c   = rel > 0.75 ? "#f97316" : rel > 0.4 ? "#fb923c" : "#c2410c";
           return <line key={i} x1={x} y1={iH} x2={x} y2={iH - h}
             stroke={c} strokeWidth={2} strokeOpacity={0.85} />;
         })}
@@ -136,69 +136,60 @@ const MS2Chart = ({ peaks, height = 110 }) => {
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
-const SpectralMatching = ({ selectedFile }) => {
-  const [chrom, setChrom] = useState(null);
+const AnomalyDetection = ({ selectedFile }) => {
+  const [chrom,        setChrom]        = useState(null);
   const [selectedPeak, setSelectedPeak] = useState(null);
-  const [matchResult, setMatchResult] = useState(null);
-  const [searching, setSearching] = useState(false);
-  const [searchEnabled, setSearchEnabled] = useState(false);
-  const [error, setError] = useState(null);
+  const [allResults,   setAllResults]   = useState({});
+  const [computing,    setComputing]    = useState(false);
+  const [activated,    setActivated]    = useState(false);
 
   useEffect(() => {
     if (!selectedFile) return;
-    setChrom(null); setSelectedPeak(null); setMatchResult(null);
-    setError(null); setSearchEnabled(false);
+    setChrom(null); setSelectedPeak(null); setAllResults({});
+    setActivated(false); setComputing(false);
     fetch(`${BACKEND}/neural-safety/chromatogram/${selectedFile}`)
       .then((r) => r.json())
       .then((data) => { setChrom(data); if (data.peaks?.length) setSelectedPeak(data.peaks[0]); });
   }, [selectedFile]);
 
-  // When search is enabled and selected peak changes, auto-run search
-  useEffect(() => {
-    if (!searchEnabled || !selectedPeak) return;
-    runSearch(selectedPeak);
-  }, [selectedPeak, searchEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const runSearch = async (peak) => {
-    setSearching(true); setMatchResult(null); setError(null);
-    try {
-      const res = await fetch(`${BACKEND}/neural-safety/spectral-match`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          peaks: peak.ms2.peaks,
-          precursor_mz: peak.precursor_mz,
-          tolerance: 0.01,
-          top_n: 10,
-        }),
-      });
-      if (!res.ok) {
-        const detail = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(detail.detail || res.statusText);
+  const handleActivate = async () => {
+    if (!chrom?.peaks?.length) return;
+    setActivated(true);
+    setComputing(true);
+    setAllResults({});
+    const results = {};
+    for (const peak of chrom.peaks) {
+      try {
+        const res = await fetch(`${BACKEND}/neural-safety/massbank-search`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            peaks: peak.ms2.peaks,
+            precursor_mz: peak.precursor_mz,
+            ion_mode: "POSITIVE",
+            threshold: 0.5,
+            top_n: 5,
+          }),
+        });
+        const data = await res.json();
+        results[peak.id] = data.results ?? [];
+      } catch {
+        results[peak.id] = [];
       }
-      const data = await res.json();
-      const results = data.results ?? [];
-      setMatchResult({ best: results[0], top5: results.slice(0, 5) });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSearching(false);
+      setAllResults({ ...results });
     }
-  };
-
-  // First-time activation: enable auto-search and run immediately
-  const handleActivate = () => {
-    setSearchEnabled(true);
-    if (selectedPeak) runSearch(selectedPeak);
+    setComputing(false);
   };
 
   const handleSelectPeak = (id) => {
     const pk = chrom?.peaks?.find((p) => p.id === id);
     if (pk) setSelectedPeak(pk);
-    // if searchEnabled, auto-search triggers via useEffect
   };
 
-  const selectedMs2 = selectedPeak?.ms2?.peaks ?? [];
+  const selectedMs2  = selectedPeak?.ms2?.peaks ?? [];
+  const currentHits  = selectedPeak ? (allResults[selectedPeak.id] ?? null) : null;
+  const isDone       = selectedPeak ? selectedPeak.id in allResults : false;
+  const isSearching  = computing && !isDone;
 
   return (
     <div className="absolute inset-0 flex items-center justify-center px-12"
@@ -209,14 +200,14 @@ const SpectralMatching = ({ selectedFile }) => {
         {/* TOP BAR */}
         <div className="flex items-center justify-between px-4 py-2.5 bg-[#0e0e0e] border-b border-gray-800 flex-shrink-0">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-gray-800 rounded text-xs text-gray-500 font-mono">
-            <LuDatabase className="w-3 h-3 text-amber-400/60 flex-shrink-0" />
+            <LuDatabase className="w-3 h-3 text-orange-400/60 flex-shrink-0" />
             <span className="max-w-[220px] truncate">{selectedFile ?? "—"}</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <LuFlaskConical className="w-3.5 h-3.5 text-amber-400" />
+            <LuGlobe className="w-3.5 h-3.5 text-orange-400" />
             <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-              Classical Matching · Local Library
+              Global Screening · MassBank Europe
             </span>
           </div>
 
@@ -232,7 +223,6 @@ const SpectralMatching = ({ selectedFile }) => {
         {/* CONTENT */}
         <div className="flex-1 overflow-hidden bg-[#111111] flex flex-col min-h-0">
 
-          {/* No file selected */}
           {!selectedFile && (
             <div className="flex-1 flex flex-col items-center justify-center gap-1.5 text-center">
               <div className="text-gray-700 text-xs">No input file selected</div>
@@ -240,14 +230,13 @@ const SpectralMatching = ({ selectedFile }) => {
             </div>
           )}
 
-          {/* File selected */}
           {selectedFile && (
             <div className="flex-1 flex min-h-0">
 
               {/* LEFT — Chromatogram + Peaks table */}
               <div className="flex-1 flex flex-col px-5 py-4 border-r border-gray-800 min-w-0">
                 <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-                  <LuActivity className="w-3.5 h-3.5 text-amber-400" />
+                  <LuActivity className="w-3.5 h-3.5 text-orange-400" />
                   <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
                     Total Ion Chromatogram
                   </span>
@@ -274,16 +263,18 @@ const SpectralMatching = ({ selectedFile }) => {
                         const isSel = pk.id === selectedPeak?.id;
                         return (
                           <tr key={pk.id} onClick={() => handleSelectPeak(pk.id)}
-                            className={`border-b border-gray-800/40 cursor-pointer transition-colors ${isSel ? "bg-amber-600/10" : "hover:bg-white/[0.03]"
-                              }`}>
+                            className={`border-b border-gray-800/40 cursor-pointer transition-colors ${
+                              isSel ? "bg-orange-600/10" : "hover:bg-white/[0.03]"
+                            }`}>
                             <td className="py-1.5 px-2">
-                              <span className={`w-5 h-5 rounded-full inline-flex items-center justify-center text-[9px] font-bold ${isSel ? "bg-amber-500/20 text-amber-400" : "bg-gray-800 text-gray-500"
-                                }`}>{pk.id}</span>
+                              <span className={`w-5 h-5 rounded-full inline-flex items-center justify-center text-[9px] font-bold ${
+                                isSel ? "bg-orange-500/20 text-orange-400" : "bg-gray-800 text-gray-500"
+                              }`}>{pk.id}</span>
                             </td>
                             <td className="py-1.5 px-2 font-mono text-gray-300">{pk.rt.toFixed(2)}</td>
                             <td className="py-1.5 px-2 font-mono text-gray-300">{pk.intensity.toLocaleString()}</td>
                             <td className="py-1.5 px-2 font-mono text-gray-400">{pk.precursor_mz.toFixed(4)}</td>
-                            <td className={`py-1.5 px-2 font-mono ${isSel ? "text-amber-400" : "text-gray-600"}`}>Unknown {pk.id}</td>
+                            <td className={`py-1.5 px-2 font-mono ${isSel ? "text-orange-400" : "text-gray-600"}`}>Unknown {pk.id}</td>
                           </tr>
                         );
                       })}
@@ -292,10 +283,10 @@ const SpectralMatching = ({ selectedFile }) => {
                 </div>
               </div>
 
-              {/* RIGHT — MS2 + Similarity */}
+              {/* RIGHT — MS2 + MassBank results */}
               <div className="flex-1 flex flex-col px-5 py-4 min-w-0">
                 <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-                  <LuActivity className="w-3.5 h-3.5 text-amber-400" />
+                  <LuActivity className="w-3.5 h-3.5 text-orange-400" />
                   <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">MS/MS Spectrum</span>
                   {selectedPeak && (
                     <span className="text-[10px] text-gray-600 font-mono ml-1">
@@ -328,54 +319,73 @@ const SpectralMatching = ({ selectedFile }) => {
                   </div>
                 )}
 
-                {/* Similarity results area */}
+                {/* Results area */}
                 <div className="border-t border-gray-800 mt-4 pt-4 flex-1 flex flex-col min-h-0">
 
-                  {/* Gate: show button centered before first activation */}
-                  {!searchEnabled && (
+                  {/* Gate: button before first activation */}
+                  {!activated && (
                     <div className="flex-1 flex flex-col items-center justify-center gap-3">
                       <span className="text-[10px] uppercase tracking-widest text-gray-700">
-                        ModifiedCosine · ECRFS library · 102 PMT spectra
+                        CosineGreedy · MassBank Europe 20,000+ spectra
                       </span>
                       <button onClick={handleActivate} disabled={!selectedPeak}
                         className="flex items-center gap-2 px-6 py-3 rounded text-sm font-semibold bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 text-white hover:shadow-lg hover:scale-105 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100">
-                        <LuFlaskConical className="w-4 h-4" />
-                        run local spectral matching
+                        <LuGlobe className="w-4 h-4" />
+                        run global spectral matching
                       </button>
                     </div>
                   )}
 
                   {/* After activation */}
-                  {searchEnabled && (
+                  {activated && (
                     <>
                       <div className="flex items-center justify-between mb-3 flex-shrink-0">
                         <span className="text-[10px] uppercase tracking-widest text-gray-600">
-                          ModifiedCosine · ECRFS library · 102 PMT spectra
+                          CosineGreedy · MassBank Europe
                         </span>
+                        {computing && (
+                          <span className="text-[10px] text-orange-600/60 font-mono">
+                            {Object.keys(allResults).length} / {chrom?.peaks?.length ?? 0} peaks
+                          </span>
+                        )}
                       </div>
 
-                      {searching && (
+                      {/* Searching selected peak */}
+                      {isSearching && (
                         <div className="flex-1 flex items-center justify-center gap-3 text-gray-600 text-xs">
-                          <div className="w-3 h-3 rounded-full bg-amber-500/40 animate-ping" />
-                          Computing ModifiedCosine similarity against 102 ECRFS spectra…
+                          <div className="w-3 h-3 rounded-full bg-orange-500/40 animate-ping" />
+                          Searching MassBank Europe…
                         </div>
                       )}
 
-                      {error && !searching && (
-                        <div className="flex-1 flex items-center justify-center text-red-500/70 text-xs font-mono">
-                          {error}
-                        </div>
-                      )}
-
-                      {matchResult && !searching && (
+                      {/* Results for selected peak */}
+                      {isDone && !isSearching && (
                         <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
 
+                          {/* No match */}
+                          {currentHits.length === 0 && (
+                            <div className="rounded border flex-shrink-0"
+                              style={{ borderColor: "#4b556355", background: "#4b55630c" }}>
+                              <div className="px-4 py-3 space-y-1">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-semibold text-gray-400">No match in MassBank Europe</div>
+                                    <div className="text-[10px] text-gray-600 font-mono mt-0.5">structure absent from global database</div>
+                                  </div>
+                                  <div className="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide text-gray-500 bg-gray-800">
+                                    No Match
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Best match card */}
-                          {(() => {
-                            const b = matchResult.best;
-                            const col = simColor(b.similarity, b.n_matches);
-                            const cat = simCategory(b.similarity, b.n_matches);
-                            const fragPct = Math.min(100, (b.n_matches / 40) * 100);
+                          {currentHits.length > 0 && (() => {
+                            const best    = currentHits[0];
+                            const col     = scoreColor(best.score);
+                            const cat     = scoreCategory(best.score);
+                            const hitsPct = (currentHits.length / 5) * 100;
                             return (
                               <div className="rounded border flex-shrink-0"
                                 style={{ borderColor: col + "55", background: col + "0c" }}>
@@ -383,8 +393,10 @@ const SpectralMatching = ({ selectedFile }) => {
 
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                      <div className="text-xs font-semibold text-gray-200 truncate">{b.name}</div>
-                                      <div className="text-[10px] text-gray-500 font-mono mt-0.5">{b.formula}</div>
+                                      <div className="text-xs font-semibold text-gray-200 truncate">{best.name}</div>
+                                      <div className="text-[10px] text-gray-500 font-mono mt-0.5">
+                                        {best.formula} · {best.mass.toFixed(4)} Da
+                                      </div>
                                     </div>
                                     <div className="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide"
                                       style={{ color: col, background: col + "20" }}>
@@ -396,12 +408,12 @@ const SpectralMatching = ({ selectedFile }) => {
                                     <div className="flex justify-between items-baseline mb-1">
                                       <span className="text-[10px] text-gray-500 uppercase tracking-wide">Similarity score</span>
                                       <span className="text-sm font-bold font-mono" style={{ color: col }}>
-                                        {(b.similarity * 100).toFixed(1)}%
+                                        {(best.score * 100).toFixed(1)}%
                                       </span>
                                     </div>
                                     <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                                       <div className="h-full rounded-full transition-all"
-                                        style={{ width: `${b.similarity * 100}%`, backgroundColor: col }} />
+                                        style={{ width: `${best.score * 100}%`, backgroundColor: col }} />
                                     </div>
                                     <div className="text-[9px] text-gray-700 mt-0.5">
                                       threshold for confirmation: ≥ 65%
@@ -410,20 +422,17 @@ const SpectralMatching = ({ selectedFile }) => {
 
                                   <div>
                                     <div className="flex justify-between items-baseline mb-1">
-                                      <span className="text-[10px] text-gray-500 uppercase tracking-wide">Matched fragments</span>
+                                      <span className="text-[10px] text-gray-500 uppercase tracking-wide">Database hits</span>
                                       <span className="text-sm font-bold font-mono" style={{ color: col }}>
-                                        {b.n_matches} <span className="text-[10px] text-gray-600">peaks</span>
+                                        {currentHits.length} <span className="text-[10px] text-gray-600">compounds</span>
                                       </span>
                                     </div>
                                     <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                                       <div className="h-full rounded-full transition-all"
-                                        style={{ width: `${fragPct}%`, backgroundColor: col + "bb" }} />
+                                        style={{ width: `${hitsPct}%`, backgroundColor: col + "bb" }} />
                                     </div>
                                     <div className="text-[9px] text-gray-700 mt-0.5">
-                                      threshold for confirmation: ≥ 10 matched peaks
-                                      {b.n_matches < 10 && (
-                                        <span style={{ color: col }}> — high score may be coincidental overlap</span>
-                                      )}
+                                      unique compounds returned (top 5)
                                     </div>
                                   </div>
 
@@ -432,52 +441,47 @@ const SpectralMatching = ({ selectedFile }) => {
                             );
                           })()}
 
-                          {/* Top 5 ranking */}
-                          <div className="flex-shrink-0">
-                            <div className="flex items-center gap-4 text-[9px] text-gray-700 uppercase tracking-widest mb-1.5 px-3">
-                              <span className="w-4" />
-                              <span className="flex-1">Compound</span>
-                              <span className="w-28 text-right">Similarity</span>
-                              <span className="w-28 text-right">Fragments</span>
+                          {/* Top hits ranking */}
+                          {currentHits.length > 0 && (
+                            <div className="flex-shrink-0">
+                              <div className="flex items-center gap-4 text-[9px] text-gray-700 uppercase tracking-widest mb-1.5 px-3">
+                                <span className="w-4" />
+                                <span className="flex-1">Compound</span>
+                                <span className="w-28 text-right">Score</span>
+                                <span className="w-20 text-right">Mass (Da)</span>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                {currentHits.map((hit, rank) => {
+                                  const col = scoreColor(hit.score);
+                                  return (
+                                    <div key={hit.accession} className="flex items-center gap-4 px-3 py-2 bg-[#0e0e0e] rounded border border-gray-800/60">
+                                      <span className="text-[10px] text-gray-600 w-4 flex-shrink-0">{rank + 1}</span>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-[10px] text-gray-300 truncate">{hit.name}</div>
+                                        <div className="text-[9px] text-gray-600 font-mono">{hit.formula}</div>
+                                      </div>
+                                      <div className="w-28 flex-shrink-0">
+                                        <div className="flex justify-between text-[9px] mb-0.5">
+                                          <span className="text-gray-700">score</span>
+                                          <span className="font-mono" style={{ color: col }}>
+                                            {(hit.score * 100).toFixed(1)}%
+                                          </span>
+                                        </div>
+                                        <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                                          <div className="h-full rounded-full"
+                                            style={{ width: `${hit.score * 100}%`, backgroundColor: col }} />
+                                        </div>
+                                      </div>
+                                      <div className="w-20 flex-shrink-0 text-right">
+                                        <span className="text-[9px] font-mono text-gray-500">{hit.mass.toFixed(4)}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
-                            <div className="flex flex-col gap-1">
-                              {matchResult.top5.map((mol, rank) => {
-                                const col = simColor(mol.similarity, mol.n_matches);
-                                const fragPct = Math.min(100, (mol.n_matches / 40) * 100);
-                                return (
-                                  <div key={mol.id} className="flex items-center gap-4 px-3 py-2 bg-[#0e0e0e] rounded border border-gray-800/60">
-                                    <span className="text-[10px] text-gray-600 w-4 flex-shrink-0">{rank + 1}</span>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-[10px] text-gray-300 truncate">{mol.name}</div>
-                                      <div className="text-[9px] text-gray-600 font-mono">{mol.formula}</div>
-                                    </div>
-                                    <div className="w-28 flex-shrink-0">
-                                      <div className="flex justify-between text-[9px] mb-0.5">
-                                        <span className="text-gray-700">sim</span>
-                                        <span className="font-mono" style={{ color: col }}>
-                                          {(mol.similarity * 100).toFixed(1)}%
-                                        </span>
-                                      </div>
-                                      <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                                        <div className="h-full rounded-full"
-                                          style={{ width: `${mol.similarity * 100}%`, backgroundColor: col }} />
-                                      </div>
-                                    </div>
-                                    <div className="w-28 flex-shrink-0">
-                                      <div className="flex justify-between text-[9px] mb-0.5">
-                                        <span className="text-gray-700">frags</span>
-                                        <span className="font-mono text-gray-500">{mol.n_matches} pk</span>
-                                      </div>
-                                      <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                                        <div className="h-full rounded-full"
-                                          style={{ width: `${fragPct}%`, backgroundColor: col + "88" }} />
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
+                          )}
+
                         </div>
                       )}
                     </>
@@ -492,4 +496,4 @@ const SpectralMatching = ({ selectedFile }) => {
   );
 };
 
-export default SpectralMatching;
+export default AnomalyDetection;

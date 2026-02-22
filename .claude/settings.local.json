@@ -18,7 +18,11 @@
       "Bash(curl:*)",
       "Bash(pkill:*)",
       "Bash(lsof:*)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(head -5 grep -c \"LuSparkles\\\\|LuMinus\\\\|LuArrowUp\" /Users/erosdesimone/VSProject/videodemo/node_modules/react-icons/lu/index.js)",
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.10/bin/pip install:*)",
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.10/bin/python3:*)"
     ]
   }
 }

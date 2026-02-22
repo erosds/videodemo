@@ -207,10 +207,27 @@ from app.neural_safety_service import (
     get_embedding as ns_get_embedding,
     get_embeddings_3d as ns_get_embeddings_3d,
     get_all_embeddings as ns_get_all_embeddings,
+    project_query_to_3d as ns_project_query_to_3d,
+    list_libraries as ns_list_libraries,
     list_chromatograms as ns_list_chromatograms,
     get_chromatogram as ns_get_chromatogram,
     spectral_match as ns_spectral_match,
+    spec2vec_match as ns_spec2vec_match,
+    spec2vec_broad_match as ns_spec2vec_broad_match,
+    start_build_broad_index as ns_start_build_broad_index,
+    get_broad_index_status as ns_get_broad_index_status,
+    anomaly_score as ns_anomaly_score,
+    massbank_search as ns_massbank_search,
 )
+
+@app.get("/neural-safety/libraries")
+def neural_safety_libraries():
+    """Lista le librerie spettrali disponibili nella cartella datasets."""
+    try:
+        return ns_list_libraries()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/neural-safety/library")
 def neural_safety_library():
@@ -248,6 +265,26 @@ def neural_safety_spectrum(spectrum_id: int):
         return ns_get_spectrum(spectrum_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/neural-safety/project-query-3d")
+async def neural_safety_project_query_3d(request: Request):
+    """
+    Project one or more query MS2 spectra into the ECRFS PCA 3-D space.
+    Body: { peaks: [{mz, intensity}], label?: str }
+    Returns: { label, x, y, z }
+    """
+    try:
+        body        = await request.json()
+        query_peaks = body.get("peaks", [])
+        label       = str(body.get("label", "Query"))
+        loop        = asyncio.get_running_loop()
+        result      = await loop.run_in_executor(
+            None, lambda: ns_project_query_to_3d(query_peaks, label)
+        )
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -298,6 +335,116 @@ async def neural_safety_spectral_match(request: Request):
         results = await loop.run_in_executor(
             None,
             lambda: ns_spectral_match(query_peaks, precursor, tolerance, top_n)
+        )
+        return {"results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/neural-safety/anomaly-score")
+async def neural_safety_anomaly_score(request: Request):
+    """
+    LOF-based anomaly detection in Spec2Vec embedding space.
+    Body: { peaks: [{mz, intensity}] }
+    """
+    try:
+        body        = await request.json()
+        query_peaks = body.get("peaks", [])
+        loop        = asyncio.get_running_loop()
+        result      = await loop.run_in_executor(
+            None, lambda: ns_anomaly_score(query_peaks)
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/neural-safety/spec2vec-match")
+async def neural_safety_spec2vec_match(request: Request):
+    """
+    Spec2Vec embedding similarity: cosine k-NN in 300-D embedding space.
+    Body: { peaks: [{mz, intensity}], top_n? }
+    """
+    try:
+        body        = await request.json()
+        query_peaks = body.get("peaks", [])
+        top_n       = int(body.get("top_n", 10))
+
+        loop = asyncio.get_running_loop()
+        results = await loop.run_in_executor(
+            None,
+            lambda: ns_spec2vec_match(query_peaks, top_n)
+        )
+        return {"results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/neural-safety/broad-index-status")
+def neural_safety_broad_index_status():
+    """Returns the build state of the broad Spec2Vec index."""
+    try:
+        return ns_get_broad_index_status()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/neural-safety/build-broad-index")
+async def neural_safety_build_broad_index():
+    """
+    Start building the broad Spec2Vec index in the background (idempotent).
+    Returns current status immediately; poll /broad-index-status for progress.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        status = await loop.run_in_executor(None, ns_start_build_broad_index)
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/neural-safety/spec2vec-broad-match")
+async def neural_safety_spec2vec_broad_match(request: Request):
+    """
+    Spec2Vec similarity search against the broad MassBank index (~8-12k spectra).
+    Body: { peaks: [{mz, intensity}], top_n? }
+    Requires broad index to be built first.
+    """
+    try:
+        body        = await request.json()
+        query_peaks = body.get("peaks", [])
+        top_n       = int(body.get("top_n", 10))
+
+        loop = asyncio.get_running_loop()
+        results = await loop.run_in_executor(
+            None,
+            lambda: ns_spec2vec_broad_match(query_peaks, top_n)
+        )
+        return {"results": results}
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/neural-safety/massbank-search")
+async def neural_safety_massbank_search(request: Request):
+    """
+    Global spectral identification via MassBank Europe (CosineGreedy similarity).
+    Body: { peaks: [{mz, intensity}], precursor_mz, ion_mode?, threshold?, top_n? }
+    """
+    try:
+        body        = await request.json()
+        query_peaks = body.get("peaks", [])
+        precursor   = float(body.get("precursor_mz", 0.0))
+        ion_mode    = str(body.get("ion_mode", "POSITIVE"))
+        threshold   = float(body.get("threshold", 0.5))
+        top_n       = int(body.get("top_n", 5))
+
+        loop = asyncio.get_running_loop()
+        results = await loop.run_in_executor(
+            None,
+            lambda: ns_massbank_search(query_peaks, precursor, ion_mode, threshold, top_n),
         )
         return {"results": results}
     except Exception as e:
