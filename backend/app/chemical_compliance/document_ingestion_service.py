@@ -52,6 +52,12 @@ except ImportError:
     _PDF_OK = False
 
 try:
+    import pdfplumber as _pdfplumber
+    _PDFPLUMBER_OK = True
+except ImportError:
+    _PDFPLUMBER_OK = False
+
+try:
     from docx import Document as _DocxDocument
     _DOCX_OK = True
 except ImportError:
@@ -191,15 +197,44 @@ def _ocr_pdf_rapidocr(raw: bytes) -> str:
     return "\n\n".join(pages_text)
 
 
+def _extract_tables_pdfplumber(raw: bytes):
+    """Extract text + tables from PDF as Markdown. Returns text or None on failure."""
+    if not _PDFPLUMBER_OK:
+        return None
+    try:
+        with _pdfplumber.open(io.BytesIO(raw)) as pdf:
+            parts = []
+            for page in pdf.pages:
+                text = page.extract_text() or ""
+                if text.strip():
+                    parts.append(text)
+                for table in page.extract_tables():
+                    if table:
+                        rows = [
+                            "| " + " | ".join(str(c or "") for c in row) + " |"
+                            for row in table
+                        ]
+                        parts.append("\n".join(rows))
+            return "\n\n".join(parts) if parts else None
+    except Exception:
+        return None
+
+
 def _parse_pdf(raw: bytes) -> tuple[str, bool]:
     """
     Extract text from PDF bytes. Returns (text, is_markdown).
     Pipeline:
-      1. pymupdf4llm → Markdown (text-based PDFs, tables, columns)
-      2. ocrmac Apple Vision OCR (scanned/image PDFs) → plain text
-      3. pdfminer.six fallback → plain text
+      1. pdfplumber (table-aware, best for regulatory tables)
+      2. pymupdf4llm → Markdown (text-based PDFs, columns)
+      3. ocrmac Apple Vision OCR (scanned/image PDFs) → plain text
+      4. pdfminer.six fallback → plain text
     """
-    # 1. Try pymupdf4llm (fast, no OCR)
+    # 1. Try pdfplumber first (priority for tables)
+    plumber_text = _extract_tables_pdfplumber(raw)
+    if plumber_text and len(plumber_text.strip()) > 100:
+        return plumber_text, True
+
+    # 2. Try pymupdf4llm (fast, no OCR)
     if _PYMUPDF4LLM_OK:
         try:
             doc = _fitz.open(stream=raw, filetype="pdf")

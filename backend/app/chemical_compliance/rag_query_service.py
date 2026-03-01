@@ -25,10 +25,13 @@ except ImportError:
 QDRANT_URL = "http://localhost:6333"
 OLLAMA_URL = "http://localhost:11434"
 COLLECTION = "chemical_documents"
-LLM_MODEL = "llama3.2"
+LLM_MODEL = "llama3.1:8b"
+LLM_MODEL_FALLBACK = "llama3.2"
 MIN_SCORE_THRESHOLD = 0.25
 MAX_HISTORY_TURNS = 3  # last N user+assistant pairs to include
 COUNTING_TOP_K = 20    # retrieve more chunks for counting/listing queries
+RETRIEVAL_CANDIDATES = 20  # Qdrant retrieves more candidates, then RRF+reranker selects top_k
+_RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 _COUNTING_RE = re.compile(
     r'\b(how many|quante? volte|quanti|conta|count|occurrenc|elenca|list all|tutti|tutte)\b',
@@ -36,26 +39,81 @@ _COUNTING_RE = re.compile(
 )
 
 _SYSTEM_PROMPT = """\
-You are ChemAssist, a document Q&A assistant for industrial laboratories.
-You answer questions about documents uploaded to the knowledge base \
-(product lists, ingredient tables, SDS sheets, SOPs, regulations, CoA, etc.).
+You are ChemAssist, a regulatory intelligence assistant for cosmetic and food industry laboratories.
+You specialize in EU Cosmetics Regulation (EC 1223/2009), CLP/GHS, REACH, and food additive regulations.
 
-STRICT RULES — follow exactly:
-1. NEVER open with a greeting, self-introduction, or "I am ChemAssist". \
-   Start your answer directly. The only exception: if the user sends a \
-   greeting with NO question (e.g. "Hi", "Ciao"), reply in one sentence only.
-2. Answer ONLY from the retrieved context below. Do not invent facts.
-3. Cite sources inline as [filename].
-4. The context may be in Italian — translate/summarise as needed.
-5. If the context contains partial information, report what you found. \
-   Example: "The document lists: X, Y, Z …"
-6. For counting questions ("how many times…", "quante volte…"), count the \
-   occurrences visible in the retrieved context and state the number. \
-   If the context is incomplete, say so explicitly.
-7. If the answer is absent: say "Not found in the loaded documents."
-8. Be concise. Use bullet points for lists.
-9. Never make GMP release decisions.
+STRICT RULES:
+1. Never open with a greeting unless the user sends a greeting with no question.
+2. Answer ONLY from retrieved context. Never invent regulatory limits, CAS numbers, or concentration thresholds.
+3. Cite sources inline as [filename]. For regulatory claims, always include the Annex/Article reference if present.
+4. When reporting numeric limits (%, ppm, mg/kg): state the exact value from context, do not interpolate or round.
+5. Distinguish between EU regulations and other jurisdictions (FDA, NMPA, etc.) when the context allows.
+6. Use INCI nomenclature when referring to cosmetic ingredients.
+7. If context contains partial information, report exactly what was found: "The document states: X"
+8. If the answer is absent: "Not found in the loaded documents."
+9. For counting queries: count visible occurrences, state number, note if context may be incomplete.
+10. Never make GMP release decisions or formal safety assessments.
+11. Be concise. Use bullet points for lists. Use tables for comparative data if ≥3 items.
 """
+
+# ── Lazy reranker ───────────────────────────────────────────────────────────────
+
+_reranker = None
+
+
+def _get_reranker():
+    global _reranker
+    if _reranker is None:
+        try:
+            from sentence_transformers import CrossEncoder
+            _reranker = CrossEncoder(_RERANKER_MODEL)
+        except Exception:
+            _reranker = False
+    return _reranker if _reranker is not False else None
+
+
+# ── Hybrid RRF ──────────────────────────────────────────────────────────────────
+
+def _hybrid_rrf(chunks: list, query: str, top_k: int) -> list:
+    """
+    Reciprocal Rank Fusion of BM25 + dense Qdrant scores.
+    chunks: already retrieved from Qdrant, sorted by dense score desc.
+    """
+    if not chunks:
+        return chunks
+    try:
+        from rank_bm25 import BM25Okapi
+    except ImportError:
+        return chunks[:top_k]
+
+    tokenized = [c["text"].lower().split() for c in chunks]
+    bm25 = BM25Okapi(tokenized)
+    bm25_scores = bm25.get_scores(query.lower().split())
+
+    bm25_ranked = sorted(range(len(chunks)), key=lambda i: bm25_scores[i], reverse=True)
+    bm25_rank = {idx: rank for rank, idx in enumerate(bm25_ranked)}
+
+    k = 60
+    rrf_scores = []
+    for dense_rank, chunk in enumerate(chunks):
+        rrf = 1 / (k + dense_rank) + 1 / (k + bm25_rank.get(dense_rank, len(chunks)))
+        rrf_scores.append((rrf, chunk))
+
+    rrf_scores.sort(key=lambda x: x[0], reverse=True)
+    return [c for _, c in rrf_scores[:top_k]]
+
+
+def _rerank(chunks: list, query: str) -> list:
+    """Cross-encoder reranking. Returns chunks sorted by cross-encoder score."""
+    reranker = _get_reranker()
+    if not reranker or len(chunks) <= 1:
+        return chunks
+    try:
+        pairs = [(query, c["text"]) for c in chunks]
+        scores = reranker.predict(pairs)
+        return [c for _, c in sorted(zip(scores, chunks), key=lambda x: x[0], reverse=True)]
+    except Exception:
+        return chunks
 
 
 # ── Qdrant helpers ─────────────────────────────────────────────────────────────
@@ -117,10 +175,12 @@ def retrieve(
     client = _get_qdrant()
     vec = _embed_query(query)
     filt = _build_filter(mode, document_types)
+
+    # Step 1: Dense retrieval (more candidates than needed)
     results = client.search(
         collection_name=COLLECTION,
         query_vector=vec,
-        limit=top_k,
+        limit=max(RETRIEVAL_CANDIDATES, top_k),
         query_filter=filt,
         with_payload=True,
         score_threshold=MIN_SCORE_THRESHOLD,
@@ -135,7 +195,21 @@ def retrieve(
             "document_type": p.get("document_type", ""),
             "score": hit.score,
         })
-    return chunks
+
+    # Step 2: Hybrid RRF (BM25 + dense)
+    try:
+        chunks = _hybrid_rrf(chunks, query, min(RETRIEVAL_CANDIDATES, len(chunks)))
+    except Exception:
+        pass  # fallback to dense-only
+
+    # Step 3: Cross-encoder reranking
+    try:
+        chunks = _rerank(chunks, query)
+    except Exception:
+        pass
+
+    # Step 4: Take top_k
+    return chunks[:top_k]
 
 
 # ── Chat message building ───────────────────────────────────────────────────────
@@ -267,29 +341,41 @@ async def stream_query_pipeline(
         _, chunks = apply_regulatory_constraints(chunks, "", query)
     chat_messages = _build_messages(query, chunks, messages)
 
-    # 5. Stream tokens from Ollama via api/chat
+    # 5. Stream tokens from Ollama via api/chat (with model fallback)
     full_response = ""
-    try:
-        if not _HTTPX_OK:
-            raise RuntimeError("httpx not installed")
-        async with httpx.AsyncClient(timeout=180) as client:
-            async with client.stream(
-                "POST",
-                f"{OLLAMA_URL}/api/chat",
-                json={"model": LLM_MODEL, "messages": chat_messages, "stream": True},
-            ) as resp:
-                async for line in resp.aiter_lines():
-                    if not line:
-                        continue
-                    data = json.loads(line)
-                    token = data.get("message", {}).get("content", "")
-                    if token:
-                        full_response += token
-                        yield {"type": "token", "content": token}
-                    if data.get("done"):
-                        break
-    except Exception as e:
-        yield {"type": "error", "message": f"Generation failed: {e}"}
+    generation_ok = False
+    if not _HTTPX_OK:
+        yield {"type": "error", "message": "httpx not installed"}
+        yield {"type": "done"}
+        return
+
+    async with httpx.AsyncClient(timeout=180) as http_client:
+        for model in [LLM_MODEL, LLM_MODEL_FALLBACK]:
+            try:
+                async with http_client.stream(
+                    "POST",
+                    f"{OLLAMA_URL}/api/chat",
+                    json={"model": model, "messages": chat_messages, "stream": True},
+                ) as resp:
+                    if resp.status_code == 404:
+                        continue  # model not available, try fallback
+                    async for line in resp.aiter_lines():
+                        if not line:
+                            continue
+                        data = json.loads(line)
+                        token = data.get("message", {}).get("content", "")
+                        if token:
+                            full_response += token
+                            yield {"type": "token", "content": token}
+                        if data.get("done"):
+                            break
+                generation_ok = True
+                break
+            except Exception:
+                continue
+
+    if not generation_ok:
+        yield {"type": "error", "message": "Generation failed: no LLM model available"}
         yield {"type": "done"}
         return
 
@@ -354,13 +440,18 @@ def query_pipeline(
 
     if not _REQUESTS_OK:
         raise RuntimeError("requests not installed")
-    resp = _requests.post(
-        f"{OLLAMA_URL}/api/chat",
-        json={"model": LLM_MODEL, "messages": chat_messages, "stream": False},
-        timeout=180,
-    )
-    resp.raise_for_status()
-    answer = resp.json().get("message", {}).get("content", "").strip()
+    answer = ""
+    for model in [LLM_MODEL, LLM_MODEL_FALLBACK]:
+        resp = _requests.post(
+            f"{OLLAMA_URL}/api/chat",
+            json={"model": model, "messages": chat_messages, "stream": False},
+            timeout=180,
+        )
+        if resp.status_code == 404:
+            continue
+        resp.raise_for_status()
+        answer = resp.json().get("message", {}).get("content", "").strip()
+        break
 
     scores = [c["score"] for c in chunks]
     avg_score = sum(scores) / len(scores) if scores else 0.0

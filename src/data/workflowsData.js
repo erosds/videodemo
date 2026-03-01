@@ -179,6 +179,12 @@ export const workflows = {
         subtitle: "Every upload, query, SDS extraction, and CoA comparison is logged with timestamp and metadata. Export the full <strong>audit log as JSON</strong> for traceability and compliance record-keeping.",
         gradient: "from-emerald-700 via-green-600 to-teal-500",
       },
+      {
+        id: 5,
+        title: "ingredient check",
+        subtitle: "Verify single ingredients or entire formulas against the <strong>EU Cosmetics Regulation 1223/2009</strong>. Database of 100+ ingredients with concentration limits, Annex references, and plain-language explanations.",
+        gradient: "from-teal-600 via-cyan-600 to-emerald-600",
+      },
     ]
   }
 };

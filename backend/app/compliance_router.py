@@ -13,6 +13,10 @@ from app.chemical_compliance.compliance_models import (
     SdsExtractRequest,
     SdsExtractResponse,
     HealthResponse,
+    IngredientCheckRequest,
+    IngredientCheckResponse,
+    FormulaScreenRequest,
+    FormulaScreenResponse,
 )
 
 router = APIRouter(tags=["chemical-compliance"])
@@ -178,6 +182,54 @@ async def batch_compare(req: BatchCompareRequest):
             "flagged": sum(1 for p in result["parameters"] if p["flagged"]),
         })
         return BatchCompareResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Ingredient compliance ──────────────────────────────────────────────────────
+
+@router.post("/ingredient-check", response_model=IngredientCheckResponse)
+async def ingredient_check(req: IngredientCheckRequest):
+    """Check a single ingredient against EU Cosmetics Regulation 1223/2009."""
+    try:
+        from app.chemical_compliance.ingredient_compliance_service import check_ingredient
+        from app.chemical_compliance.audit_service import log_event
+        result = check_ingredient(req.inci_name, req.concentration_pct, req.product_type.value)
+        log_event("ingredient_check", {
+            "inci": req.inci_name,
+            "conc": req.concentration_pct,
+            "product_type": req.product_type.value,
+            "status": result["status"],
+        })
+        return IngredientCheckResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/formula-screen", response_model=FormulaScreenResponse)
+async def formula_screen(req: FormulaScreenRequest):
+    """Screen a complete formula for EU Cosmetics Regulation compliance."""
+    try:
+        from app.chemical_compliance.ingredient_compliance_service import screen_formula
+        from app.chemical_compliance.audit_service import log_event
+        ingredients = [i.model_dump() for i in req.ingredients]
+        result = screen_formula(ingredients, req.product_type.value)
+        log_event("formula_screen", {
+            "n_ingredients": len(req.ingredients),
+            "product_type": req.product_type.value,
+            "status": result["overall_status"],
+        })
+        return FormulaScreenResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ingredients/search")
+async def ingredients_search(q: str = "", limit: int = 10):
+    """Fuzzy search ingredients by INCI name or CAS number."""
+    try:
+        from app.chemical_compliance.ingredient_compliance_service import search_ingredient
+        return {"results": search_ingredient(q, limit)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

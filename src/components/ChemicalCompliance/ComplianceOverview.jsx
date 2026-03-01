@@ -3,9 +3,24 @@ import React from "react";
 const ComplianceOverview = () => {
   const features = [
     {
-      icon: "📄",
-      title: "SOP & Regulatory Search",
-      desc: "Semantic search across Standard Operating Procedures, regulatory texts, and method documents. Retrieve relevant clauses with source citations.",
+      icon: "🔀",
+      title: "RAG + Hybrid Search",
+      desc: "Combines semantic AI search with BM25 keyword retrieval (RRF fusion) to find both conceptually related content and exact technical terms like CAS numbers and INCI codes.",
+    },
+    {
+      icon: "🎯",
+      title: "AI Reranking",
+      desc: "A cross-encoder model (ms-marco-MiniLM) re-scores retrieved document chunks before generating the answer, improving precision over pure vector similarity.",
+    },
+    {
+      icon: "📋",
+      title: "Ingredient Compliance DB",
+      desc: "Pre-loaded EU Cosmetics Regulation 1223/2009 database: 100+ ingredients with concentration limits, restrictions, Annex references, and plain-language explanations.",
+    },
+    {
+      icon: "🧪",
+      title: "Formula Screening",
+      desc: "Upload a complete formula and verify compliance of all ingredients at once. Automatic allergen detection and mandatory label requirement generation.",
     },
     {
       icon: "⚠️",
@@ -17,20 +32,17 @@ const ComplianceOverview = () => {
       title: "Batch CoA Comparison",
       desc: "Upload two Certificates of Analysis for the same product. The system aligns parameters, computes percent deviation, and flags values exceeding your threshold.",
     },
-    {
-      icon: "🔍",
-      title: "Regulatory Intelligence",
-      desc: "Query REACH, CLP, ICH Q3C and other frameworks. Answers are grounded strictly in retrieved documents — no invented regulatory limits.",
-    },
   ];
 
   const stack = [
-    { label: "LLM", value: "LLaMA 3 8B via Ollama" },
+    { label: "LLM", value: "LLaMA 3.1 8B via Ollama" },
     { label: "Embeddings", value: "nomic-embed-text (768-dim)" },
     { label: "Vector DB", value: "Qdrant (Docker, local)" },
-    { label: "Framework", value: "LlamaIndex + FastAPI" },
-    { label: "Chemistry", value: "RDKit (CAS validation, MW)" },
-    { label: "Parsing", value: "pdfminer.six + python-docx" },
+    { label: "Retrieval", value: "Dense + BM25 RRF hybrid" },
+    { label: "Reranking", value: "CrossEncoder ms-marco-MiniLM" },
+    { label: "PDF Parsing", value: "pdfplumber + pymupdf4llm" },
+    { label: "Ingredient DB", value: "EU CosIng / Reg. 1223/2009" },
+    { label: "Chemistry", value: "RDKit (CAS validation)" },
   ];
 
   return (
@@ -58,7 +70,7 @@ const ComplianceOverview = () => {
           <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-3">
             Technology Stack
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {stack.map((s) => (
               <div key={s.label}>
                 <div className="text-[10px] text-gray-600 uppercase tracking-widest">{s.label}</div>

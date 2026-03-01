@@ -4,6 +4,7 @@ import DocumentUpload from "./DocumentUpload";
 import ComplianceChat from "./ComplianceChat";
 import BatchCompare from "./BatchCompare";
 import AuditTrail from "./AuditTrail";
+import IngredientCheck from "./IngredientCheck";
 import { getAnimationProgress } from "../../utils/animationConfig";
 
 const ChemicalComplianceContent = ({ activeIndex, scrollIndex, totalSections }) => {
@@ -23,6 +24,8 @@ const ChemicalComplianceContent = ({ activeIndex, scrollIndex, totalSections }) 
     content = <BatchCompare />;
   } else if (activeIndex === 4) {
     content = <AuditTrail />;
+  } else if (activeIndex === 5) {
+    content = <IngredientCheck />;
   }
 
   if (currentOpacity <= 0.01) return null;

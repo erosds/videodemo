@@ -1,3 +1,4 @@
+from enum import Enum
 from pydantic import BaseModel
 from typing import Literal, List, Dict, Any, Optional
 
@@ -89,6 +90,50 @@ class SdsExtractResponse(BaseModel):
     clp_classification: List[str]
     signal_word: Optional[str]
     exposure_limits: List[str]
+
+
+class ProductType(str, Enum):
+    rinse_off = "rinse_off"
+    leave_on = "leave_on"
+    oral = "oral"
+    eye = "eye"
+    spray = "spray"
+    sunscreen = "sunscreen"
+
+
+class IngredientCheckRequest(BaseModel):
+    inci_name: str
+    concentration_pct: float
+    product_type: ProductType = ProductType.leave_on
+
+
+class IngredientCheckResponse(BaseModel):
+    inci_name: str
+    cas: Optional[str]
+    status: str           # compliant | restricted | prohibited | unknown
+    max_allowed_pct: Optional[float]
+    conditions: Optional[str]
+    annex_ref: Optional[str]
+    plain_explanation: str
+    warnings: List[str]
+
+
+class FormulaIngredient(BaseModel):
+    inci_name: str
+    concentration_pct: float
+
+
+class FormulaScreenRequest(BaseModel):
+    ingredients: List[FormulaIngredient]
+    product_type: ProductType = ProductType.leave_on
+
+
+class FormulaScreenResponse(BaseModel):
+    overall_status: str     # compliant | warnings | non_compliant
+    per_ingredient: List[IngredientCheckResponse]
+    allergen_warnings: List[Dict[str, Any]]
+    label_requirements: List[str]
+    summary: str
 
 
 class AuditEvent(BaseModel):
