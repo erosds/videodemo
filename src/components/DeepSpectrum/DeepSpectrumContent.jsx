@@ -29,7 +29,7 @@ const DeepSpectrumContent = ({ activeIndex, scrollIndex, totalSections }) => {
       />
     );
   } else if (activeIndex === 1) {
-    content = <AnomalyDetection selectedFile={selectedFile} />;
+    content = <AnomalyDetection selectedFile={selectedFile} onFileChange={handleFileChange} />;
   } else if (activeIndex === 2) {
     content = <KnowledgeBaseExplorer activeLib={activeLib} onLibChange={handleLibChange} />;
   } else if (activeIndex === 3) {

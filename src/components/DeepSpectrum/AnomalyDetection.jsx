@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { LuActivity, LuDatabase, LuGlobe, LuInfo } from "react-icons/lu";
+import { useState, useEffect, useRef } from "react";
+import { LuActivity, LuDatabase, LuGlobe, LuInfo, LuFlaskConical, LuChevronDown, LuX } from "react-icons/lu";
 
 const BACKEND = "http://localhost:8000";
 
@@ -136,7 +136,22 @@ const MS2Chart = ({ peaks, height = 110 }) => {
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
-const AnomalyDetection = ({ selectedFile }) => {
+const AnomalyDetection = ({ selectedFile, onFileChange }) => {
+  const [files,        setFiles]        = useState([]);
+  const [fileDropOpen, setFileDropOpen] = useState(false);
+  const fileRef = useRef(null);
+
+  useEffect(() => {
+    fetch(`${BACKEND}/deep-spectrum/chromatograms`).then((r) => r.json()).then(setFiles).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const h = (e) => {
+      if (fileRef.current && !fileRef.current.contains(e.target)) setFileDropOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
   const [chrom,        setChrom]        = useState(null);
   const [selectedPeak, setSelectedPeak] = useState(null);
   const [allResults,   setAllResults]   = useState({});
@@ -191,6 +206,47 @@ const AnomalyDetection = ({ selectedFile }) => {
   const isDone       = selectedPeak ? selectedPeak.id in allResults : false;
   const isSearching  = computing && !isDone;
 
+  // ── File selector (shown when no file is selected) ───────────────────────
+  if (!selectedFile) {
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-10 px-12"
+        style={{ paddingTop: "100px", paddingBottom: "100px" }}>
+        <div className="flex flex-col items-center gap-3" style={{ width: 280 }}>
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-1.5">
+            LC-MS/MS input file
+          </div>
+          <div ref={fileRef} className="relative w-full">
+            <button
+              onClick={() => setFileDropOpen((o) => !o)}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-[#0e0e0e] border border-gray-800 rounded-lg text-sm transition-colors hover:border-gray-600"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <LuFlaskConical className="w-4 h-4 flex-shrink-0 text-gray-700" />
+                <span className="truncate text-gray-600">Select a chromatogram…</span>
+              </div>
+              <LuChevronDown className={`w-3.5 h-3.5 text-gray-700 flex-shrink-0 transition-transform ${fileDropOpen ? "rotate-180" : ""}`} />
+            </button>
+            {fileDropOpen && (
+              <div className="absolute z-50 mt-1 w-full bg-[#0e0e0e] border border-gray-800 rounded-lg shadow-2xl max-h-52 overflow-y-auto"
+                style={{ scrollbarWidth: "none" }}>
+                {files.length === 0 && (
+                  <div className="px-4 py-3 text-[10px] text-gray-600 italic">No files found</div>
+                )}
+                {files.map((f) => (
+                  <button key={f}
+                    onClick={() => { onFileChange(f); setFileDropOpen(false); }}
+                    className="w-full text-left px-4 py-2.5 text-xs border-b border-gray-800/40 last:border-0 font-mono transition-colors text-gray-500 hover:bg-white/[0.03]">
+                    {f}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="absolute inset-0 flex items-center justify-center px-12"
       style={{ paddingTop: "200px", paddingBottom: "100px" }}>
@@ -199,9 +255,16 @@ const AnomalyDetection = ({ selectedFile }) => {
 
         {/* TOP BAR */}
         <div className="flex items-center justify-between px-4 py-2.5 bg-[#0e0e0e] border-b border-gray-800 flex-shrink-0">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-gray-800 rounded text-xs text-gray-500 font-mono">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#1a1a1a] border border-gray-800 rounded text-xs text-gray-500 font-mono">
             <LuDatabase className="w-3 h-3 text-orange-400/60 flex-shrink-0" />
-            <span className="max-w-[220px] truncate">{selectedFile ?? "—"}</span>
+            <span className="max-w-[220px] truncate flex-1">{selectedFile ?? "—"}</span>
+            <button
+              onClick={() => onFileChange(null)}
+              className="flex-shrink-0 text-gray-700 hover:text-gray-400 transition-colors ml-1"
+              title="Change file"
+            >
+              <LuX className="w-3 h-3" />
+            </button>
           </div>
 
           <div className="flex items-center gap-2">

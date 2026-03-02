@@ -64,13 +64,13 @@ export const workflows = {
       {
         id: 0,
         title: "overview",
-        subtitle: "When analyzing a compound, one common technique is to separate all the molecules in the sample and then identify them individually. This technique is called liquid chromatography–tandem mass spectrometry (LC–MS/MS).<br>However, the instrument does not directly provide the names of the molecules. Instead, it generates mass spectra, which must be interpreted to identify and characterize the compounds. This is not a simple process; it requires a combination of chemical expertise and advanced analytical tools. But what if AI joins this process?",        
+        subtitle: "Every analytical lab — food safety, cosmetics, pharmaceuticals — produces <strong>spectra</strong> that must be manually interpreted by expert chemists. What is a chromatogram? What is a mass spectrum? How are spectra read today — and can <strong>AI change this</strong>?",
         gradient: "from-emerald-600 via-green-600 to-teal-600",
       },
       {
         id: 1,
         title: "global screening",
-        subtitle: "Each peak in your chromatogram is compared against <strong>MassBank Europe</strong> (20,000+ public mass spectra) using <strong>CosineGreedy</strong> fragment similarity. This fast, established approach gives you a first-pass identification against the broadest publicly available reference.",
+        subtitle: "Load your LC-MS/MS file: each peak in your chromatogram is compared against <strong>MassBank Europe</strong> (20,000+ public mass spectra) using <strong>CosineGreedy</strong> fragment similarity — a fast, established first-pass identification against the broadest publicly available reference.",
         gradient: "from-amber-600 via-orange-600 to-red-600",
       },
       {

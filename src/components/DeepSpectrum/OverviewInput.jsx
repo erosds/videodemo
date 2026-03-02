@@ -1,98 +1,123 @@
-import { useState, useEffect, useRef } from "react";
-import { LuFlaskConical, LuChevronDown } from "react-icons/lu";
+import { LuActivity, LuAtom, LuBrain } from "react-icons/lu";
 
-const BACKEND = "http://localhost:8000";
-
-// ─── Minimal dropdown ─────────────────────────────────────────────────────────
-const Dropdown = ({ icon: Icon, value, label, placeholder, items, renderItem, renderNone, renderLabel, open, onToggle, dropRef }) => (
-  <div className="flex flex-col items-center gap-3" style={{ width: 280 }}>
-    <div className="text-center">
-      <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-1.5">{label}</div>
-    </div>
-    <div ref={dropRef} className="relative w-full">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-[#0e0e0e] border border-gray-800 rounded-lg text-sm transition-colors hover:border-gray-600"
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <Icon className={`w-4 h-4 flex-shrink-0 ${value ? "text-gray-400" : "text-gray-700"}`} />
-          <span className={`truncate ${value ? "text-gray-200" : "text-gray-600"}`}>
-            {value ? renderLabel(value) : placeholder}
-          </span>
-        </div>
-        <LuChevronDown className={`w-3.5 h-3.5 text-gray-700 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute z-50 mt-1 w-full bg-[#0e0e0e] border border-gray-800 rounded-lg shadow-2xl max-h-52 overflow-y-auto"
-          style={{ scrollbarWidth: "none" }}>
-          {renderNone && renderNone()}
-          {items.length === 0 && (
-            <div className="px-4 py-3 text-[10px] text-gray-600 italic">No items found</div>
-          )}
-          {items.map((item) => renderItem(item))}
-        </div>
-      )}
-    </div>
-    {value && (
-      <div className="text-[10px] text-emerald-600/70 font-mono tracking-wide">ready</div>
-    )}
-  </div>
-);
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
-const OverviewInput = ({ selectedFile, onFileChange }) => {
-  const [files,        setFiles]        = useState([]);
-  const [fileDropOpen, setFileDropOpen] = useState(false);
-  const fileRef = useRef(null);
-
-  useEffect(() => {
-    fetch(`${BACKEND}/deep-spectrum/chromatograms`).then((r) => r.json()).then(setFiles).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const h = (e) => {
-      if (fileRef.current && !fileRef.current.contains(e.target)) setFileDropOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
+// ── Illustrative chromatogram (gaussian peaks, not real data) ─────────────────
+const FakeChromatogram = () => {
+  const W = 260, H = 72, baseline = 62;
+  const peaks = [
+    { cx: 40,  amp: 32, w: 10 },
+    { cx: 100, amp: 52, w: 13 },
+    { cx: 175, amp: 46, w: 12 },
+    { cx: 220, amp: 28, w:  9 },
+  ];
+  const pts = [];
+  for (let x = 0; x <= W; x += 1.5) {
+    let y = 0;
+    for (const p of peaks) y += p.amp * Math.exp(-((x - p.cx) ** 2) / (2 * p.w ** 2));
+    pts.push(`${x.toFixed(1)},${(baseline - y).toFixed(1)}`);
+  }
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-10 px-12"
-      style={{ paddingTop: "180px", paddingBottom: "100px" }}>
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
+      <polyline points={pts.join(" ")} fill="none" stroke="#f59e0b" strokeWidth={1.5} opacity={0.75} />
+      <line x1={0} y1={baseline} x2={W} y2={baseline} stroke="#374151" strokeWidth={0.5} />
+      {[{ x: 40, y: baseline - 35, t: "2.1 min" }, { x: 100, y: baseline - 55, t: "5.3 min" }, { x: 175, y: baseline - 49, t: "7.8 min" }].map((l) => (
+        <text key={l.t} x={l.x} y={l.y} textAnchor="middle" fontSize={8} fill="#6b7280" fontFamily="monospace">{l.t}</text>
+      ))}
+      <text x={W / 2} y={H - 1} textAnchor="middle" fontSize={7} fill="#4b5563">Retention time (min)</text>
+    </svg>
+  );
+};
 
-      {/* Dropdown */}
-      <Dropdown
-        icon={LuFlaskConical}
-        label="LC-MS/MS input file"
-        placeholder="Select a chromatogram…"
-        value={selectedFile}
-        renderLabel={(v) => v}
-        items={files}
-        renderNone={() => (
-          <button
-            onClick={() => { onFileChange(null); setFileDropOpen(false); }}
-            className={`w-full text-left px-4 py-2.5 text-xs border-b border-gray-800/40 transition-colors ${
-              !selectedFile ? "text-gray-400 bg-white/5" : "text-gray-600 hover:bg-white/[0.03]"
-            }`}>—</button>
-        )}
-        renderItem={(f) => (
-          <button key={f}
-            onClick={() => { onFileChange(f); setFileDropOpen(false); }}
-            className={`w-full text-left px-4 py-2.5 text-xs border-b border-gray-800/40 last:border-0 font-mono transition-colors ${
-              f === selectedFile ? "text-gray-100 bg-white/5" : "text-gray-500 hover:bg-white/[0.03]"
-            }`}>{f}</button>
-        )}
-        open={fileDropOpen}
-        onToggle={() => setFileDropOpen((o) => !o)}
-        dropRef={fileRef}
-      />
+// ── Illustrative MS/MS stick spectrum (not real data) ─────────────────────────
+const FakeSpectrum = () => {
+  const W = 260, H = 72, baseline = 62;
+  const sticks = [
+    { x: 28,  h: 12, label: null },
+    { x: 58,  h: 26, label: null },
+    { x: 88,  h: 34, label: null },
+    { x: 118, h: 20, label: null },
+    { x: 152, h: 48, label: "base peak" },
+    { x: 185, h: 32, label: null },
+    { x: 210, h: 16, label: null },
+    { x: 235, h:  8, label: null },
+  ];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
+      {sticks.map((s, i) => (
+        <g key={i}>
+          <line x1={s.x} y1={baseline} x2={s.x} y2={baseline - s.h}
+            stroke={s.h > 50 ? "#f97316" : s.h > 35 ? "#fb923c" : "#92400e"}
+            strokeWidth={s.h > 50 ? 2 : 1.5} opacity={0.85} />
+          {s.label && (
+            <text x={s.x} y={baseline - s.h - 3} textAnchor="middle" fontSize={7} fill="#f97316">{s.label}</text>
+          )}
+        </g>
+      ))}
+      <line x1={0} y1={baseline} x2={W} y2={baseline} stroke="#374151" strokeWidth={0.5} />
+      <text x={W / 2} y={H - 1} textAnchor="middle" fontSize={7} fill="#4b5563">m/z (mass-to-charge ratio)</text>
+    </svg>
+  );
+};
 
-      {/* Status line */}
-      <div className="text-[10px] text-gray-700">
-        {selectedFile
-          ? "Input configured — navigate through the tabs to run the analysis pipeline."
-          : "Select the LC-MS/MS chromatogram to analyze."}
+// ── Main ──────────────────────────────────────────────────────────────────────
+const OverviewInput = () => {
+  return (
+    <div
+      className="absolute inset-0 overflow-y-auto no-scrollbar px-12"
+      style={{ paddingTop: 200, paddingBottom: 100 }}
+    >
+      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+
+        {/* Intro */}
+        <p className="text-base text-gray-400 leading-relaxed">
+          The core question is always: <em>what molecules are in this sample?</em> One of the principal tools is <strong className="text-gray-300">LC–MS/MS</strong> (Liquid Chromatography–Tandem Mass Spectrometry). But it doesn't hand back a list of names: it produces raw signals that a trained expert must decode:
+        </p>
+
+        {/* Two concept cards */}
+        <div className="grid grid-cols-2 gap-4">
+
+          <div className="bg-[#111111] border border-gray-800 rounded-lg p-4 flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <LuActivity className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-xs font-semibold uppercase tracking-widest text-gray-300">Chromatogram</span>
+            </div>
+            <FakeChromatogram />
+            <p className="text-sm text-gray-400 leading-relaxed">
+              Compounds separate as they travel through the instrument and arrive at different <strong className="text-gray-400">retention times (RT)</strong> — how long each molecule takes to reach the detector.
+            </p>
+            <p className="text-xs text-gray-500 italic leading-relaxed">
+              Think of a marathon: each compound runs at its own pace and crosses the finish line at a different time. The chromatogram shows when each partecipant arrived — but not who they are.
+            </p>
+          </div>
+
+          <div className="bg-[#111111] border border-gray-800 rounded-lg p-4 flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <LuAtom className="w-3.5 h-3.5 text-orange-400" />
+              <span className="text-xs font-semibold uppercase tracking-widest text-gray-300">Mass Spectrum</span>
+            </div>
+            <FakeSpectrum />
+            <p className="text-sm text-gray-400 leading-relaxed">
+              For each chromatographic peak, the instrument isolates the molecule and shatters it. Fragments are detected by their <strong className="text-gray-400">m/z</strong> (mass-to-charge ratio). This pattern of fragments is the structural fingerprint of the compound.
+            </p>
+            <p className="text-xs text-gray-500 italic leading-relaxed">
+              Like smashing a vase and cataloguing the pieces: every molecule breaks in its own way, and the fragment pattern reveals what the original structure was.
+            </p>
+          </div>
+
+        </div>
+
+        {/* Today + AI question — merged block */}
+        <div className="border border-emerald-900/30 rounded-lg px-5 py-5 bg-emerald-950/10 flex flex-col gap-4">
+          <p className="text-sm text-gray-400 leading-relaxed">
+            Labs use vendor software (Compound Discoverer, UNIFI, MassHunter) that searches each spectrum against reference databases (NIST, mzCloud, MassBank) and ranks candidates by match score. This works for <strong className="text-gray-400">target analysis</strong> — known compounds, known list. The bottleneck is <strong className="text-gray-400">non-target screening</strong>: databases cover only a fraction of chemical space, unknowns require expert judgement, and similarity scoring is prone to <strong className="text-gray-400">false positives</strong> — a few shared high-intensity fragments can produce a high match score even when the actual structure is wrong.
+          </p>
+          <div className="flex items-center gap-3 border-t border-emerald-900/20 pt-4">
+            <LuBrain className="w-4 h-4 text-emerald-500/60 flex-shrink-0" />
+            <p className="text-base text-gray-300 leading-relaxed">
+              Could AI extend coverage beyond fixed databases — identifying compounds even when no exact reference exists?
+            </p>
+          </div>
+        </div>
+
       </div>
     </div>
   );
