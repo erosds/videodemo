@@ -108,12 +108,12 @@ const OverviewInput = () => {
         {/* Today + AI question — merged block */}
         <div className="border border-emerald-900/30 rounded-lg px-5 py-5 bg-emerald-950/10 flex flex-col gap-4">
           <p className="text-sm text-gray-400 leading-relaxed">
-            Labs use vendor software (Compound Discoverer, UNIFI, MassHunter) that searches each spectrum against reference databases (NIST, mzCloud, MassBank) and ranks candidates by match score. This works for <strong className="text-gray-400">target analysis</strong> — known compounds, known list. The bottleneck is <strong className="text-gray-400">non-target screening</strong>: databases cover only a fraction of chemical space, unknowns require expert judgement, and similarity scoring is prone to <strong className="text-gray-400">false positives</strong> — a few shared high-intensity fragments can produce a high match score even when the actual structure is wrong.
+            Labs use vendor software (Compound Discoverer, UNIFI, MassHunter) that searches each spectrum against reference databases (NIST, mzCloud, MassBank) and ranks candidates by match score. This works for <strong className="text-gray-400">target analysis</strong> — known compounds, known list. The bottleneck is <strong className="text-gray-400">non-target screening</strong>: unknowns require expert judgement, and similarity scoring is prone to <strong className="text-gray-400">false positives</strong> — a few shared high-intensity fragments can produce a high match score even when the actual structure is wrong.
           </p>
           <div className="flex items-center gap-3 border-t border-emerald-900/20 pt-4">
             <LuBrain className="w-4 h-4 text-emerald-500/60 flex-shrink-0" />
             <p className="text-base text-gray-300 leading-relaxed">
-              Could AI extend coverage beyond fixed databases — identifying compounds even when no exact reference exists?
+              Could AI support analysts in identifying compounds in LC-MS/MS data that traditional workflows might overlook?
             </p>
           </div>
         </div>
