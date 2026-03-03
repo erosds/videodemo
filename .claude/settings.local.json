@@ -32,7 +32,8 @@
       "Bash(taskkill:*)",
       "Bash(powershell.exe:*)",
       "Bash(cmd.exe:*)",
-      "Bash(wmic path:*)"
+      "Bash(wmic path:*)",
+      "WebSearch"
     ]
   }
 }

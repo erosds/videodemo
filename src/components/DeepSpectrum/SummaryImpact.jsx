@@ -97,16 +97,16 @@ const SummaryImpact = () => (
             detail="CosineGreedy fragment matching vs MassBank Europe · 20,000+ public MS-MS spectra · via REST API"
             color={P1} />
           <Step phase="1 · B" label="Load specific library"
-            detail="ECRFS/Wageningen · 102 PMT reference compounds · EFSA toxicological scores"
+            detail="Local dataset matching · ECRFS/Wageningen · EFSA toxicological scores"
             color={P1} />
           <Step phase="1 · C" label="Classical matching"
-            detail="ModifiedCosine similarity vs PMT library · accounts for neutral losses · 102-compound targeted search"
+            detail="ModifiedCosine similarity vs local dataset · accounts for neutral losses · compound targeted search"
             color={P1} />
           <Step phase="2 · A" label="AI vectorization"
             detail="Spec2Vec · each spectrum encoded as a 300-dimensional embedding vector"
             color={P2} />
           <Step phase="2 · B" label="AI similarity search"
-            detail="Cosine k-NN in embedding space · runs against both PMT library and full MassBank (86,970 spectra)"
+            detail="Cosine k-NN in embedding space · runs against both local dataset and full MassBank (86,970 spectra)"
             color={P2} />
         </div>
 
