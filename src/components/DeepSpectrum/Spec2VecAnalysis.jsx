@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { LuActivity, LuDatabase, LuSparkles, LuGlobe, LuZap, LuFolderOpen } from "react-icons/lu";
+import { LuActivity, LuDatabase, LuSparkles, LuGlobe, LuZap, LuFolderOpen, LuInfo } from "react-icons/lu";
 
 const BACKEND = "http://localhost:8000";
 
@@ -372,6 +372,12 @@ const Spec2VecAnalysis = ({ selectedFile, activeLib }) => {
                     <LuFolderOpen className="w-3 h-3" />
                     Local Dataset · {formatLibName(activeLib ?? "ECRFS Library")}
                   </button>
+                  <div className="relative group ml-1">
+                    <LuInfo className="w-3 h-3 text-gray-700 cursor-pointer hover:text-gray-400 transition-colors" />
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 px-3 py-2 rounded bg-[#1a1a1a] border border-gray-700 text-xs text-gray-400 leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl">
+                      Spec2Vec encodes each spectrum as a 300-dimensional vector trained on millions of spectra. Similarity is the cosine distance between two embedding vectors — not a peak-by-peak comparison. This lets the model find matches even when noise, adducts, or instrument variation shift fragment positions, capturing structural context that classical cosine cannot.
+                    </div>
+                  </div>
                 </div>
 
                 {/* ── ECRFS mode ─────────────────────────────────────── */}

@@ -112,7 +112,7 @@ export const workflows = {
       {
         id: 8,
         title: "impact & future perspective",
-        subtitle: "AI-based identification extends coverage beyond fixed reference libraries. The architecture is designed to scale — from a fast local instance to production-grade systems powered by engines like <strong>SIRIUS</strong>, without changing the workflow logic.",
+        subtitle: "AI-based identification extends coverage beyond fixed reference libraries. The architecture is designed to scale — from a fast local instance to production-grade systems powered by more sofisticated engines, without changing the workflow logic.",
         gradient: "from-indigo-600 via-blue-600 to-cyan-600",
       },
     ]
