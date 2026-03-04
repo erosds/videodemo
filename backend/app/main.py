@@ -465,6 +465,9 @@ async def deep_spectrum_massbank_search(request: Request):
 from app.compliance_router import router as compliance_router
 app.include_router(compliance_router, prefix="/compliance")
 
+from app.molecule_finder_router import router as molecule_finder_router
+app.include_router(molecule_finder_router, prefix="/molecule-finder")
+
 
 if __name__ == "__main__":
     import uvicorn

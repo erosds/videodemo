@@ -146,6 +146,53 @@ export const workflows = {
       }
     ]
   },
+  moleculeFinder: {
+    id: 'moleculeFinder',
+    sections: [
+      {
+        id: 0,
+        title: "overview",
+        subtitle: "Finding a molecule with the right properties — for a medicine, a material, a fragrance, or a food ingredient — means searching a space <strong>too vast to explore by hand</strong>. The challenge isn't knowledge: it's scale, cost, and the curse of <strong>competing design constraints</strong>.",
+        gradient: "from-rose-700 via-pink-600 to-fuchsia-600",
+      },
+      {
+        id: 1,
+        title: "molecular representation",
+        subtitle: "Molecules are encoded as <strong>Morgan fingerprints</strong> — bit vectors that capture circular neighbourhood patterns at each atom. Combined with physicochemical descriptors (MW, logP, TPSA), they form the feature space that feeds the ML property-prediction model.",
+        gradient: "from-fuchsia-700 via-purple-600 to-violet-600",
+      },
+      {
+        id: 2,
+        title: "property prediction",
+        subtitle: "Select a public molecular dataset and train a <strong>Random Forest</strong> predictor in real time. The same pipeline — ECFP4 fingerprints plus physicochemical descriptors — applies to any property: solubility, lipophilicity, binding affinity, odour similarity, or allergenicity.",
+        gradient: "from-violet-700 via-indigo-600 to-purple-600",
+      },
+      {
+        id: 3,
+        title: "multi-objective optimization",
+        subtitle: "<strong>NSGA-II</strong> (Non-dominated Sorting Genetic Algorithm II) evolves a population of new molecules over generations, simultaneously optimising two or more conflicting objectives, producing a <strong>Pareto-optimal frontier</strong> of trade-off solutions.",
+        gradient: "from-pink-700 via-rose-600 to-red-600",
+      },
+      {
+        id: 4,
+        title: "case: aroma compound design",
+        subtitle: "Starting from <strong>~600 food-related aromatic compounds</strong> sourced from PubChem (similarity search around Vanillin, Guaiacol, Eugenol...). The <strong>trained model</strong> predicts logS; <strong>NSGA-II</strong> finds the Pareto-optimal frontier balancing higher solubility and lower molecular weight.",
+        gradient: "from-orange-600 via-rose-600 to-pink-600",
+      },
+      {
+        id: 5,
+        title: "case: similarity-guided design",
+        subtitle: "Adding a <strong>third objective</strong> (ECFP4 Tanimoto similarity to Vanillin) and a <strong>structural purity filter</strong> reshapes the Pareto front. The algorithm independently rediscovers the compounds the flavour industry actually uses: <strong>Ethylvanillin, Piperonal, Guaiacol</strong>.",
+        gradient: "from-violet-600 via-purple-600 to-fuchsia-600",
+      },
+      {
+        id: 6,
+        title: "impact",
+        subtitle: "AI-guided molecular design compresses the <strong>hit identification phase from 18–36 months to 4–8 weeks</strong>, cuts screening costs by >80%, and enables continuous regulatory compliance monitoring — transforming fragrance and flavour R&D from empirical iteration to <strong>targeted design</strong>.",
+        gradient: "from-rose-600 via-pink-500 to-fuchsia-500",
+      },
+    ]
+  },
   chemicalCompliance: {
     id: 'chemicalCompliance',
     sections: [

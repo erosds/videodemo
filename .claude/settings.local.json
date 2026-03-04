@@ -33,7 +33,16 @@
       "Bash(powershell.exe:*)",
       "Bash(cmd.exe:*)",
       "Bash(wmic path:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(grep:*)",
+      "Bash(node:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(python:*)",
+      "Bash(echo:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npx vite:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

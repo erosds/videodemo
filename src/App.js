@@ -8,6 +8,7 @@ import InteractiveContent from "./components/MaterialsInformatics/InteractiveCon
 import DigitalTwinContent from "./components/DigitalTwin/DigitalTwinContent";
 import DeepSpectrumContent from "./components/DeepSpectrum/DeepSpectrumContent";
 import ChemicalComplianceContent from "./components/ChemicalCompliance/ChemicalComplianceContent";
+import MoleculeFinderContent from "./components/MoleculeFinder/MoleculeFinderContent";
 import { workflows } from "./data/workflowsData";
 
 export default function App() {
@@ -181,6 +182,14 @@ export default function App() {
 
       {currentWorkflow === "chemicalCompliance" && (
         <ChemicalComplianceContent
+          activeIndex={activeIndex}
+          scrollIndex={scrollIndex}
+          totalSections={currentSections.length}
+        />
+      )}
+
+      {currentWorkflow === "moleculeFinder" && (
+        <MoleculeFinderContent
           activeIndex={activeIndex}
           scrollIndex={scrollIndex}
           totalSections={currentSections.length}
