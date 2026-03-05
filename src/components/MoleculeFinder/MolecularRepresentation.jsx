@@ -373,7 +373,7 @@ const MolecularRepresentation = () => {
               note="Number of distinct ring systems. Rings increase conformational rigidity and 3D shape complexity; also affect metabolic stability."
             />
 
-            <p className="text-[10px] text-gray-500 leading-snug mt-3 border-t border-gray-800/40 pt-3">
+            <p className="text-[10px] text-gray-400 leading-snug mt-3 pt-3">
               All descriptors are computed directly from the SMILES string in &lt;1 ms using RDKit — no laboratory measurement required.
             </p>
           </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const BACKEND = "http://localhost:8000";
 
@@ -71,18 +71,16 @@ const OobCurvePanel = ({ data, targetLabel, taskType = "regression" }) => {
           </>
         )}
       </svg>
-      {done && (
-        <div className="flex gap-2 flex-wrap">
-          <span className="px-2 py-0.5 rounded text-[9px] bg-purple-900/30 text-purple-300">
-            Final OOB {scoreLabel} {finalScore?.toFixed(3)}
+      <div className="flex gap-2 flex-wrap">
+        <span className="px-2 py-0.5 rounded text-[9px] bg-purple-900/30 text-purple-300">
+          Final OOB {scoreLabel} {finalScore?.toFixed(3)}
+        </span>
+        {convergePt && (
+          <span className="px-2 py-0.5 rounded text-[9px] bg-rose-900/30 text-rose-300">
+            Plateau ~{convergePt.trees}
           </span>
-          {convergePt && (
-            <span className="px-2 py-0.5 rounded text-[9px] bg-rose-900/30 text-rose-300">
-              Plateau ~{convergePt.trees}
-            </span>
-          )}
-        </div>
-      )}
+        )}
+      </div>
       <p className="text-[10px] text-gray-600 leading-snug border-t border-gray-800/50 pt-2">
         Each point shows how well the model predicts on molecules it never trained on — as
         more decision trees are added, the estimate stabilises. This is called an
@@ -178,10 +176,12 @@ const MetricsGrid = ({ metrics, n_train, n_test, n_valid, targetLabel, taskType 
 };
 
 // ── Placeholder panel ───────────────────────────────────────────────────────
-const Placeholder = ({ label, loading }) => (
+const Placeholder = ({ label, loading, queued }) => (
   <div className="rounded-xl border border-gray-800/50 bg-[#0a0a0a] p-4 flex flex-col items-center justify-center gap-2 h-full min-h-[220px]">
     {loading
       ? <div className="w-5 h-5 rounded-full border-2 border-t-transparent border-gray-600 animate-spin" />
+      : queued
+      ? <div className="w-5 h-5 rounded-full border border-gray-600 flex items-center justify-center text-[8px] text-gray-600">⏳</div>
       : <div className="w-5 h-5 rounded-full border border-gray-800" />
     }
     <span className="text-[10px] text-gray-700 text-center">{label}</span>
@@ -192,12 +192,16 @@ const Placeholder = ({ label, loading }) => (
 const PropertyPrediction = () => {
   const [datasets, setDatasets]     = useState([]);
   const [selectedId, setSelectedId] = useState(null);
-  const [trainedIds, setTrainedIds] = useState(new Set());
-  const [status, setStatus]         = useState("idle");
   const [allResults, setAllResults] = useState({});
-  const [error, setError]           = useState(null);
-  const [elapsed, setElapsed]       = useState(0);
-  const timerRef                    = useRef(null);
+  // Per-dataset: "idle" | "queued" | "loading" | "done" | "error"
+  const [statuses, setStatuses]     = useState({});
+  const [elapseds, setElapseds]     = useState({});
+  const [errors, setErrors]         = useState({});
+
+  // Queue: array of dataset IDs waiting to be trained
+  const queueRef    = useRef([]);
+  const runningRef  = useRef(false);
+  const timerRef    = useRef(null);
 
   useEffect(() => {
     fetch(`${BACKEND}/molecule-finder/available-datasets`)
@@ -206,48 +210,72 @@ const PropertyPrediction = () => {
         setDatasets(data);
         if (data.length > 0) setSelectedId(data[0].id);
       })
-      .catch(() => setError("Backend unavailable — start uvicorn to enable live training."));
+      .catch(() => setErrors({ _global: "Backend unavailable — start uvicorn to enable live training." }));
   }, []);
 
   useEffect(() => () => clearInterval(timerRef.current), []);
 
-  const selected        = datasets.find(d => d.id === selectedId);
-  const results         = allResults[selectedId] ?? null;
-  const trainedMolCount = results?.n_valid ?? selected?.max_samples ?? selected?.n_molecules;
-  const isLoading       = status === "loading";
-  const isDone          = status === "done" && !!results;
+  // Run training for a single dataset ID
+  const runTrain = useCallback(async (id) => {
+    runningRef.current = true;
+    setStatuses(prev => ({ ...prev, [id]: "loading" }));
+    setElapseds(prev => ({ ...prev, [id]: 0 }));
+    setErrors(prev => { const n = { ...prev }; delete n[id]; return n; });
 
-  const handleSelect = (id) => {
-    setSelectedId(id);
-    setError(null);
-    if (!isLoading) setStatus(allResults[id] ? "done" : "idle");
-  };
-
-  const handleTrain = async () => {
-    if (!selectedId) return;
-    setStatus("loading");
-    setError(null);
-    setElapsed(0);
     clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+    timerRef.current = setInterval(
+      () => setElapseds(prev => ({ ...prev, [id]: (prev[id] ?? 0) + 1 })),
+      1000,
+    );
+
     try {
       const res = await fetch(`${BACKEND}/molecule-finder/train`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dataset_id: selectedId }),
+        body: JSON.stringify({ dataset_id: id }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      setAllResults(prev => ({ ...prev, [selectedId]: data }));
-      setTrainedIds(prev => new Set([...prev, selectedId]));
-      setStatus("done");
+      setAllResults(prev => ({ ...prev, [id]: data }));
+      setStatuses(prev => ({ ...prev, [id]: "done" }));
     } catch (e) {
-      setError(e.message);
-      setStatus("error");
+      setErrors(prev => ({ ...prev, [id]: e.message }));
+      setStatuses(prev => ({ ...prev, [id]: "error" }));
     } finally {
       clearInterval(timerRef.current);
+      runningRef.current = false;
+      // Process next in queue
+      const next = queueRef.current.shift();
+      if (next) runTrain(next);
+    }
+  }, []);
+
+  const handleTrain = (id) => {
+    if (statuses[id] === "loading" || statuses[id] === "queued") return;
+    if (runningRef.current) {
+      // Another dataset is already training — add to queue
+      if (!queueRef.current.includes(id)) {
+        queueRef.current.push(id);
+        setStatuses(prev => ({ ...prev, [id]: "queued" }));
+      }
+    } else {
+      runTrain(id);
     }
   };
+
+  const selected     = datasets.find(d => d.id === selectedId);
+  const results      = allResults[selectedId] ?? null;
+  const currentStatus = statuses[selectedId] ?? "idle";
+  const isLoading    = currentStatus === "loading";
+  const isQueued     = currentStatus === "queued";
+  const isDone       = currentStatus === "done" && !!results;
+  const elapsed      = elapseds[selectedId] ?? 0;
+  const currentError = errors[selectedId];
+  const globalError  = errors._global;
+  const trainedMolCount = results?.n_valid ?? selected?.max_samples ?? selected?.n_molecules;
+
+  // How many datasets are queued or running (for queue badge)
+  const activeCount = Object.values(statuses).filter(s => s === "loading" || s === "queued").length;
 
   return (
     <div
@@ -256,21 +284,24 @@ const PropertyPrediction = () => {
     >
       <div className="max-w-6xl mx-auto w-full flex flex-col gap-4">
 
-        {error && (
+        {globalError && (
           <div className="px-4 py-2 rounded-lg bg-yellow-900/30 border border-yellow-700/40 text-yellow-300 text-xs">
-            {error}
+            {globalError}
           </div>
         )}
 
         {/* ── Top row: dataset selector buttons ── */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {datasets.map(d => {
             const active  = d.id === selectedId;
-            const trained = trainedIds.has(d.id);
+            const st      = statuses[d.id] ?? "idle";
+            const trained = st === "done";
+            const loading = st === "loading";
+            const queued  = st === "queued";
             return (
               <button
                 key={d.id}
-                onClick={() => handleSelect(d.id)}
+                onClick={() => setSelectedId(d.id)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-semibold transition-all"
                 style={active
                   ? { borderColor: d.color + "60", background: d.color + "12", color: d.color }
@@ -287,12 +318,28 @@ const PropertyPrediction = () => {
                   {d.tag}
                 </span>
                 {d.name}
-                {trained && (
+                {loading && (
+                  <span className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-full border border-t-transparent animate-spin"
+                      style={{ borderColor: d.color + "80", borderTopColor: "transparent" }} />
+                  </span>
+                )}
+                {queued && (
+                  <span className="text-[9px] text-gray-600 border border-gray-800 rounded px-1">queue</span>
+                )}
+                {trained && !loading && !queued && (
                   <span className="text-emerald-500 text-[10px]">✓</span>
                 )}
               </button>
             );
           })}
+          {activeCount > 0 && (
+            <span className="ml-auto text-[9px] text-gray-600 font-mono">
+              {activeCount === 1
+                ? "1 training…"
+                : `${activeCount} in queue / training…`}
+            </span>
+          )}
         </div>
 
         {/* ── Main 4-column grid ── */}
@@ -301,6 +348,12 @@ const PropertyPrediction = () => {
           {/* Col 1 — Train Model */}
           <div className="rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col gap-3">
             <div className="text-[11px] uppercase tracking-widest text-gray-500">Train model</div>
+
+            {currentError && (
+              <div className="px-3 py-2 rounded-lg bg-red-900/20 border border-red-800/40 text-red-400 text-[10px] leading-snug">
+                {currentError}
+              </div>
+            )}
 
             {selected && !isLoading && (
               <>
@@ -324,11 +377,16 @@ const PropertyPrediction = () => {
                 </div>
 
                 <button
-                  onClick={handleTrain}
-                  className="w-full py-2 rounded-lg text-xs font-semibold border transition-all mt-auto cursor-pointer hover:opacity-75 active:opacity-50"
+                  onClick={() => handleTrain(selectedId)}
+                  disabled={isQueued}
+                  className="w-full py-2 rounded-lg text-xs font-semibold border transition-all mt-auto cursor-pointer hover:opacity-75 active:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{ background: selected.color + "18", borderColor: selected.color + "55", color: selected.color }}
                 >
-                  {results ? "↺  Re-train" : "▶  Train Model"}
+                  {isQueued
+                    ? "⏳  Queued"
+                    : results
+                    ? "↺  Re-train"
+                    : "▶  Train Model"}
                 </button>
               </>
             )}
@@ -347,6 +405,11 @@ const PropertyPrediction = () => {
                   500 trees · ECFP4 + descriptors
                 </div>
                 <div className="text-[10px] font-mono text-gray-500">{elapsed}s</div>
+                {queueRef.current.length > 0 && (
+                  <div className="text-[9px] text-gray-700 text-center">
+                    {queueRef.current.length} more queued
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -358,13 +421,13 @@ const PropertyPrediction = () => {
                 targetLabel={results.target_label}
                 taskType={results.task_type}
               />
-            : <Placeholder label="OOB learning curve" loading={isLoading} />
+            : <Placeholder label="OOB learning curve" loading={isLoading} queued={isQueued} />
           }
 
           {/* Col 3 — Feature importances */}
           {isDone
             ? <FeatureImportancePanel features={results.feature_importances} />
-            : <Placeholder label="Top-10 feature importances" loading={isLoading} />
+            : <Placeholder label="Top-10 feature importances" loading={isLoading} queued={isQueued} />
           }
 
           {/* Col 4 — Metrics 2×2 */}
@@ -377,7 +440,7 @@ const PropertyPrediction = () => {
                 targetLabel={results.target_label}
                 taskType={results.task_type}
               />
-            : <Placeholder label="Metrics" loading={isLoading} />
+            : <Placeholder label="Metrics" loading={isLoading} queued={isQueued} />
           }
 
         </div>

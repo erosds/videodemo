@@ -1,12 +1,27 @@
-"""Real generative NSGA-II on aromatic molecular structures.
+"""Generative NSGA-II for food aromatic compound design.
+
+Objectives (all computed or RF-predicted — no domain-shift issues):
+  2-obj: maximise logP (Crippen, RDKit), minimise MW (RDKit)
+  3-obj: same + maximise P(sweet) (FartDB RandomForest classifier)
+
+logP is computed analytically by RDKit (Crippen method) — no dataset or
+model required. This eliminates the domain-shift problem that arose from
+using AqSolDB (pharma-oriented) to predict food aromatic properties.
+
+P(sweet) is predicted by the FartDB taste classifier (trained on demand in
+the Property Prediction tab). The classifier was trained on sweet/bitter
+compounds from a multi-source taste database; P(sweet) > 0.5 indicates a
+sweet taste profile, relevant for vanilla-type flavourings.
 
 Each generation:
-  1. Parent population is selected via NSGA-II (non-dominated sort + crowding).
-  2. Each parent is mutated via SMARTS-based aromatic substituent swaps (RDKit).
-  3. Offspring are validated, featurised, and predicted with the RF model.
-  4. Combined parent + offspring pool undergoes NSGA-II selection for next gen.
+  1. NSGA-II selection from current population.
+  2. Each parent is mutated via SMARTS aromatic substituent reactions.
+  3. Offspring are validated, featurised, and scored.
+  4. Combined parent + offspring pool undergoes NSGA-II selection.
 
-This produces genuinely novel molecules not present in the original pool.
+Generated compounds not present in the original PubChem pool are
+identified by a PubChem InChIKey lookup (done asynchronously post-hoc
+in the router for the final Pareto front only).
 """
 from __future__ import annotations
 
@@ -17,15 +32,7 @@ from typing import Any, Callable
 # ── Core NSGA-II primitives ────────────────────────────────────────────────────
 
 def _fast_non_dominated_sort(F: np.ndarray) -> list[list[int]]:
-    """Classic fast non-dominated sort from Deb et al. 2002.
-
-    Args:
-        F: (n, m) array of objective values — all objectives are MINIMISED.
-
-    Returns:
-        List of Pareto fronts (each front is a list of row indices into F).
-        Front 0 is the Pareto-optimal set.
-    """
+    """Fast non-dominated sort (Deb et al. 2002). All objectives minimised."""
     n = len(F)
     dominated_by_count = np.zeros(n, dtype=int)
     dominates_set: list[list[int]] = [[] for _ in range(n)]
@@ -60,13 +67,12 @@ def _fast_non_dominated_sort(F: np.ndarray) -> list[list[int]]:
 
 
 def _crowding_distance(F: np.ndarray) -> np.ndarray:
-    """Compute crowding distance for a set of solutions (one Pareto front)."""
+    """Crowding distance for a set of solutions (one Pareto front)."""
     k, m = F.shape
     dist = np.zeros(k)
     if k <= 2:
         dist[:] = np.inf
         return dist
-
     for obj in range(m):
         order = np.argsort(F[:, obj])
         dist[order[0]] = np.inf
@@ -77,12 +83,11 @@ def _crowding_distance(F: np.ndarray) -> np.ndarray:
             continue
         for i in range(1, k - 1):
             dist[order[i]] += (F[order[i + 1], obj] - F[order[i - 1], obj]) / (f_max - f_min)
-
     return dist
 
 
 def _nsga2_select(F: np.ndarray, pop_size: int) -> list[int]:
-    """Select pop_size individuals from F using non-dominated rank + crowding distance."""
+    """Select pop_size individuals via non-dominated rank + crowding distance."""
     fronts = _fast_non_dominated_sort(F)
     selected: list[int] = []
     for front in fronts:
@@ -90,8 +95,7 @@ def _nsga2_select(F: np.ndarray, pop_size: int) -> list[int]:
             selected.extend(front)
         else:
             remaining = pop_size - len(selected)
-            F_front = F[front]
-            cd = _crowding_distance(F_front)
+            cd = _crowding_distance(F[front])
             order = np.argsort(-cd)
             selected.extend(front[k] for k in order[:remaining])
         if len(selected) >= pop_size:
@@ -99,23 +103,29 @@ def _nsga2_select(F: np.ndarray, pop_size: int) -> list[int]:
     return selected
 
 
-# ── SMARTS-based aromatic mutation ────────────────────────────────────────────
-
-# Each entry: (SMIRKS string, label)
-# Reactions transform one position on an aromatic ring at a time.
+# ── SMARTS aromatic mutation library ──────────────────────────────────────────
+# Food-relevant aromatic substituent reactions.
+# All reactions operate on a single aromatic ring.
+# (SMIRKS string, label)
 _AROMATIC_MUTATIONS: list[tuple[str, str]] = [
-    ("[cH:1]>>[c:1][OH]",             "add-OH"),
-    ("[cH:1]>>[c:1][O][CH3]",         "add-OMe"),
-    ("[cH:1]>>[c:1][CH3]",            "add-Me"),
-    ("[cH:1]>>[c:1][CH2][OH]",        "add-CH2OH"),
-    ("[c:1][OH]>>[c:1][O][CH3]",      "OH→OMe"),
-    ("[c:1][O][CH3]>>[c:1][OH]",      "OMe→OH"),
-    ("[c:1][CH3]>>[cH:1]",            "rm-Me"),
-    ("[c:1][CH]=O>>[c:1][CH2][OH]",   "CHO→CH2OH"),
-    ("[c:1][CH2][OH]>>[c:1][CH]=O",   "CH2OH→CHO"),
+    # ── Single-atom/group additions ──
+    ("[cH:1]>>[c:1][OH]",               "add-OH"),
+    ("[cH:1]>>[c:1][O][CH3]",           "add-OMe"),
+    ("[cH:1]>>[c:1][CH3]",              "add-Me"),
+    ("[cH:1]>>[c:1][CH2][OH]",          "add-CH2OH"),
+    ("[cH:1]>>[c:1]C(C)=O",             "add-acetyl"),        # methylketone, common food aroma
+    ("[cH:1]>>[c:1]C(=O)OC",           "add-methylester"),   # methyl ester, food-relevant
+    # ── Group interconversions ──
+    ("[c:1][OH]>>[c:1][O][CH3]",        "OH→OMe"),
+    ("[c:1][O][CH3]>>[c:1][OH]",        "OMe→OH"),
+    ("[c:1][O][CH3]>>[c:1]OCC",         "OMe→OEt"),           # e.g. guaiacol→4-ethylguaiacol
+    ("[c:1][CH3]>>[cH:1]",              "rm-Me"),
+    ("[c:1][CH3]>>[c:1]CC",             "Me→Et"),             # methyl→ethyl homologation
+    ("[c:1][CH]=O>>[c:1][CH2][OH]",     "CHO→CH2OH"),
+    ("[c:1][CH2][OH]>>[c:1][CH]=O",     "CH2OH→CHO"),
 ]
 
-_compiled_reactions = None  # lazily compiled
+_compiled_reactions = None
 
 
 def _get_reactions():
@@ -123,7 +133,6 @@ def _get_reactions():
     global _compiled_reactions
     if _compiled_reactions is not None:
         return _compiled_reactions
-
     from rdkit.Chem import AllChem
     compiled = []
     for smirks, label in _AROMATIC_MUTATIONS:
@@ -137,16 +146,11 @@ def _get_reactions():
     return _compiled_reactions
 
 
-def _mutate_aromatic(smiles: str, rng: np.random.Generator, n_attempts: int = 6) -> list[str]:
-    """Apply random SMARTS aromatic mutations to a SMILES; return valid unique products.
+def _mutate_aromatic(smiles: str, rng: np.random.Generator, n_attempts: int = 8) -> list[str]:
+    """Apply random SMARTS aromatic mutations; return valid unique products.
 
-    Args:
-        smiles:     Input SMILES string.
-        rng:        NumPy random generator.
-        n_attempts: Number of random reaction attempts.
-
-    Returns:
-        List of valid canonical SMILES for the generated offspring.
+    MW filter: 60–350 Da (food-relevant aromatic range).
+    Structural filter: must retain at least one aromatic ring.
     """
     from rdkit import Chem
     from rdkit.Chem import Descriptors
@@ -159,11 +163,10 @@ def _mutate_aromatic(smiles: str, rng: np.random.Generator, n_attempts: int = 6)
     if not reactions:
         return []
 
-    # Shuffle reaction order for diversity
     idxs = rng.choice(len(reactions), size=min(n_attempts, len(reactions)), replace=False)
-
     products: list[str] = []
     seen: set[str] = set()
+    parent_canon = Chem.MolToSmiles(mol, canonical=True)
 
     for idx in idxs:
         rxn, _ = reactions[idx]
@@ -171,20 +174,16 @@ def _mutate_aromatic(smiles: str, rng: np.random.Generator, n_attempts: int = 6)
             raw_products = rxn.RunReactants((mol,))
         except Exception:
             continue
-
-        # Flatten and validate each product
         for prod_tuple in raw_products:
             for prod_mol in prod_tuple:
                 try:
                     Chem.SanitizeMol(prod_mol)
                     canon = Chem.MolToSmiles(prod_mol, canonical=True)
-                    if canon in seen or canon == Chem.MolToSmiles(mol, canonical=True):
+                    if canon in seen or canon == parent_canon:
                         continue
-                    # MW filter: food-relevant range
                     mw = Descriptors.ExactMolWt(prod_mol)
-                    if not (60 <= mw <= 340):
+                    if not (60 <= mw <= 350):
                         continue
-                    # Must still contain aromatic ring
                     if not any(a.GetIsAromatic() for a in prod_mol.GetAtoms()):
                         continue
                     seen.add(canon)
@@ -199,60 +198,51 @@ def _mutate_aromatic(smiles: str, rng: np.random.Generator, n_attempts: int = 6)
 
 def run_nsga2_generative(
     initial_pool: list[dict[str, Any]],
-    rf_model: Any,
-    featurize_fn: Callable[[str], "np.ndarray | None"],
-    mw_fn: Callable[[str], "float | None"],
-    name_lookup: dict[str, str],
-    tanimoto_ref_smiles: "str | None" = None,
-    compute_tanimoto_fn: "Callable | None" = None,
-    n_generations: int = 8,
-    pop_size: int = 30,
+    logP_fn: Callable[[str], "float | None"],
+    mw_fn:   Callable[[str], "float | None"],
+    name_lookup: dict[str, dict],           # canonical_smiles → {name, cid}
+    taste_fn: "Callable[[str], float | None] | None" = None,  # P(sweet); 3-obj only
+    n_generations: int = 30,
+    pop_size: int = 100,
     seed: int = 42,
 ) -> list[dict[str, Any]]:
-    """Generative NSGA-II: each generation mutates parents to create novel molecules.
+    """Generative NSGA-II for food aromatic compound optimisation.
 
     Args:
-        initial_pool:        Seed compounds from the PubChem pool (dicts with 'name', 'smiles').
-        rf_model:            Trained sklearn RF regressor (predicts logS).
-        featurize_fn:        Maps SMILES → feature vector (or None on failure).
-        mw_fn:               Maps SMILES → exact MW in Da (or None on failure).
-        name_lookup:         {canonical_smiles: name} for pool compounds.
-        tanimoto_ref_smiles: If given, adds 3rd objective (Tanimoto↑ to this reference).
-        compute_tanimoto_fn: (list[smiles], ref_smiles) → np.ndarray of Tanimoto values.
-        n_generations:       Number of NSGA-II generations.
-        pop_size:            Working population size.
-        seed:                Random seed for reproducibility.
+        initial_pool:  Seed compounds (dicts with 'name', 'smiles', 'cid').
+        logP_fn:       SMILES → Crippen logP (computed by RDKit, no model).
+        mw_fn:         SMILES → exact MW in Da (computed by RDKit).
+        name_lookup:   {canonical_smiles: {'name': str, 'cid': int}} for pool compounds.
+        taste_fn:      SMILES → P(sweet) from FartDB RF. If None, 2-objective mode.
+        n_generations: Number of NSGA-II generations (real, not multiplied).
+        pop_size:      Working population size.
+        seed:          Random seed for reproducibility.
 
     Returns:
         List of generation snapshots::
 
-            [
-              {
-                "gen": 0,
-                "n_new": 0,
-                "n_evaluated": 30,
-                "candidates": [{"name":…, "smiles":…, "logS":…, "mw":…,
-                                "dominated": bool, "is_new": bool}, …]
-              },
-              …
-            ]
+            [{'gen': 0, 'n_new': 0, 'n_evaluated': N,
+              'candidates': [{'name', 'smiles', 'cid', 'logP', 'mw',
+                              'psweet'(optional), 'dominated', 'is_new'}, ...]
+             }, ...]
     """
     from rdkit import Chem
 
     rng = np.random.default_rng(seed)
-    analog_counter = [0]  # mutable counter for generated analogs
+    three_obj = taste_fn is not None
 
-    def _canon(smiles: str) -> str | None:
+    def _canon(smiles: str) -> "str | None":
         mol = Chem.MolFromSmiles(smiles)
         return Chem.MolToSmiles(mol, canonical=True) if mol else None
 
-    def _get_name(canon: str) -> str:
-        if canon in name_lookup:
-            return name_lookup[canon]
-        analog_counter[0] += 1
-        return f"Analog-{analog_counter[0]:03d}"
+    def _get_name_cid(canon: str) -> tuple[str, int | None]:
+        """Return (name, cid) for a canonical SMILES, or generic label if not in pool."""
+        info = name_lookup.get(canon)
+        if info:
+            return info["name"], info.get("cid")
+        return "In silico candidate", None
 
-    # Build initial pop from a random subset of the pool
+    # Build initial population from a random subset of the pool
     pool_size = min(pop_size, len(initial_pool))
     chosen_idxs = rng.choice(len(initial_pool), size=pool_size, replace=False)
     pop_smiles: list[str] = []
@@ -262,11 +252,10 @@ def run_nsga2_generative(
         if canon:
             pop_smiles.append(canon)
 
-    # All smiles evaluated so far (deduplicated)
-    all_evaluated: dict[str, dict] = {}  # canon_smiles → {name, logS, mw, tanimoto?}
+    # Deduplication cache: canonical_smiles → evaluated record
+    all_evaluated: dict[str, dict] = {}
 
     def _evaluate_batch(smiles_list: list[str], is_new_flags: list[bool]) -> list[dict]:
-        """Featurise + RF-predict a batch; returns list of compound records."""
         records = []
         for smi, is_new in zip(smiles_list, is_new_flags):
             if smi in all_evaluated:
@@ -274,55 +263,45 @@ def run_nsga2_generative(
                 rec["is_new"] = is_new
                 records.append(rec)
                 continue
-            vec = featurize_fn(smi)
-            mw  = mw_fn(smi)
-            if vec is None or mw is None:
+            logP = logP_fn(smi)
+            mw   = mw_fn(smi)
+            if logP is None or mw is None:
                 continue
-            logS = float(rf_model.predict(vec.reshape(1, -1))[0])
-            rec = {
-                "name":   _get_name(smi),
+            name, cid = _get_name_cid(smi)
+            rec: dict = {
+                "name":   name,
                 "smiles": smi,
-                "logS":   round(logS, 3),
+                "cid":    cid,
+                "logP":   round(logP, 3),
                 "mw":     round(mw, 1),
                 "is_new": is_new,
             }
+            if three_obj:
+                psweet = taste_fn(smi)
+                rec["psweet"] = round(psweet, 3) if psweet is not None else 0.5
             all_evaluated[smi] = {k: v for k, v in rec.items() if k != "is_new"}
             records.append(rec)
         return records
 
-    def _add_tanimoto(records: list[dict]) -> list[dict]:
-        if tanimoto_ref_smiles is None or compute_tanimoto_fn is None:
-            return records
-        smi_list = [r["smiles"] for r in records]
-        tani = compute_tanimoto_fn(smi_list, tanimoto_ref_smiles)
-        for r, t in zip(records, tani):
-            r["tanimoto"] = round(float(t), 3)
-            # Back-fill into all_evaluated
-            if r["smiles"] in all_evaluated:
-                all_evaluated[r["smiles"]]["tanimoto"] = r["tanimoto"]
-        return records
-
     def _build_objectives(records: list[dict]) -> np.ndarray:
-        if tanimoto_ref_smiles is not None:
-            return np.array([[-r["logS"], r["mw"], -(r.get("tanimoto") or 0.0)] for r in records])
-        return np.array([[-r["logS"], r["mw"]] for r in records])
+        # All minimised: -logP (maximise logP), +MW (minimise MW), -psweet (maximise P(sweet))
+        if three_obj:
+            return np.array([[-r["logP"], r["mw"], -(r.get("psweet") or 0.5)] for r in records])
+        return np.array([[-r["logP"], r["mw"]] for r in records])
 
     def _normalise(F_raw: np.ndarray) -> np.ndarray:
         f_min = F_raw.min(axis=0)
         f_max = F_raw.max(axis=0)
         return (F_raw - f_min) / (f_max - f_min + 1e-9)
 
-    # ── Gen 0: evaluate initial pop ───────────────────────────────────────────
+    # ── Gen 0: evaluate initial population ────────────────────────────────────
     init_flags = [False] * len(pop_smiles)
     pop_records = _evaluate_batch(pop_smiles, init_flags)
-    pop_records = _add_tanimoto(pop_records)
-
     generations: list[dict[str, Any]] = []
 
     for gen_idx in range(n_generations):
-        gen_label = gen_idx * 10
 
-        # ── Record ────────────────────────────────────────────────────────────
+        # Record snapshot
         F_raw = _build_objectives(pop_records)
         F_norm = _normalise(F_raw)
         fronts = _fast_non_dominated_sort(F_norm)
@@ -336,7 +315,7 @@ def run_nsga2_generative(
 
         n_new_this_gen = sum(1 for r in pop_records if r.get("is_new", False))
         generations.append({
-            "gen":         gen_label,
+            "gen":         gen_idx,
             "n_new":       n_new_this_gen,
             "n_evaluated": len(all_evaluated),
             "candidates":  snap_candidates,
@@ -345,22 +324,21 @@ def run_nsga2_generative(
         if gen_idx == n_generations - 1:
             break
 
-        # ── NSGA-II selection: keep best pop_size from current pop ────────────
+        # NSGA-II selection
         selected_idxs = _nsga2_select(F_norm, pop_size)
         parents = [pop_records[i] for i in selected_idxs]
 
-        # ── Mutation: generate offspring ───────────────────────────────────────
+        # Mutation: generate offspring via SMARTS reactions
         offspring_smiles: list[str] = []
         for parent in parents:
-            new_smi_list = _mutate_aromatic(parent["smiles"], rng, n_attempts=4)
+            new_smi_list = _mutate_aromatic(parent["smiles"], rng, n_attempts=6)
             for smi in new_smi_list:
                 if smi not in all_evaluated:
                     offspring_smiles.append(smi)
-            # Cap total offspring to keep response size manageable
-            if len(offspring_smiles) >= pop_size * 2:
+            if len(offspring_smiles) >= pop_size * 3:
                 break
 
-        # Remove duplicates while preserving order
+        # Deduplicate offspring
         seen_off: set[str] = set()
         unique_offspring: list[str] = []
         for s in offspring_smiles:
@@ -371,9 +349,8 @@ def run_nsga2_generative(
         # Evaluate offspring
         off_flags = [True] * len(unique_offspring)
         offspring_records = _evaluate_batch(unique_offspring, off_flags)
-        offspring_records = _add_tanimoto(offspring_records)
 
-        # ── Combine parents + offspring and NSGA-II select ────────────────────
+        # Combine parents + offspring and NSGA-II select for next generation
         combined = parents + offspring_records
         if len(combined) < 2:
             pop_records = parents
@@ -384,96 +361,9 @@ def run_nsga2_generative(
         next_idxs = _nsga2_select(F_combined_norm, pop_size)
         pop_records = [combined[i] for i in next_idxs]
 
-        # Mark is_new based on whether compound was already in parents
+        # Mark is_new: compounds not present in parents
         parent_smiles_set = {p["smiles"] for p in parents}
         for rec in pop_records:
             rec["is_new"] = rec["smiles"] not in parent_smiles_set
-
-    return generations
-
-
-# ── Legacy API (kept for backward-compat, wraps generative version) ────────────
-
-def run_nsga2(
-    library_compounds: list[dict[str, Any]],
-    logS_predicted: np.ndarray,
-    mw_values: np.ndarray,
-    tanimoto_values: "np.ndarray | None" = None,
-    n_generations: int = 8,
-    pop_size: int = 22,
-    seed: int = 42,
-) -> list[dict[str, Any]]:
-    """Legacy selection-only NSGA-II (non-generative). Kept for reference."""
-    rng = np.random.default_rng(seed)
-    n = len(library_compounds)
-
-    if tanimoto_values is not None:
-        F_raw = np.column_stack([-logS_predicted, mw_values, -tanimoto_values])
-    else:
-        F_raw = np.column_stack([-logS_predicted, mw_values])
-
-    f_min = F_raw.min(axis=0)
-    f_max = F_raw.max(axis=0)
-    F = (F_raw - f_min) / (f_max - f_min + 1e-9)
-
-    initial_size = min(pop_size, n)
-    pop: list[int] = rng.choice(n, size=initial_size, replace=False).tolist()
-    all_seen: set[int] = set(pop)
-
-    gen_labels = [i * 10 for i in range(n_generations)]
-    generations: list[dict[str, Any]] = []
-
-    for gen_idx, gen_label in enumerate(gen_labels):
-        F_pop = F[pop]
-        local_fronts = _fast_non_dominated_sort(F_pop)
-        pareto_local: set[int] = set(local_fronts[0]) if local_fronts else set()
-
-        candidates = []
-        for local_i, global_i in enumerate(pop):
-            c = library_compounds[global_i]
-            entry: dict = {
-                "name":      c["name"],
-                "smiles":    c["smiles"],
-                "logS":      round(float(logS_predicted[global_i]), 3),
-                "mw":        round(float(mw_values[global_i]), 1),
-                "dominated": local_i not in pareto_local,
-                "is_new":    False,
-            }
-            if tanimoto_values is not None:
-                entry["tanimoto"] = round(float(tanimoto_values[global_i]), 3)
-            candidates.append(entry)
-        generations.append({"gen": gen_label, "n_new": 0, "n_evaluated": n, "candidates": candidates})
-
-        if gen_idx == n_generations - 1:
-            break
-
-        new_pop_global: list[int] = []
-        for front in local_fronts:
-            remaining = pop_size - len(new_pop_global)
-            if remaining <= 0:
-                break
-            global_front = [pop[i] for i in front]
-            if len(front) <= remaining:
-                new_pop_global.extend(global_front)
-            else:
-                F_front = F[global_front]
-                cd = _crowding_distance(F_front)
-                order = np.argsort(-cd)
-                new_pop_global.extend(global_front[k] for k in order[:remaining])
-
-        n_explore = min(4 + gen_idx, n - len(all_seen))
-        if n_explore > 0:
-            unexplored = [i for i in range(n) if i not in all_seen]
-            explore_idx = rng.choice(unexplored, size=n_explore, replace=False)
-            new_pop_global.extend(int(i) for i in explore_idx)
-            all_seen.update(int(i) for i in explore_idx)
-
-        seen_in_pop: set[int] = set()
-        pop = []
-        for idx in new_pop_global:
-            if idx not in seen_in_pop:
-                seen_in_pop.add(idx)
-                pop.append(idx)
-        all_seen.update(pop)
 
     return generations

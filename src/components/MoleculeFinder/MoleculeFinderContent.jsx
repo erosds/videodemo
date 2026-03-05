@@ -6,6 +6,7 @@ import PropertyPrediction from "./PropertyPrediction";
 import MultiObjectiveOptimizer from "./MultiObjectiveOptimizer";
 import AllergenReplacement from "./AllergenReplacement";
 import ConstrainedDesign from "./ConstrainedDesign";
+import RegulatoryCheck from "./RegulatoryCheck";
 import Impact from "./Impact";
 
 const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
@@ -18,6 +19,7 @@ const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
     <MultiObjectiveOptimizer />,
     <AllergenReplacement />,
     <ConstrainedDesign />,
+    <RegulatoryCheck />,
     <Impact />,
   ];
 

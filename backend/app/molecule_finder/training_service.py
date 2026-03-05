@@ -113,6 +113,53 @@ DATASETS: dict[str, dict] = {
         "color": "#7961ff",
         "model_role": "flavor",
     },
+    "lipophilicity": {
+        "id": "lipophilicity",
+        "name": "ChEMBL Lipophilicity",
+        "subtitle": "LogD at pH 7.4 · oil-water partition",
+        "tag": "LIPOPHILICITY",
+        "description": (
+            "4,200 compounds with experimental logD at pH 7.4 from ChEMBL, curated by MoleculeNet. "
+            "LogD accounts for ionisation — unlike logP — making it the correct descriptor for "
+            "oil-water partitioning at physiological and food-matrix pH. "
+            "Predicts how a flavour compound distributes between aqueous and lipid food phases."
+        ),
+        "url": "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/Lipophilicity.csv",
+        "smiles_col": "smiles",
+        "target_col": "exp",
+        "task_type": "regression",
+        "target_label": "logD (pH 7.4)",
+        "n_molecules": 4200,
+        "max_samples": 4200,
+        "domain": "Food-matrix lipid-water partitioning",
+        "color": "#2dd4bf",
+        "model_role": "lipophilicity",
+    },
+    "ames_mutagenicity": {
+        "id": "ames_mutagenicity",
+        "name": "AMES Mutagenicity",
+        "subtitle": "AMES bacterial reverse-mutation test · mutagenic / non-mutagenic",
+        "tag": "SAFETY",
+        "description": (
+            "7,255 compounds with binary AMES mutagenicity labels from the TDC benchmark "
+            "(Therapeutics Data Commons, Harvard). "
+            "The AMES test is the primary genotoxicity screen required by EFSA for all novel "
+            "food flavouring substances (Reg. EC 2232/96). "
+            "Once trained, the model predicts P(mutagenic) for any generated compound — "
+            "an essential safety gate before any synthesis decision."
+        ),
+        "url": "https://dataverse.harvard.edu/api/access/datafile/4259564",
+        "sep": "\t",
+        "smiles_col": "Drug",
+        "target_col": "Y",
+        "task_type": "classification",
+        "target_label": "P(mutagenic)",
+        "n_molecules": 7255,
+        "max_samples": 7255,
+        "domain": "Food safety / regulatory genotoxicology",
+        "color": "#f97316",
+        "model_role": "mutagenicity",
+    },
 }
 
 # n_estimators checkpoints for the OOB learning curve.
@@ -209,6 +256,26 @@ def _load_hf_dataset(dataset_id: str, cfg: dict) -> pd.DataFrame:
     return df
 
 
+def _download_url_to_df(url: str, sep: str = ",") -> pd.DataFrame:
+    """Download a CSV/TSV from URL using httpx (follows redirects, sets User-Agent).
+
+    More robust than pd.read_csv(url) — gives clear HTTP error messages and
+    correctly follows redirects that pandas cannot handle.
+    """
+    import io
+    import httpx
+    with httpx.Client(timeout=60.0, follow_redirects=True) as client:
+        resp = client.get(url, headers={"User-Agent": "MolFinderDemo/1.0"})
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"Failed to download dataset (HTTP {resp.status_code}) from: {url}"
+        )
+    df = pd.read_csv(io.StringIO(resp.text), sep=sep)
+    # Strip BOM (\ufeff) and surrounding whitespace from column names
+    df.columns = [c.strip().lstrip("\ufeff") for c in df.columns]
+    return df
+
+
 def _load_dataset(dataset_id: str) -> pd.DataFrame:
     """Return dataset as a DataFrame, downloading and caching if necessary."""
     cfg = DATASETS[dataset_id]
@@ -216,11 +283,11 @@ def _load_dataset(dataset_id: str) -> pd.DataFrame:
     if cfg.get("source") == "huggingface":
         return _load_hf_dataset(dataset_id, cfg)
 
-
     cache_path = CACHE_DIR / f"{dataset_id}.csv"
     if cache_path.exists():
         return pd.read_csv(cache_path)
-    df = pd.read_csv(cfg["url"])
+    sep = cfg.get("sep", ",")
+    df = _download_url_to_df(cfg["url"], sep=sep)
     df.to_csv(cache_path, index=False)
     return df
 
@@ -429,6 +496,39 @@ def get_mw(smiles: str) -> "float | None":
         return None
     try:
         return float(Descriptors.MolWt(mol))
+    except Exception:
+        return None
+
+
+def get_logP(smiles: str) -> "float | None":
+    """Return Crippen logP for a SMILES string, or None if invalid."""
+    if not RDKIT_OK:
+        return None
+    mol = Chem.MolFromSmiles(str(smiles))
+    if mol is None:
+        return None
+    try:
+        return float(Descriptors.MolLogP(mol))
+    except Exception:
+        return None
+
+
+def predict_taste_sweet(smiles: str) -> "float | None":
+    """Return P(sweet) for a SMILES using the trained FartDB classifier.
+
+    Returns None if the model has not been trained yet.
+    Range: 0.0 (strongly bitter) → 1.0 (strongly sweet).
+    """
+    if "flavor_sensory" not in _RF_MODEL_CACHE:
+        return None
+    rf = _RF_MODEL_CACHE["flavor_sensory"]
+    vec = featurize_smiles(smiles)
+    if vec is None:
+        return None
+    try:
+        # label_map: sweet→1.0, bitter→0.0  → class index 1 = sweet
+        proba = rf.predict_proba(vec.reshape(1, -1))[0]
+        return round(float(proba[1]), 3)
     except Exception:
         return None
 

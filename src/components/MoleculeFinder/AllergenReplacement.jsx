@@ -34,9 +34,9 @@ const StepBar = ({ activeStep }) => (
 
 // ── Animated scatter ───────────────────────────────────────────────────────────
 // Phases per generation (equal duration each):
-//   "pool"       → dots appear at X-axis (MW only, no logS); prev-gen Pareto ghosts stay visible
-//   "prediction" → dots + logS labels rise together to Y position; ghosts fade
-//   "nsga2"      → Pareto colours + dashed frontier appear
+//   "pool"       → dots appear at X-axis (MW only, logP not yet shown); prev-gen all-dots ghosts
+//   "prediction" → dots + logP labels rise together to Y position; non-Pareto ghosts fade
+//   "nsga2"      → Pareto colours + dashed frontier appear; Pareto ghosts remain
 //   "done"       → final nsga2 state
 const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, prevAllDots, prevPareto }) => {
   const W = 380, H = 240;
@@ -45,7 +45,6 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
   const plotH = H - pad.t - pad.b;
   const axisY = pad.t + plotH;
 
-  // Always use the current generation's candidates
   const currentGen = generations[currentGenIdx] ?? generations[0];
   const dots = currentGen?.candidates ?? [];
   const inNsga2 = animPhase === "nsga2" || animPhase === "done";
@@ -53,25 +52,23 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
   // Stable axis bounds from all generations to prevent rescaling
   const allCands = generations.flatMap(g => g.candidates ?? []);
-  const allMW = [...allCands.map(c => c.mw), reference?.mw ?? 152].filter(Boolean);
-  const allLogS = [...allCands.map(c => c.logS), reference?.logS ?? -1.2].filter(v => v != null);
-  const mwMin = Math.max(60, Math.min(...allMW) - 12);
-  const mwMax = Math.max(...allMW) + 20;
-  const lsMin = Math.min(...allLogS) - 0.4;
-  const lsMax = Math.max(...allLogS) + 0.4;
+  const allMW  = [...allCands.map(c => c.mw),  reference?.mw  ?? 152].filter(Boolean);
+  const allLP  = [...allCands.map(c => c.logP), reference?.logP ?? 1.2].filter(v => v != null);
+  const mwMin  = Math.max(60, Math.min(...allMW) - 12);
+  const mwMax  = Math.max(...allMW) + 20;
+  const lpMin  = Math.min(...allLP) - 0.4;
+  const lpMax  = Math.max(...allLP) + 0.4;
 
-  const px = mw => pad.l + ((mw - mwMin) / (mwMax - mwMin)) * plotW;
-  const py = logS => pad.t + (1 - (logS - lsMin) / (lsMax - lsMin)) * plotH;
+  const px = mw  => pad.l + ((mw  - mwMin) / (mwMax - mwMin)) * plotW;
+  const py = lp  => pad.t + (1 - (lp  - lpMin) / (lpMax - lpMin)) * plotH;
 
   const [hovered, setHovered] = useState(null);
 
   // ── Dot position ──
-  // Pool: all dots on X-axis.  Prediction/nsga2/done: dots at their logS Y.
-  const getDotCy = c => (animPhase === "pool") ? axisY : py(c.logS);
+  const getDotCy = c => (animPhase === "pool") ? axisY : py(c.logP);
 
   // ── Dot colour ──
   // Current-gen dots are GRAY during pool/prediction; colors only appear at nsga2.
-  // Previous-gen ghosts retain their nsga2 colors throughout.
   const getDotFill = c => inNsga2
     ? (c.is_new ? "#818cf8" : (c.dominated ? "#374151" : "#f43f5e"))
     : "#6b7280";
@@ -79,19 +76,14 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
   const getDotOp   = c => animPhase === "pool" ? 0.5 : (inNsga2 ? (c.dominated ? 0.35 : 0.87) : 0.75);
 
   // ── Dot transition ──
-  // Pool: "none" — instant snap to X-axis when generation changes.
-  // Prediction: bounce rise.  nsga2: smooth colour/size shift.
   const getDotTransition = i => {
     if (animPhase === "pool") return "none";
     if (animPhase === "prediction") return `cy 1.0s cubic-bezier(0.34,1.56,0.64,1) ${i * 12}ms, opacity 0.3s ease`;
     return "cy 0.4s ease, fill 0.4s ease, opacity 0.3s ease, r 0.3s ease";
   };
 
-  // ── logS label (rises with the dot in prediction phase) ──
-  // In pool: label is at axisY − 9 (same height as dot), opacity 0, transition "none" → instant reset.
-  // In prediction: label transitions from axisY − 9 → py(logS) − 9, fades in.
-  // In nsga2/done: label hidden again.
-  const getLabelY = c => (animPhase === "pool") ? axisY - 9 : py(c.logS) - 9;
+  // ── logP label (rises with the dot in prediction phase) ──
+  const getLabelY  = c => (animPhase === "pool") ? axisY - 9 : py(c.logP) - 9;
   const getLabelOp = () => inPred ? 0.72 : 0;
   const getLabelTransition = i => {
     if (animPhase === "pool") return "none";
@@ -101,8 +93,8 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
   };
 
   // ── Ghost dots ──
-  // pool phase:            all prev-gen dots shown (gray ghost), new dots at X-axis
-  // prediction/nsga2 phase: only prev-gen Pareto-optimal shown (rose ghost), new dots rise
+  // pool phase:             all prev-gen dots shown (gray ghost)
+  // prediction/nsga2 phase: only prev-gen Pareto-optimal shown (colored ghost)
   const ghostDots = animPhase === "pool"
     ? (prevAllDots ?? [])
     : (prevPareto ?? []);
@@ -112,26 +104,26 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     ? [...dots].filter(c => !c.dominated).sort((a, b) => a.mw - b.mw)
     : [];
   const frontPath = front.length > 1
-    ? front.map((c, j) => `${j === 0 ? "M" : "L"}${px(c.mw).toFixed(1)},${py(c.logS).toFixed(1)}`).join(" ")
+    ? front.map((c, j) => `${j === 0 ? "M" : "L"}${px(c.mw).toFixed(1)},${py(c.logP).toFixed(1)}`).join(" ")
     : "";
 
-  const mwTicks = [80, 100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300].filter(v => v >= mwMin && v <= mwMax + 4);
-  const lsTicks = [-5, -4.5, -4, -3.5, -3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1].filter(v => v >= lsMin - 0.1 && v <= lsMax + 0.1);
+  const mwTicks = [80,100,120,140,160,180,200,220,240,260,280,300].filter(v => v >= mwMin && v <= mwMax + 4);
+  const lpTicks = [-2,-1.5,-1,-0.5,0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5].filter(v => v >= lpMin - 0.1 && v <= lpMax + 0.1);
 
   return (
     <div className="relative">
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
 
-        {/* Vertical grid (always) */}
+        {/* Vertical grid */}
         {mwTicks.map(v => (
           <line key={v} x1={px(v)} y1={pad.t} x2={px(v)} y2={axisY} stroke="#1f2937" strokeWidth={0.5} />
         ))}
-        {/* Horizontal grid (once logS axis is meaningful) */}
-        {!(animPhase === "pool") && lsTicks.map(v => (
+        {/* Horizontal grid (once logP axis is meaningful) */}
+        {!(animPhase === "pool") && lpTicks.map(v => (
           <line key={v} x1={pad.l} y1={py(v)} x2={pad.l + plotW} y2={py(v)} stroke="#1f2937" strokeWidth={0.5} />
         ))}
 
-        {/* Ideal zone (top-left corner) */}
+        {/* Ideal zone (top-left: high logP, low MW) */}
         {inNsga2 && (
           <>
             <rect x={pad.l} y={pad.t} width={plotW * 0.22} height={plotH * 0.22}
@@ -144,7 +136,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         <line x1={pad.l} y1={pad.t} x2={pad.l} y2={axisY} stroke="#374151" strokeWidth={1} />
         <line x1={pad.l} y1={axisY} x2={pad.l + plotW} y2={axisY} stroke="#374151" strokeWidth={1} />
 
-        {/* Pareto frontier dashed line (appears in nsga2 phase) */}
+        {/* Pareto frontier dashed line */}
         {frontPath && (
           <path d={frontPath} fill="none" stroke="#f43f5e" strokeWidth={1.5}
             strokeDasharray="5 3" opacity={0.6} />
@@ -153,11 +145,11 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         {/* Pool-phase hint */}
         {animPhase === "pool" && (
           <text x={pad.l + plotW / 2} y={axisY - 8} fontSize={7.5} fill="#374151" textAnchor="middle">
-            logS not yet predicted
+            logP not yet assigned
           </text>
         )}
 
-        {/* Ghost dots: prev-gen with their nsga2 colors (rose/indigo/dark) */}
+        {/* Ghost dots: retain their nsga2 colors */}
         {ghostDots.map((c, i) => {
           const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : "#f43f5e");
           const op   = animPhase === "pool"
@@ -167,7 +159,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
             <circle
               key={`ghost-${c.smiles ?? i}`}
               cx={px(c.mw)}
-              cy={py(c.logS)}
+              cy={py(c.logP)}
               r={c.dominated ? 3 : 4}
               fill={fill}
               opacity={op}
@@ -176,14 +168,14 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
           );
         })}
 
-        {/* Dots + rising logS labels */}
+        {/* Dots + rising logP labels */}
         {dots.map((c, i) => (
           <g key={c.smiles ?? i}
             style={{ cursor: "pointer" }}
             onMouseEnter={() => setHovered(i)}
             onMouseLeave={() => setHovered(null)}>
 
-            {/* logS label — rises with dot in prediction phase */}
+            {/* logP label — rises with dot in prediction phase */}
             <text
               x={px(c.mw)}
               y={getLabelY(c)}
@@ -194,7 +186,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
               style={{ transition: getLabelTransition(i) }}
               pointerEvents="none"
             >
-              {c.logS?.toFixed(1)}
+              {c.logP?.toFixed(2)}
             </text>
 
             {/* Dot */}
@@ -210,11 +202,11 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
             {/* Tooltip (non-pool phases) */}
             {hovered === i && animPhase !== "pool" && (
               <g>
-                <rect x={px(c.mw) + 9} y={py(c.logS) - 26} width={138} height={38}
+                <rect x={px(c.mw) + 9} y={py(c.logP) - 26} width={140} height={38}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(c.mw) + 13} y={py(c.logS) - 13} fontSize={8} fill="#e5e7eb">{c.name}</text>
-                <text x={px(c.mw) + 13} y={py(c.logS) - 1} fontSize={7} fill="#9ca3af">
-                  logS {c.logS?.toFixed(2)} · MW {c.mw} Da{c.is_new ? " · new" : ""}
+                <text x={px(c.mw) + 13} y={py(c.logP) - 13} fontSize={8} fill="#e5e7eb">{c.name}</text>
+                <text x={px(c.mw) + 13} y={py(c.logP) - 1} fontSize={7} fill="#9ca3af">
+                  logP {c.logP?.toFixed(2)} · MW {c.mw} Da{c.is_new ? " · new" : ""}
                 </text>
               </g>
             )}
@@ -231,20 +223,20 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         ))}
 
         {/* Vanillin reference (nsga2 / done phases) */}
-        {inNsga2 && reference?.logS != null && reference?.mw != null && (
+        {inNsga2 && reference?.logP != null && reference?.mw != null && (
           <g style={{ cursor: "pointer" }}
             onMouseEnter={() => setHovered("ref")}
             onMouseLeave={() => setHovered(null)}>
-            <circle cx={px(reference.mw)} cy={py(reference.logS)} r={7}
+            <circle cx={px(reference.mw)} cy={py(reference.logP)} r={7}
               fill="none" stroke="#fbbf24" strokeWidth={2} opacity={0.9} />
-            <circle cx={px(reference.mw)} cy={py(reference.logS)} r={3} fill="#fbbf24" opacity={0.9} />
+            <circle cx={px(reference.mw)} cy={py(reference.logP)} r={3} fill="#fbbf24" opacity={0.9} />
             {hovered === "ref" && (
               <g>
-                <rect x={px(reference.mw) + 9} y={py(reference.logS) - 26} width={132} height={38}
+                <rect x={px(reference.mw) + 9} y={py(reference.logP) - 26} width={140} height={38}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(reference.mw) + 13} y={py(reference.logS) - 13} fontSize={8} fill="#fbbf24">Vanillin (reference)</text>
-                <text x={px(reference.mw) + 13} y={py(reference.logS) - 1} fontSize={7} fill="#9ca3af">
-                  logS {reference.logS?.toFixed(2)} · MW {reference.mw} Da
+                <text x={px(reference.mw) + 13} y={py(reference.logP) - 13} fontSize={8} fill="#fbbf24">Vanillin (reference)</text>
+                <text x={px(reference.mw) + 13} y={py(reference.logP) - 1} fontSize={7} fill="#9ca3af">
+                  logP {reference.logP?.toFixed(2)} · MW {reference.mw} Da
                 </text>
               </g>
             )}
@@ -255,8 +247,8 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         {mwTicks.map(v => (
           <text key={v} x={px(v)} y={axisY + 11} fontSize={7} fill="#6b7280" textAnchor="middle">{v}</text>
         ))}
-        {/* logS tick labels */}
-        {animPhase !== "pool" && lsTicks.map(v => (
+        {/* logP tick labels */}
+        {animPhase !== "pool" && lpTicks.map(v => (
           <text key={v} x={pad.l - 4} y={py(v) + 3} fontSize={7} fill="#6b7280" textAnchor="end">{v.toFixed(1)}</text>
         ))}
 
@@ -267,7 +259,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         {animPhase !== "pool" && (
           <text x={10} y={pad.t + plotH / 2} fontSize={8} fill="#6b7280" textAnchor="middle"
             transform={`rotate(-90,10,${pad.t + plotH / 2})`}>
-            logS (mol/L) — maximise →
+            logP (Crippen) — maximise →
           </text>
         )}
       </svg>
@@ -277,15 +269,14 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
 // ── Main component ─────────────────────────────────────────────────────────────
 const AllergenReplacement = () => {
-  const [animPhase, setAnimPhase] = useState("idle");
-  const [poolMeta, setPoolMeta] = useState(null);
-  const [modelMeta, setModelMeta] = useState(null);
-  const [propRange, setPropRange] = useState(null);
+  const [animPhase, setAnimPhase]     = useState("idle");
+  const [poolMeta, setPoolMeta]       = useState(null);
+  const [_modelMeta, setModelMeta]    = useState(null); // kept for future use, value unused
+  const [propRange, setPropRange]     = useState(null);
   const [generations, setGenerations] = useState([]);
-  const [reference, setReference] = useState(null);
+  const [reference, setReference]     = useState(null);
   const [currentGenIdx, setCurrentGenIdx] = useState(0);
-  const [error, setError] = useState(null);
-  const [modelReady, setModelReady] = useState(false);
+  const [error, setError]             = useState(null);
   const [prevAllDots, setPrevAllDots] = useState([]);
   const [prevPareto, setPrevPareto]   = useState([]);
   const phaseTimers = useRef([]);
@@ -295,14 +286,6 @@ const AllergenReplacement = () => {
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setPoolMeta(d); })
       .catch(() => { });
-
-    fetch(`${BACKEND}/molecule-finder/available-datasets`)
-      .then(r => r.ok ? r.json() : [])
-      .then(datasets => {
-        const aqsol = datasets.find(d => d.id === "aqsoldb");
-        if (aqsol?.n_cached) setModelReady(true);
-      })
-      .catch(() => { });
   }, []);
 
   const clearAll = () => {
@@ -310,8 +293,6 @@ const AllergenReplacement = () => {
     phaseTimers.current = [];
   };
 
-  // Each generation cycles through pool → prediction → nsga2, all equal duration.
-  // During "pool" of gen N+1, the Pareto-optimal dots from gen N are shown as ghosts.
   const startAnimation = (gens) => {
     setCurrentGenIdx(0);
     setAnimPhase("pool");
@@ -326,7 +307,7 @@ const AllergenReplacement = () => {
       const prevFront  = prevCands.filter(c => !c.dominated);
 
       if (genIdx > 0) {
-        // pool of gen N+1: ALL prev-gen dots stay as light ghosts; new dots snap to X-axis
+        // pool of gen N+1: ALL prev-gen dots stay as light ghosts
         phaseTimers.current.push(setTimeout(() => {
           setCurrentGenIdx(capturedIdx);
           setAnimPhase("pool");
@@ -364,11 +345,9 @@ const AllergenReplacement = () => {
 
     try {
       const res = await fetch(`${BACKEND}/molecule-finder/optimize-2obj`, { method: "POST" });
-      if (res.status === 409) { setAnimPhase("idle"); setModelReady(false); return; }
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
 
-      setModelReady(true);
       setPoolMeta(data.pool_meta);
       setModelMeta(data.model_meta);
       setPropRange(data.property_range);
@@ -392,14 +371,13 @@ const AllergenReplacement = () => {
   useEffect(() => () => clearAll(), []);
 
   const isRunning = ["pool", "prediction", "nsga2"].includes(animPhase);
-  const isActive = isRunning || animPhase === "done";
+  const isActive  = isRunning || animPhase === "done";
 
-  // Active step cycles 1→2→3 per generation, synced with animPhase
   const activeStep =
-    animPhase === "pool" ? 1
-      : animPhase === "prediction" ? 2
-        : (animPhase === "nsga2" || animPhase === "done") ? 3
-          : 0;
+    animPhase === "pool"       ? 1
+    : animPhase === "prediction" ? 2
+    : (animPhase === "nsga2" || animPhase === "done") ? 3
+    : 0;
 
   const currentGen = generations[currentGenIdx];
   const progress = generations.length > 0 ? (currentGenIdx / (generations.length - 1)) * 100 : 0;
@@ -407,10 +385,9 @@ const AllergenReplacement = () => {
   const finalPareto = animPhase === "done"
     ? [...(generations[generations.length - 1]?.candidates ?? [])]
       .filter(c => !c.dominated)
-      .sort((a, b) => b.logS - a.logS)
+      .sort((a, b) => b.logP - a.logP)
     : [];
 
-  // Left-panel step circles: highlight the currently active step
   const s1 = activeStep === 1;
   const s2 = activeStep === 2;
   const s3 = activeStep === 3 || animPhase === "done";
@@ -436,6 +413,7 @@ const AllergenReplacement = () => {
             <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-3">
               Optimization Workflow
             </div>
+
             {/* Reference */}
             <div className="flex items-center gap-2.5 pb-1">
               <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
@@ -443,9 +421,9 @@ const AllergenReplacement = () => {
               </div>
               <div className="text-[10px] text-gray-500">
                 <span className="text-amber-300 font-semibold">Vanillin</span>
-                <span className="ml-1.5 text-gray-600">E1001 · 152.15 Da</span>
-                {reference?.logS != null && (
-                  <span className="ml-1.5 text-gray-600">· logS {reference.logS.toFixed(2)}</span>
+                <span className="ml-1.5 text-gray-600">CAS 121-33-5 · 152.15 Da</span>
+                {reference?.logP != null && (
+                  <span className="ml-1.5 text-gray-600">· logP {reference.logP.toFixed(2)}</span>
                 )}
               </div>
             </div>
@@ -488,17 +466,15 @@ const AllergenReplacement = () => {
                 ${s2 ? "bg-rose-600 text-white" : "bg-gray-800 text-gray-500"}`}>2</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s2 ? "text-gray-200" : "text-gray-500"}`}>
-                  Property Prediction
+                  Property Computation
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>RF · <span className="text-gray-400">AqSolDB</span> · Target: log S (mol/L)</span>
-                  <span>MW: <span className="text-gray-400">RDKit exact</span></span>
-                  {modelMeta && (
-                    <span>OOB R²: <span className={`font-semibold transition-colors duration-500 ${s2 ? "text-emerald-400" : "text-gray-500"}`}>{modelMeta.oob_r2}</span></span>
-                  )}
+                  <span>logP: <span className="text-gray-400">Crippen method (RDKit)</span></span>
+                  <span>MW: <span className="text-gray-400">RDKit ExactMolWt</span></span>
+                  <span className="text-[9px] text-gray-600">No external model — computed analytically</span>
                   {propRange && (
                     <span className="text-[9px] text-gray-600">
-                      logS {propRange.logS_min}…{propRange.logS_max} · MW {propRange.mw_min}–{propRange.mw_max} Da
+                      logP {propRange.logP_min}…{propRange.logP_max} · MW {propRange.mw_min}–{propRange.mw_max} Da
                     </span>
                   )}
                 </div>
@@ -516,12 +492,12 @@ const AllergenReplacement = () => {
                   NSGA-II Optimisation
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>Obj-1: logS ↑ &nbsp;·&nbsp; Obj-2: MW ↓</span>
-                  <span>pop_size 30 · 8 generations</span>
+                  <span>Obj-1: logP ↑ &nbsp;·&nbsp; Obj-2: MW ↓</span>
+                  <span>pop_size 100 · 30 generations</span>
                   {isActive && (
                     <div className="mt-1">
                       <div className="flex justify-between text-[9px] text-gray-500 mb-1">
-                        <span>Gen {currentGen?.gen ?? 0} / 70</span>
+                        <span>Gen {currentGen?.gen ?? 0} / {generations.length - 1}</span>
                         <span>
                           {(currentGen?.n_new ?? 0) > 0 && (
                             <span className="text-indigo-400 mr-1">+{currentGen.n_new} new</span>
@@ -541,28 +517,21 @@ const AllergenReplacement = () => {
               </div>
             </div>
 
-            {/* Spacer + separator + run */}
             <div className="flex-1 min-h-3" />
             <div className="h-px bg-gray-800/60 mt-3 mb-3" />
-
-            {!modelReady && (
-              <div className="mb-3 px-3 py-2.5 rounded-lg bg-amber-900/25 border border-amber-700/40 text-[11px] text-amber-300 leading-snug">
-                ⚠ Train the <strong>AqSolDB</strong> model first in the <strong>Property Prediction</strong> tab.
-              </div>
-            )}
 
             <div className="flex gap-2">
               <button
                 onClick={handleOptimize}
-                disabled={!modelReady || isRunning || animPhase === "loading"}
+                disabled={isRunning || animPhase === "loading"}
                 className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all
                   bg-rose-700/80 border border-rose-600/60 text-white hover:bg-rose-600/80
                   disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {animPhase === "loading" ? "Loading…"
                   : isRunning ? "Optimising…"
-                    : animPhase === "done" ? "▶ Run again"
-                      : "▶ Run pipeline"}
+                  : animPhase === "done" ? "▶ Run again"
+                  : "▶ Run pipeline"}
               </button>
               {animPhase === "done" && (
                 <button
@@ -580,8 +549,9 @@ const AllergenReplacement = () => {
             <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
               {poolMeta ? `${poolMeta.n_candidates} PubChem aromatic compounds + generated analogs` : "Pareto space"}
             </div>
-            {/* Step bar — inside left panel, below title */}
-            <StepBar activeStep={activeStep} />
+            <div className="mb-3">
+              <StepBar activeStep={activeStep} />
+            </div>
 
             {isActive ? (
               <>
@@ -593,7 +563,7 @@ const AllergenReplacement = () => {
                   prevAllDots={prevAllDots}
                   prevPareto={prevPareto}
                 />
-                {/* Legend — shown once nsga2 colours are active */}
+                {/* Legend */}
                 {(animPhase === "nsga2" || animPhase === "done") && (
                   <div className="flex flex-wrap gap-4 mt-2">
                     <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
@@ -634,30 +604,30 @@ const AllergenReplacement = () => {
               <span className="text-[11px] uppercase tracking-widest text-gray-500">
                 Pareto-optimal candidates — Final generation
               </span>
-              <span className="text-[10px] text-gray-600">sorted by logS ↓</span>
+              <span className="text-[10px] text-gray-600">sorted by logP ↓</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-[11px]">
                 <thead>
                   <tr className="border-b border-gray-800">
-                    {["#", "Name", "logS (RF) ↑", "MW (Da) ↓", "vs Vanillin", "Origin"].map(h => (
+                    {["#", "Name", "logP (Crippen) ↑", "MW (Da) ↓", "vs Vanillin", "Origin"].map(h => (
                       <th key={h} className="px-3 py-2 text-left text-gray-500 font-medium">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {finalPareto.slice(0, 14).map((c, i) => {
-                    const refLogS = reference?.logS ?? -1.2;
+                    const refLP = reference?.logP ?? 1.21;
                     const refMW = reference?.mw ?? 152;
-                    const dominates = c.logS > refLogS && c.mw < refMW;
-                    const delta = c.logS - refLogS;
+                    const dominates = c.logP > refLP && c.mw < refMW;
+                    const delta = c.logP - refLP;
                     return (
                       <tr key={i} className={`border-b border-gray-800/40 ${dominates ? "bg-rose-900/10" : ""}`}>
                         <td className="px-3 py-2 text-gray-600">{i + 1}</td>
                         <td className="px-3 py-2 font-medium text-gray-200">{c.name}</td>
                         <td className="px-3 py-2 font-mono">
-                          <span style={{ color: c.logS > refLogS ? "#22c55e" : "#9ca3af" }}>
-                            {c.logS.toFixed(2)}
+                          <span style={{ color: c.logP > refLP ? "#22c55e" : "#9ca3af" }}>
+                            {c.logP.toFixed(2)}
                           </span>
                         </td>
                         <td className="px-3 py-2 font-mono text-gray-400">{c.mw}</td>
@@ -668,13 +638,13 @@ const AllergenReplacement = () => {
                             </span>
                           ) : (
                             <span className="font-mono text-gray-500 text-[10px]">
-                              {delta > 0 ? "+" : ""}{delta.toFixed(2)} logS
+                              {delta > 0 ? "+" : ""}{delta.toFixed(2)} logP
                             </span>
                           )}
                         </td>
                         <td className="px-3 py-2">
-                          {c.name.startsWith("Analog-") ? (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-900/30 text-indigo-400">generated</span>
+                          {c.cid == null ? (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-900/30 text-indigo-400">in silico</span>
                           ) : (
                             <span className="text-[9px] text-gray-600">pool</span>
                           )}
@@ -689,7 +659,7 @@ const AllergenReplacement = () => {
               Seed pool: {poolMeta?.n_candidates} PubChem compounds · SMARTS mutation generated{" "}
               {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_candidates ?? 0))} analogs ·{" "}
               {generations[generations.length - 1]?.n_evaluated ?? 0} total evaluated.
-              logS: AqSolDB RF (OOB R² {modelMeta?.oob_r2}).
+              logP: Crippen method (RDKit, no external dataset).
             </div>
           </div>
         )}

@@ -152,19 +152,19 @@ export const workflows = {
       {
         id: 0,
         title: "overview",
-        subtitle: "Finding a molecule with the right properties — for a medicine, a material, a fragrance, or a food ingredient — means searching a space <strong>too vast to explore by hand</strong>. The challenge isn't knowledge: it's scale, cost, and the curse of <strong>competing design constraints</strong>.",
+        subtitle: "Finding a molecule with the right properties — for a medicine, a material, a fragrance, or a food ingredient — means searching a space <strong>too vast to explore by hand</strong>. The challenge isn't knowledge: it's scale, cost, time and the curse of <strong>competing design constraints</strong>.",
         gradient: "from-rose-700 via-pink-600 to-fuchsia-600",
       },
       {
         id: 1,
         title: "molecular representation",
-        subtitle: "Molecules are encoded as <strong>Morgan fingerprints</strong> — bit vectors that capture circular neighbourhood patterns at each atom. Combined with physicochemical descriptors (MW, logP, TPSA), they form the feature space that feeds the ML property-prediction model.",
+        subtitle: "Molecules are encoded as text strings or <strong>fingerprints</strong> — bit vectors that capture neighbourhood patterns at each atom. Combined with physicochemical descriptors (MW, logP, TPSA), they form the feature space that feeds the ML property-prediction model.",
         gradient: "from-fuchsia-700 via-purple-600 to-violet-600",
       },
       {
         id: 2,
-        title: "property prediction",
-        subtitle: "Select a public molecular dataset and train a <strong>Random Forest</strong> predictor in real time. The same pipeline — ECFP4 fingerprints plus physicochemical descriptors — applies to any property: solubility, lipophilicity, binding affinity, odour similarity, or allergenicity.",
+        title: "property prediction models",
+        subtitle: "After encoding molecules, we train <strong>property prediction models</strong> on the feature space to estimate their physicochemical properties. Searching for curated datasets is a critical step: the model's accuracy and generalizability depend on the quality and relevance of the training data.",
         gradient: "from-violet-700 via-indigo-600 to-purple-600",
       },
       {
@@ -176,17 +176,23 @@ export const workflows = {
       {
         id: 4,
         title: "case: aroma compound design",
-        subtitle: "Starting from <strong>~600 food-related aromatic compounds</strong> sourced from PubChem (similarity search around Vanillin, Guaiacol, Eugenol...). The <strong>trained model</strong> predicts logS; <strong>NSGA-II</strong> finds the Pareto-optimal frontier balancing higher solubility and lower molecular weight.",
+        subtitle: "Starting from <strong>~600 food-related aromatic compounds</strong> sourced from PubChem. Properties computed analytically by RDKit (logP, MW) — no external dataset, no domain shift. <strong>NSGA-II</strong> (pop 100, 30 gen) finds the Pareto-optimal frontier balancing lipophilicity and molecular weight.",
         gradient: "from-orange-600 via-rose-600 to-pink-600",
       },
       {
         id: 5,
-        title: "case: similarity-guided design",
-        subtitle: "Adding a <strong>third objective</strong> (ECFP4 Tanimoto similarity to Vanillin) and a <strong>structural purity filter</strong> reshapes the Pareto front. The algorithm independently rediscovers the compounds the flavour industry actually uses: <strong>Ethylvanillin, Piperonal, Guaiacol</strong>.",
+        title: "case: taste-guided design",
+        subtitle: "Adding a <strong>third objective — P(sweet)</strong>, predicted by a RandomForest trained on the FartDB taste dataset — and a structural purity filter (no halogens, no metals). The 3-objective NSGA-II simultaneously optimises logP, MW, and predicted sweetness profile.",
         gradient: "from-violet-600 via-purple-600 to-fuchsia-600",
       },
       {
         id: 6,
+        title: "regulatory check",
+        subtitle: "Every candidate must pass regulatory scrutiny. Cross-reference the Pareto-optimal pool against <strong>FEMA GRAS</strong> (US) and <strong>EU Regulation EC 1334/2008</strong> (Annex I). Instantly flag banned substances, restricted use limits, and compounds not yet evaluated.",
+        gradient: "from-teal-600 via-emerald-600 to-green-600",
+      },
+      {
+        id: 7,
         title: "impact",
         subtitle: "AI-guided molecular design compresses the <strong>hit identification phase from 18–36 months to 4–8 weeks</strong>, cuts screening costs by >80%, and enables continuous regulatory compliance monitoring — transforming fragrance and flavour R&D from empirical iteration to <strong>targeted design</strong>.",
         gradient: "from-rose-600 via-pink-500 to-fuchsia-500",

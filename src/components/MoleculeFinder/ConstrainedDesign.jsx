@@ -11,7 +11,7 @@ const STEPS = [
 ];
 
 const StepBar = ({ activeStep }) => (
-  <div className="flex items-center mb-3">
+  <div className="flex items-center">
     {STEPS.map((s, i) => (
       <div key={s.n} className="flex items-center">
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-500
@@ -32,25 +32,19 @@ const StepBar = ({ activeStep }) => (
   </div>
 );
 
-// ── Tanimoto color helpers ─────────────────────────────────────────────────────
+// ── P(sweet) color helpers ─────────────────────────────────────────────────────
+// 0 (bitter/neutral) → blue; 0.5 → teal; 1.0 (sweet) → rose
 function lerpColor(hex1, hex2, t) {
   const r1 = parseInt(hex1.slice(1,3),16), g1 = parseInt(hex1.slice(3,5),16), b1 = parseInt(hex1.slice(5,7),16);
   const r2 = parseInt(hex2.slice(1,3),16), g2 = parseInt(hex2.slice(3,5),16), b2 = parseInt(hex2.slice(5,7),16);
   return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
 }
-function tanimotoColor(t) {
-  if (t < 0.33) return lerpColor("#3b82f6","#14b8a6", t/0.33);
-  if (t < 0.66) return lerpColor("#14b8a6","#f59e0b",(t-0.33)/0.33);
-  return lerpColor("#f59e0b","#f43f5e",(t-0.66)/0.34);
+function psweetColor(p) {
+  if (p < 0.5) return lerpColor("#3b82f6", "#14b8a6", p / 0.5);
+  return lerpColor("#14b8a6", "#f43f5e", (p - 0.5) / 0.5);
 }
 
-const KNOWN_ALTS = new Set([
-  "Vanillin","Ethylvanillin","Piperonal","Guaiacol",
-  "4-Hydroxybenzaldehyde","Anisaldehyde","Heliotropin",
-  "3,4-Dimethoxybenzaldehyde","Syringaldehyde",
-]);
-
-// ── Animated scatter (3-objective) ────────────────────────────────────────────
+// ── Animated scatter (3-objective: logP, MW, P(sweet)) ────────────────────────
 const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, prevAllDots, prevPareto }) => {
   const W = 380, H = 240;
   const pad = { l: 44, r: 16, t: 28, b: 30 };
@@ -64,26 +58,26 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
   const inPred  = animPhase === "prediction";
 
   const allCands = generations.flatMap(g => g.candidates ?? []);
-  const allMW   = [...allCands.map(c => c.mw),   reference?.mw  ?? 152].filter(Boolean);
-  const allLogS = [...allCands.map(c => c.logS), reference?.logS ?? -1.2].filter(v => v != null);
-  const mwMin = Math.max(60, Math.min(...allMW) - 12);
-  const mwMax =              Math.max(...allMW) + 20;
-  const lsMin =              Math.min(...allLogS) - 0.4;
-  const lsMax =              Math.max(...allLogS) + 0.4;
+  const allMW  = [...allCands.map(c => c.mw),  reference?.mw  ?? 152].filter(Boolean);
+  const allLP  = [...allCands.map(c => c.logP), reference?.logP ?? 1.2].filter(v => v != null);
+  const mwMin  = Math.max(60, Math.min(...allMW) - 12);
+  const mwMax  =             Math.max(...allMW) + 20;
+  const lpMin  =             Math.min(...allLP)  - 0.4;
+  const lpMax  =             Math.max(...allLP)  + 0.4;
 
-  const px = mw   => pad.l + ((mw   - mwMin) / (mwMax - mwMin)) * plotW;
-  const py = logS => pad.t + (1 - (logS - lsMin) / (lsMax - lsMin)) * plotH;
+  const px = mw => pad.l + ((mw - mwMin) / (mwMax - mwMin)) * plotW;
+  const py = lp => pad.t + (1 - (lp - lpMin) / (lpMax - lpMin)) * plotH;
 
   const [hovered, setHovered] = useState(null);
 
-  // Current-gen dots: gray during pool/prediction; Tanimoto colors appear at nsga2
+  // Current-gen: gray during pool/prediction; P(sweet) colors appear at nsga2
   const getDotFill = c => inNsga2
-    ? (c.is_new ? "#818cf8" : (c.dominated ? "#374151" : tanimotoColor(c.tanimoto ?? 0)))
+    ? (c.is_new ? "#818cf8" : (c.dominated ? "#374151" : psweetColor(c.psweet ?? 0.5)))
     : "#6b7280";
   const getDotR   = c => inNsga2 ? (c.dominated ? 3.5 : (c.is_new ? 5 : 5.5)) : 4;
   const getDotOp  = c => animPhase === "pool" ? 0.5 : (inNsga2 ? (c.dominated ? 0.35 : 0.87) : 0.75);
 
-  const getDotCy = c => (animPhase === "pool") ? axisY : py(c.logS);
+  const getDotCy = c => (animPhase === "pool") ? axisY : py(c.logP);
 
   const getDotTransition = i => {
     if (animPhase === "pool")       return "none";
@@ -91,7 +85,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     return "cy 0.4s ease, fill 0.4s ease, opacity 0.3s ease, r 0.3s ease";
   };
 
-  const getLabelY  = c => (animPhase === "pool") ? axisY - 9 : py(c.logS) - 9;
+  const getLabelY  = c => (animPhase === "pool") ? axisY - 9 : py(c.logP) - 9;
   const getLabelOp = () => inPred ? 0.72 : 0;
   const getLabelTransition = i => {
     if (animPhase === "pool") return "none";
@@ -108,11 +102,11 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     ? [...dots].filter(c => !c.dominated).sort((a,b) => a.mw - b.mw)
     : [];
   const frontPath = front.length > 1
-    ? front.map((c,j) => `${j===0?"M":"L"}${px(c.mw).toFixed(1)},${py(c.logS).toFixed(1)}`).join(" ")
+    ? front.map((c,j) => `${j===0?"M":"L"}${px(c.mw).toFixed(1)},${py(c.logP).toFixed(1)}`).join(" ")
     : "";
 
   const mwTicks = [80,100,120,140,160,180,200,220,240,260,280,300].filter(v => v >= mwMin && v <= mwMax + 4);
-  const lsTicks = [-5,-4.5,-4,-3.5,-3,-2.5,-2,-1.5,-1,-0.5,0,0.5,1].filter(v => v >= lsMin - 0.1 && v <= lsMax + 0.1);
+  const lpTicks = [-2,-1.5,-1,-0.5,0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5].filter(v => v >= lpMin - 0.1 && v <= lpMax + 0.1);
 
   return (
     <div className="relative">
@@ -121,7 +115,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         {mwTicks.map(v => (
           <line key={v} x1={px(v)} y1={pad.t} x2={px(v)} y2={axisY} stroke="#1f2937" strokeWidth={0.5} />
         ))}
-        {!(animPhase === "pool") && lsTicks.map(v => (
+        {!(animPhase === "pool") && lpTicks.map(v => (
           <line key={v} x1={pad.l} y1={py(v)} x2={pad.l + plotW} y2={py(v)} stroke="#1f2937" strokeWidth={0.5} />
         ))}
 
@@ -143,13 +137,13 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
         {animPhase === "pool" && (
           <text x={pad.l + plotW / 2} y={axisY - 8} fontSize={7.5} fill="#374151" textAnchor="middle">
-            logS not yet predicted
+            logP not yet assigned
           </text>
         )}
 
-        {/* Ghost dots: prev-gen with their Tanimoto colors */}
+        {/* Ghost dots: retain their P(sweet) nsga2 colors */}
         {ghostDots.map((c, i) => {
-          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : tanimotoColor(c.tanimoto ?? 0));
+          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : psweetColor(c.psweet ?? 0.5));
           const op   = animPhase === "pool"
             ? (c.dominated ? 0.12 : 0.22)
             : (c.dominated ? 0.18 : 0.32);
@@ -157,7 +151,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
             <circle
               key={`ghost-${c.smiles ?? i}`}
               cx={px(c.mw)}
-              cy={py(c.logS)}
+              cy={py(c.logP)}
               r={c.dominated ? 3 : 4}
               fill={fill}
               opacity={op}
@@ -166,99 +160,84 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
           );
         })}
 
-        {/* Dots + rising logS labels */}
-        {dots.map((c, i) => {
-          const isKnown = inNsga2 && KNOWN_ALTS.has(c.name) && !c.dominated;
-          return (
-            <g key={c.smiles ?? i}
-              style={{ cursor: "pointer" }}
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}>
+        {/* Dots + rising logP labels */}
+        {dots.map((c, i) => (
+          <g key={c.smiles ?? i}
+            style={{ cursor: "pointer" }}
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(null)}>
 
-              {/* logS label — rises with dot in prediction */}
-              <text
-                x={px(c.mw)}
-                y={getLabelY(c)}
-                textAnchor="middle"
-                fontSize={6}
-                fill="#9ca3af"
-                opacity={getLabelOp()}
-                style={{ transition: getLabelTransition(i) }}
-                pointerEvents="none"
-              >
-                {c.logS?.toFixed(1)}
-              </text>
+            {/* logP label — rises with dot in prediction */}
+            <text
+              x={px(c.mw)}
+              y={getLabelY(c)}
+              textAnchor="middle"
+              fontSize={6}
+              fill="#9ca3af"
+              opacity={getLabelOp()}
+              style={{ transition: getLabelTransition(i) }}
+              pointerEvents="none"
+            >
+              {c.logP?.toFixed(2)}
+            </text>
 
-              {/* Known-alt ring */}
-              {isKnown && (
-                <circle cx={px(c.mw)} cy={py(c.logS)} r={getDotR(c) + 4}
-                  fill="none" stroke={getDotFill(c)} strokeWidth={1.5} opacity={0.5} />
-              )}
+            {/* Dot */}
+            <circle
+              cx={px(c.mw)}
+              cy={getDotCy(c)}
+              r={getDotR(c)}
+              fill={getDotFill(c)}
+              opacity={getDotOp(c)}
+              style={{ transition: getDotTransition(i) }}
+            />
 
-              {/* Dot */}
-              <circle
-                cx={px(c.mw)}
-                cy={getDotCy(c)}
-                r={getDotR(c)}
-                fill={getDotFill(c)}
-                opacity={getDotOp(c)}
-                style={{ transition: getDotTransition(i) }}
-              />
-
-              {/* Known-alt label */}
-              {isKnown && (
-                <text x={px(c.mw) + getDotR(c) + 3} y={py(c.logS) + 3}
-                  fontSize={7} fill={getDotFill(c)} opacity={0.85}
-                  style={{ pointerEvents: "none" }}>
-                  {c.name.split(" ")[0]}
+            {/* Tooltip (non-pool phases) */}
+            {hovered === i && animPhase !== "pool" && (
+              <g>
+                <rect x={px(c.mw) + 9} y={py(c.logP) - 34} width={150} height={48}
+                  rx={4} fill="#111" stroke="#374151" />
+                <text x={px(c.mw) + 13} y={py(c.logP) - 21} fontSize={8} fill="#e5e7eb">{c.name}</text>
+                <text x={px(c.mw) + 13} y={py(c.logP) - 10} fontSize={7} fill="#9ca3af">
+                  logP {c.logP?.toFixed(2)} · MW {c.mw} Da
                 </text>
-              )}
-
-              {/* Tooltip */}
-              {hovered === i && animPhase !== "pool" && (
-                <g>
-                  <rect x={px(c.mw) + 9} y={py(c.logS) - 34} width={148} height={48}
-                    rx={4} fill="#111" stroke="#374151" />
-                  <text x={px(c.mw) + 13} y={py(c.logS) - 21} fontSize={8} fill="#e5e7eb">{c.name}</text>
-                  <text x={px(c.mw) + 13} y={py(c.logS) - 10} fontSize={7} fill="#9ca3af">
-                    logS {c.logS?.toFixed(2)} · MW {c.mw} Da
-                  </text>
-                  <text x={px(c.mw) + 13} y={py(c.logS) + 1} fontSize={7} fill={getDotFill(c)}>
-                    Tanimoto {(c.tanimoto ?? 0).toFixed(3)}{c.is_new ? " · new" : ""}
-                  </text>
-                </g>
-              )}
-              {hovered === i && animPhase === "pool" && (
-                <g>
-                  <rect x={px(c.mw) + 9} y={axisY - 36} width={120} height={26}
-                    rx={4} fill="#111" stroke="#374151" />
-                  <text x={px(c.mw) + 13} y={axisY - 23} fontSize={8} fill="#e5e7eb">{c.name}</text>
-                  <text x={px(c.mw) + 13} y={axisY - 11} fontSize={7} fill="#9ca3af">MW {c.mw} Da</text>
-                </g>
-              )}
-            </g>
-          );
-        })}
+                <text x={px(c.mw) + 13} y={py(c.logP) + 1} fontSize={7}
+                  fill={psweetColor(c.psweet ?? 0.5)}>
+                  P(sweet) {(c.psweet ?? 0.5).toFixed(3)}{c.is_new ? " · new" : ""}
+                </text>
+              </g>
+            )}
+            {hovered === i && animPhase === "pool" && (
+              <g>
+                <rect x={px(c.mw) + 9} y={axisY - 36} width={120} height={26}
+                  rx={4} fill="#111" stroke="#374151" />
+                <text x={px(c.mw) + 13} y={axisY - 23} fontSize={8} fill="#e5e7eb">{c.name}</text>
+                <text x={px(c.mw) + 13} y={axisY - 11} fontSize={7} fill="#9ca3af">MW {c.mw} Da</text>
+              </g>
+            )}
+          </g>
+        ))}
 
         {/* Vanillin reference */}
-        {inNsga2 && reference?.logS != null && reference?.mw != null && (
+        {inNsga2 && reference?.logP != null && reference?.mw != null && (
           <g style={{ cursor: "pointer" }}
             onMouseEnter={() => setHovered("ref")}
             onMouseLeave={() => setHovered(null)}>
-            <circle cx={px(reference.mw)} cy={py(reference.logS)} r={7}
+            <circle cx={px(reference.mw)} cy={py(reference.logP)} r={7}
               fill="none" stroke="#fbbf24" strokeWidth={2} opacity={0.9} />
-            <circle cx={px(reference.mw)} cy={py(reference.logS)} r={3} fill="#fbbf24" opacity={0.9} />
+            <circle cx={px(reference.mw)} cy={py(reference.logP)} r={3} fill="#fbbf24" opacity={0.9} />
             {hovered === "ref" && (
               <g>
-                <rect x={px(reference.mw) + 9} y={py(reference.logS) - 34} width={135} height={48}
+                <rect x={px(reference.mw) + 9} y={py(reference.logP) - 34} width={140} height={48}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(reference.mw) + 13} y={py(reference.logS) - 21} fontSize={8} fill="#fbbf24">Vanillin (reference)</text>
-                <text x={px(reference.mw) + 13} y={py(reference.logS) - 10} fontSize={7} fill="#9ca3af">
-                  logS {reference.logS?.toFixed(2)} · MW {reference.mw} Da
+                <text x={px(reference.mw) + 13} y={py(reference.logP) - 21} fontSize={8} fill="#fbbf24">Vanillin (reference)</text>
+                <text x={px(reference.mw) + 13} y={py(reference.logP) - 10} fontSize={7} fill="#9ca3af">
+                  logP {reference.logP?.toFixed(2)} · MW {reference.mw} Da
                 </text>
-                <text x={px(reference.mw) + 13} y={py(reference.logS) + 1} fontSize={7} fill="#fbbf24">
-                  Tanimoto 1.00 (self)
-                </text>
+                {reference.psweet != null && (
+                  <text x={px(reference.mw) + 13} y={py(reference.logP) + 1} fontSize={7} fill="#fbbf24">
+                    P(sweet) {reference.psweet.toFixed(3)}
+                  </text>
+                )}
               </g>
             )}
           </g>
@@ -268,7 +247,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         {mwTicks.map(v => (
           <text key={v} x={px(v)} y={axisY + 11} fontSize={7} fill="#6b7280" textAnchor="middle">{v}</text>
         ))}
-        {animPhase !== "pool" && lsTicks.map(v => (
+        {animPhase !== "pool" && lpTicks.map(v => (
           <text key={v} x={pad.l - 4} y={py(v) + 3} fontSize={7} fill="#6b7280" textAnchor="end">{v.toFixed(1)}</text>
         ))}
 
@@ -278,7 +257,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         {animPhase !== "pool" && (
           <text x={10} y={pad.t + plotH / 2} fontSize={8} fill="#6b7280" textAnchor="middle"
             transform={`rotate(-90,10,${pad.t + plotH / 2})`}>
-            logS (mol/L) — maximise →
+            logP (Crippen) — maximise →
           </text>
         )}
       </svg>
@@ -294,7 +273,6 @@ const ConstrainedDesign = () => {
   const [propRange, setPropRange]         = useState(null);
   const [generations, setGenerations]     = useState([]);
   const [reference, setReference]         = useState(null);
-  const [foundAlts, setFoundAlts]         = useState([]);
   const [currentGenIdx, setCurrentGenIdx] = useState(0);
   const [error, setError]                 = useState(null);
   const [modelReady, setModelReady]       = useState(false);
@@ -311,8 +289,8 @@ const ConstrainedDesign = () => {
     fetch(`${BACKEND}/molecule-finder/available-datasets`)
       .then(r => r.ok ? r.json() : [])
       .then(datasets => {
-        const aqsol = datasets.find(d => d.id === "aqsoldb");
-        if (aqsol?.n_cached) setModelReady(true);
+        const fartdb = datasets.find(d => d.id === "flavor_sensory");
+        if (fartdb?.n_cached) setModelReady(true);
       })
       .catch(() => {});
   }, []);
@@ -367,7 +345,6 @@ const ConstrainedDesign = () => {
     setAnimPhase("loading");
     setGenerations([]);
     setCurrentGenIdx(0);
-    setFoundAlts([]);
     setError(null);
 
     try {
@@ -381,7 +358,6 @@ const ConstrainedDesign = () => {
       setModelMeta(data.model_meta);
       setPropRange(data.property_range);
       setReference(data.reference);
-      setFoundAlts(data.known_alternatives_found ?? []);
       setGenerations(data.generations);
       startAnimation(data.generations);
     } catch (e) {
@@ -414,8 +390,8 @@ const ConstrainedDesign = () => {
 
   const finalPareto = animPhase === "done"
     ? [...(generations[generations.length - 1]?.candidates ?? [])]
-        .filter(c => !c.dominated)
-        .sort((a,b) => (b.tanimoto ?? 0) - (a.tanimoto ?? 0))
+      .filter(c => !c.dominated)
+      .sort((a,b) => (b.psweet ?? 0.5) - (a.psweet ?? 0.5))
     : [];
 
   const s1 = activeStep === 1;
@@ -450,9 +426,12 @@ const ConstrainedDesign = () => {
               </div>
               <div className="text-[10px] text-gray-500">
                 <span className="text-amber-300 font-semibold">Vanillin</span>
-                <span className="ml-1.5 text-gray-600">E1001 · 152.15 Da · Tanimoto ref</span>
-                {reference?.logS != null && (
-                  <span className="ml-1.5 text-gray-600">· logS {reference.logS.toFixed(2)}</span>
+                <span className="ml-1.5 text-gray-600">CAS 121-33-5 · 152.15 Da</span>
+                {reference?.logP != null && (
+                  <span className="ml-1.5 text-gray-600">· logP {reference.logP.toFixed(2)}</span>
+                )}
+                {reference?.psweet != null && (
+                  <span className="ml-1.5 text-gray-600">· P(sweet) {reference.psweet.toFixed(2)}</span>
                 )}
               </div>
             </div>
@@ -474,9 +453,9 @@ const ConstrainedDesign = () => {
                         {poolMeta.n_after_filter ?? poolMeta.n_candidates}
                       </span> aromatic compounds · PubChem
                     </span>
-                    {poolMeta.n_excluded > 0 && (
+                    {(poolMeta.n_excluded ?? 0) > 0 && (
                       <span className="text-[9px] text-gray-600">
-                        {poolMeta.n_excluded} excluded (halogens/metals)
+                        {poolMeta.n_excluded} excluded (halogens/metals — purity filter)
                       </span>
                     )}
                     <span>Similarity ≥ <span className="text-gray-400">{poolMeta.threshold}%</span></span>
@@ -505,15 +484,15 @@ const ConstrainedDesign = () => {
                   Property Prediction
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>RF · <span className="text-gray-400">AqSolDB</span> · Target: log S (mol/L)</span>
-                  <span>MW: <span className="text-gray-400">RDKit exact</span></span>
-                  <span>Tanimoto: <span className="text-gray-400">ECFP4 2048-bit vs Vanillin</span></span>
-                  {modelMeta && (
-                    <span>OOB R²: <span className={`font-semibold transition-colors duration-500 ${s2 ? "text-emerald-400" : "text-gray-500"}`}>{modelMeta.oob_r2}</span></span>
+                  <span>logP: <span className="text-gray-400">Crippen (RDKit)</span></span>
+                  <span>MW: <span className="text-gray-400">RDKit ExactMolWt</span></span>
+                  <span>P(sweet): <span className="text-gray-400">RF · FartDB taste dataset</span></span>
+                  {modelMeta?.oob_accuracy != null && (
+                    <span>OOB acc.: <span className={`font-semibold transition-colors duration-500 ${s2 ? "text-emerald-400" : "text-gray-500"}`}>{modelMeta.oob_accuracy}</span></span>
                   )}
                   {propRange && (
                     <span className="text-[9px] text-gray-600">
-                      logS {propRange.logS_min}…{propRange.logS_max} · MW {propRange.mw_min}–{propRange.mw_max} Da
+                      logP {propRange.logP_min}…{propRange.logP_max} · MW {propRange.mw_min}–{propRange.mw_max} Da
                     </span>
                   )}
                 </div>
@@ -531,12 +510,12 @@ const ConstrainedDesign = () => {
                   NSGA-II (3-objective)
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>Obj-1: logS ↑ &nbsp;·&nbsp; Obj-2: MW ↓ &nbsp;·&nbsp; Obj-3: Tanimoto ↑</span>
-                  <span>pop_size 30 · 8 generations</span>
+                  <span>Obj-1: logP ↑ &nbsp;·&nbsp; Obj-2: MW ↓ &nbsp;·&nbsp; Obj-3: P(sweet) ↑</span>
+                  <span>pop_size 100 · 30 generations</span>
                   {isActive && (
                     <div className="mt-1">
                       <div className="flex justify-between text-[9px] text-gray-500 mb-1">
-                        <span>Gen {currentGen?.gen ?? 0} / 70</span>
+                        <span>Gen {currentGen?.gen ?? 0} / {generations.length - 1}</span>
                         <span>
                           {(currentGen?.n_new ?? 0) > 0 && (
                             <span className="text-indigo-400 mr-1">+{currentGen.n_new} new</span>
@@ -561,7 +540,7 @@ const ConstrainedDesign = () => {
 
             {!modelReady && (
               <div className="mb-3 px-3 py-2.5 rounded-lg bg-amber-900/25 border border-amber-700/40 text-[11px] text-amber-300 leading-snug">
-                ⚠ Train the <strong>AqSolDB</strong> model first in the <strong>Property Prediction</strong> tab.
+                ⚠ Train the <strong>FartDB Taste</strong> model first in the <strong>Property Prediction</strong> tab.
               </div>
             )}
 
@@ -592,10 +571,12 @@ const ConstrainedDesign = () => {
           <div className="col-span-3 rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col">
             <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
               {poolMeta
-                ? `${poolMeta.n_after_filter ?? poolMeta.n_candidates} compounds · colour = Tanimoto to Vanillin`
+                ? `${poolMeta.n_after_filter ?? poolMeta.n_candidates} compounds · colour = P(sweet) from FartDB RF`
                 : "3-objective Pareto space"}
             </div>
-            <StepBar activeStep={activeStep} />
+            <div className="mb-3">
+              <StepBar activeStep={activeStep} />
+            </div>
 
             {isActive ? (
               <>
@@ -608,23 +589,22 @@ const ConstrainedDesign = () => {
                   prevPareto={prevPareto}
                 />
 
-                {/* Tanimoto colour legend */}
+                {/* P(sweet) colour legend */}
                 {(animPhase === "nsga2" || animPhase === "done") && (
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="text-[9px] text-gray-600">Tanimoto to Vanillin:</span>
+                    <span className="text-[9px] text-gray-600">P(sweet):</span>
                     <svg width={90} height={10} viewBox="0 0 90 10">
                       <defs>
-                        <linearGradient id="tanimGrad" x1="0" y1="0" x2="1" y2="0">
+                        <linearGradient id="psweetGrad" x1="0" y1="0" x2="1" y2="0">
                           <stop offset="0%"   stopColor="#3b82f6" />
-                          <stop offset="33%"  stopColor="#14b8a6" />
-                          <stop offset="66%"  stopColor="#f59e0b" />
+                          <stop offset="50%"  stopColor="#14b8a6" />
                           <stop offset="100%" stopColor="#f43f5e" />
                         </linearGradient>
                       </defs>
-                      <rect x={0} y={2} width={90} height={6} rx={3} fill="url(#tanimGrad)" opacity={0.8} />
+                      <rect x={0} y={2} width={90} height={6} rx={3} fill="url(#psweetGrad)" opacity={0.8} />
                     </svg>
-                    <span className="text-[9px] text-blue-400">0.0</span>
-                    <span className="text-[9px] text-rose-400 ml-1">1.0</span>
+                    <span className="text-[9px] text-blue-400">0 (bitter)</span>
+                    <span className="text-[9px] text-rose-400 ml-1">1 (sweet)</span>
 
                     <div className="ml-3 flex flex-wrap gap-3">
                       <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
@@ -635,9 +615,6 @@ const ConstrainedDesign = () => {
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
                         <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Vanillin (ref)
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                        <div className="w-2.5 h-2.5 rounded-full border border-rose-400 opacity-80" />Known alt.
                       </div>
                     </div>
                   </div>
@@ -666,44 +643,39 @@ const ConstrainedDesign = () => {
               <span className="text-[11px] uppercase tracking-widest text-gray-500">
                 Pareto-optimal candidates — Final generation
               </span>
-              <span className="text-[10px] text-gray-600">sorted by Tanimoto ↓</span>
+              <span className="text-[10px] text-gray-600">sorted by P(sweet) ↓</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-[11px]">
                 <thead>
                   <tr className="border-b border-gray-800">
-                    {["#","Name","logS (RF) ↑","MW (Da) ↓","Tanimoto ↑","Origin"].map(h => (
+                    {["#","Name","logP (Crippen) ↑","MW (Da) ↓","P(sweet) ↑","Origin"].map(h => (
                       <th key={h} className="px-3 py-2 text-left text-gray-500 font-medium">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {finalPareto.slice(0, 14).map((c, i) => {
-                    const isKnown = KNOWN_ALTS.has(c.name);
-                    const tSim    = c.tanimoto ?? 0;
+                    const ps = c.psweet ?? 0.5;
                     return (
-                      <tr key={i} className={`border-b border-gray-800/40 ${isKnown ? "bg-violet-900/10" : ""}`}>
+                      <tr key={i} className={`border-b border-gray-800/40 ${ps > 0.6 ? "bg-rose-900/10" : ""}`}>
                         <td className="px-3 py-2 text-gray-600">{i + 1}</td>
-                        <td className="px-3 py-2 font-medium text-gray-200">
-                          {c.name}
-                          {isKnown && (
-                            <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-violet-900/40 text-violet-300">
-                              known alt.
-                            </span>
-                          )}
-                        </td>
+                        <td className="px-3 py-2 font-medium text-gray-200">{c.name}</td>
                         <td className="px-3 py-2 font-mono">
-                          <span style={{ color: c.logS > (reference?.logS ?? -1.2) ? "#22c55e" : "#9ca3af" }}>
-                            {c.logS.toFixed(2)}
+                          <span style={{ color: c.logP > (reference?.logP ?? 1.2) ? "#22c55e" : "#9ca3af" }}>
+                            {c.logP.toFixed(2)}
                           </span>
                         </td>
                         <td className="px-3 py-2 font-mono text-gray-400">{c.mw}</td>
                         <td className="px-3 py-2 font-mono">
-                          <span style={{ color: tanimotoColor(tSim) }}>{tSim.toFixed(3)}</span>
+                          <span style={{ color: psweetColor(ps) }}>{ps.toFixed(3)}</span>
+                          {ps > 0.5 && (
+                            <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-rose-900/30 text-rose-400">sweet</span>
+                          )}
                         </td>
                         <td className="px-3 py-2">
-                          {c.name.startsWith("Analog-") ? (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-900/30 text-indigo-400">generated</span>
+                          {c.cid == null ? (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-900/30 text-indigo-400">in silico</span>
                           ) : (
                             <span className="text-[9px] text-gray-600">pool</span>
                           )}
@@ -715,39 +687,11 @@ const ConstrainedDesign = () => {
               </table>
             </div>
             <div className="px-4 py-2 border-t border-gray-800/60 text-[10px] text-gray-600">
-              Seed pool: {poolMeta?.n_after_filter ?? poolMeta?.n_candidates} compounds · SMARTS mutation generated{" "}
-              {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_after_filter ?? poolMeta?.n_candidates ?? 0))} analogs ·{" "}
+              Seed pool: {poolMeta?.n_after_filter ?? poolMeta?.n_candidates} PubChem compounds ·
+              SMARTS mutation generated {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_after_filter ?? poolMeta?.n_candidates ?? 0))} analogs ·{" "}
               {generations[generations.length - 1]?.n_evaluated ?? 0} total evaluated.
-              logS: AqSolDB RF (OOB R² {modelMeta?.oob_r2}). Tanimoto: ECFP4 2048-bit vs Vanillin.
+              logP: Crippen (RDKit). P(sweet): FartDB RF (OOB acc. {modelMeta?.oob_accuracy}).
             </div>
-          </div>
-        )}
-
-        {/* ── Known alternatives callout — full width ── */}
-        {animPhase === "done" && foundAlts.length > 0 && (
-          <div className="mt-5 rounded-xl border border-emerald-800/50 bg-emerald-950/15 px-5 py-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-emerald-400 text-lg">✓</span>
-              <span className="text-sm font-semibold text-emerald-300">Pipeline validation</span>
-            </div>
-            <p className="text-[11px] text-gray-400 leading-relaxed mb-3">
-              Without being told what to find, the 3-objective NSGA-II independently placed the following
-              compounds on the Pareto front — the same molecules the flavour industry uses as vanillin alternatives:
-            </p>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {foundAlts.map(name => (
-                <span key={name}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold
-                    bg-emerald-900/30 border border-emerald-700/40 text-emerald-300">
-                  {name}
-                </span>
-              ))}
-            </div>
-            <p className="text-[10px] text-gray-600 leading-snug">
-              Their appearance validates the pipeline: PubChem seed compounds mutated by SMARTS-based aromatic
-              substituent swaps, scored by a real solubility RF model and ECFP4 Tanimoto similarity, selected
-              by 3-objective NSGA-II — sufficient to rediscover known industry solutions.
-            </p>
           </div>
         )}
 
