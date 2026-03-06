@@ -6,8 +6,9 @@ import PropertyPrediction from "./PropertyPrediction";
 import MultiObjectiveOptimizer from "./MultiObjectiveOptimizer";
 import AllergenReplacement from "./AllergenReplacement";
 import ConstrainedDesign from "./ConstrainedDesign";
-import RegulatoryCheck from "./RegulatoryCheck";
+import SafetyAndCompliance from "./SafetyAndCompliance";
 import Impact from "./Impact";
+import UseCases from "./UseCases";
 
 const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
   const { currentOpacity } = getAnimationProgress(scrollIndex, activeIndex, totalSections);
@@ -19,8 +20,9 @@ const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
     <MultiObjectiveOptimizer />,
     <AllergenReplacement />,
     <ConstrainedDesign />,
-    <RegulatoryCheck />,
+    <SafetyAndCompliance />,
     <Impact />,
+    <UseCases />,
   ];
 
   const content = sections[activeIndex] ?? null;

@@ -77,8 +77,13 @@ def ecfp4_bits(smiles: str, n_bits: int = 2048) -> list[int] | None:
     if mol is None:
         return None
     try:
-        from rdkit.Chem import AllChem
-        fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=n_bits)
-        return list(fp)
+        try:
+            from rdkit.Chem.rdFingerprintGenerator import GetMorganGenerator
+            gen = GetMorganGenerator(radius=2, fpSize=n_bits)
+            return gen.GetFingerprintAsNumPy(mol).tolist()
+        except ImportError:
+            from rdkit.Chem import AllChem
+            fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=n_bits)
+            return list(fp)
     except Exception:
         return None

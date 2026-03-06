@@ -19,16 +19,16 @@ const HomePage = ({ onSelectWorkflow }) => {
       gradient: 'from-amber-600 via-orange-600 to-red-600'
     },
     {
-      id: 'chemicalCompliance',
-      label: 'ChemAssistant',
-      tagline: 'local RAG for chemical QA/QC compliance',
-      gradient: 'from-green-600 via-emerald-500 to-teal-600'
-    },
-    {
       id: 'moleculeFinder',
       label: 'MoleculeFinder',
       tagline: 'AI-driven molecular design & optimization',
       gradient: 'from-rose-600 via-pink-500 to-fuchsia-600'
+    },
+    {
+      id: 'chemicalCompliance',
+      label: 'ChemAssistant',
+      tagline: 'local RAG for chemical QA/QC compliance',
+      gradient: 'from-green-600 via-emerald-500 to-teal-600'
     },
   ];
 
@@ -40,7 +40,7 @@ const HomePage = ({ onSelectWorkflow }) => {
           <button
             key={workflow.id}
             onClick={() => onSelectWorkflow(workflow.id)}
-            className={`w-full px-8 py-3 rounded-xl text-white
+            className={`w-full px-8 py-5 rounded-xl text-white
               bg-gradient-to-r ${workflow.gradient}
               hover:shadow-2xl hover:scale-[1.03] transition-all duration-300`}
           >

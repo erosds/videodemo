@@ -11,8 +11,10 @@ retraining.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -58,9 +60,22 @@ except ImportError:
 # In-memory cache: dataset_id → trained RandomForestRegressor object
 _RF_MODEL_CACHE: dict[str, RandomForestRegressor] = {}
 
+# In-memory cache: dataset_id → ECFP4 bool array (N×2048) for AD estimation
+_TRAIN_FPS_CACHE: dict[str, "np.ndarray"] = {}
+
+# Lazily initialised PAINS filter catalog
+_PAINS_CATALOG = None
+
+# In-memory cache: dataset_id → training results dict (metrics, curves, etc.)
+_RESULTS_CACHE: dict[str, dict] = {}
+
 # Cache directory — sits next to the existing molecule_finder JSON data
 CACHE_DIR = Path(__file__).parent.parent.parent / "datasets" / "molecule_finder"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+# Directory for persisted model files
+MODELS_DIR = CACHE_DIR / "models"
+MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Public dataset registry ────────────────────────────────────────────────────
 
@@ -420,7 +435,7 @@ def train_model(dataset_id: str) -> dict:
             "oob_r2": round(oob_curve[-1]["oob_score"], 3),
         }
 
-    return {
+    results = {
         "dataset_id":          dataset_id,
         "n_train":             int(X_train.shape[0]),
         "n_test":              int(X_test.shape[0]),
@@ -431,6 +446,187 @@ def train_model(dataset_id: str) -> dict:
         "feature_importances": feature_importances,
         "metrics":             metrics,
     }
+
+    # Persist model, results, and training FPs (for applicability domain)
+    _RESULTS_CACHE[dataset_id] = results
+    _save_model_to_disk(dataset_id, results)
+    _save_training_fps(dataset_id, X_train)
+
+    return results
+
+
+# ── Molecular property helpers ────────────────────────────────────────────────
+
+def compute_qed(smiles: str) -> "float | None":
+    """Quantitative Estimate of Drug-likeness (0–1, higher = more drug-like)."""
+    if not RDKIT_OK:
+        return None
+    try:
+        from rdkit.Chem.QED import qed
+        mol = Chem.MolFromSmiles(str(smiles))
+        return round(float(qed(mol)), 3) if mol else None
+    except Exception:
+        return None
+
+
+def compute_sa_score(smiles: str) -> "float | None":
+    """Synthetic Accessibility score (1 = easy, 10 = very hard; Ertl & Schuffenhauer)."""
+    if not RDKIT_OK:
+        return None
+    try:
+        mol = Chem.MolFromSmiles(str(smiles))
+        if mol is None:
+            return None
+        from rdkit.Contrib.SA_Score import sascorer  # available in most rdkit installs
+        return round(float(sascorer.calculateScore(mol)), 2)
+    except (ImportError, Exception):
+        return None
+
+
+def _get_pains_catalog():
+    """Return a lazily initialised PAINS A/B/C filter catalog."""
+    global _PAINS_CATALOG
+    if _PAINS_CATALOG is not None:
+        return _PAINS_CATALOG
+    if not RDKIT_OK:
+        return None
+    try:
+        from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
+        params = FilterCatalogParams()
+        params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS)
+        _PAINS_CATALOG = FilterCatalog(params)
+    except Exception:
+        _PAINS_CATALOG = None
+    return _PAINS_CATALOG
+
+
+def check_pains(smiles: str) -> list[str]:
+    """Return list of PAINS pattern descriptions matched, or [] if clean."""
+    if not RDKIT_OK:
+        return []
+    try:
+        mol = Chem.MolFromSmiles(str(smiles))
+        if mol is None:
+            return []
+        catalog = _get_pains_catalog()
+        if catalog is None:
+            return []
+        return [m.GetDescription() for m in catalog.GetMatches(mol)]
+    except Exception:
+        return []
+
+
+def get_murcko_scaffold(smiles: str) -> "str | None":
+    """Return canonical SMILES of the Murcko scaffold."""
+    if not RDKIT_OK:
+        return None
+    try:
+        from rdkit.Chem.Scaffolds.MurckoScaffold import GetScaffoldForMol
+        mol = Chem.MolFromSmiles(str(smiles))
+        if mol is None:
+            return None
+        scaffold = GetScaffoldForMol(mol)
+        return Chem.MolToSmiles(scaffold, canonical=True)
+    except Exception:
+        return None
+
+
+# ── Applicability domain ───────────────────────────────────────────────────────
+
+def _save_training_fps(dataset_id: str, X_train: "np.ndarray") -> None:
+    """Save first 500 ECFP4 bit-rows from training set for AD estimation."""
+    try:
+        fps = X_train[:500, :2048].astype(bool)
+        np.save(str(MODELS_DIR / f"{dataset_id}_fps.npy"), fps)
+        _TRAIN_FPS_CACHE[dataset_id] = fps
+    except Exception:
+        pass
+
+
+def _load_training_fps(dataset_id: str) -> "np.ndarray | None":
+    if dataset_id in _TRAIN_FPS_CACHE:
+        return _TRAIN_FPS_CACHE[dataset_id]
+    path = MODELS_DIR / f"{dataset_id}_fps.npy"
+    if path.exists():
+        try:
+            fps = np.load(str(path))
+            _TRAIN_FPS_CACHE[dataset_id] = fps
+            return fps
+        except Exception:
+            pass
+    return None
+
+
+def get_ad_score(smiles: str, dataset_id: str) -> "float | None":
+    """Max Tanimoto similarity to training set (1.0 = inside domain, 0 = outside)."""
+    train_fps = _load_training_fps(dataset_id)
+    if train_fps is None:
+        return None
+    vec = featurize_smiles(smiles)
+    if vec is None:
+        return None
+    q = vec[:2048].astype(bool)
+    inter = (q & train_fps).sum(axis=1)
+    union = (q | train_fps).sum(axis=1)
+    sim = np.where(union > 0, inter / union, 0.0)
+    return round(float(sim.max()), 3)
+
+
+# ── Model persistence ─────────────────────────────────────────────────────────
+
+def _save_model_to_disk(dataset_id: str, results: dict) -> None:
+    """Persist the trained RF and its results metadata to MODELS_DIR."""
+    if dataset_id not in _RF_MODEL_CACHE:
+        return
+    try:
+        joblib.dump(_RF_MODEL_CACHE[dataset_id], MODELS_DIR / f"{dataset_id}.joblib")
+        (MODELS_DIR / f"{dataset_id}.json").write_text(json.dumps(results))
+    except Exception:
+        pass  # persistence is best-effort; training result is still returned
+
+
+def load_saved_models() -> dict[str, dict]:
+    """Load all persisted models from MODELS_DIR into memory at startup.
+
+    Populates _RF_MODEL_CACHE and _RESULTS_CACHE.
+    Returns the results dict for every successfully loaded model.
+    """
+    loaded: dict[str, dict] = {}
+    for model_path in MODELS_DIR.glob("*.joblib"):
+        dataset_id = model_path.stem
+        if dataset_id not in DATASETS:
+            continue
+        results_path = MODELS_DIR / f"{dataset_id}.json"
+        if not results_path.exists():
+            continue
+        try:
+            rf = joblib.load(model_path)
+            results = json.loads(results_path.read_text())
+            _RF_MODEL_CACHE[dataset_id] = rf
+            _RESULTS_CACHE[dataset_id] = results
+            loaded[dataset_id] = results
+            _load_training_fps(dataset_id)   # pre-warm AD cache
+        except Exception:
+            pass
+    return loaded
+
+
+def get_saved_results() -> dict[str, dict]:
+    """Return the in-memory results cache (populated at startup and after training)."""
+    return dict(_RESULTS_CACHE)
+
+
+def clear_saved_models() -> None:
+    """Delete all persisted model files and clear all in-memory caches."""
+    _RF_MODEL_CACHE.clear()
+    _RESULTS_CACHE.clear()
+    _TRAIN_FPS_CACHE.clear()
+    for pattern in ("*.joblib", "*.json", "*_fps.npy"):
+        for f in MODELS_DIR.glob(pattern):
+            try:
+                f.unlink()
+            except Exception:
+                pass
 
 
 # ── Helpers for inference (used by the food-case optimisation endpoint) ────────
@@ -509,6 +705,43 @@ def get_logP(smiles: str) -> "float | None":
         return None
     try:
         return float(Descriptors.MolLogP(mol))
+    except Exception:
+        return None
+
+
+def predict_logD(smiles: str) -> "float | None":
+    """Predict logD at pH 7.4 using the trained ChEMBL Lipophilicity RF model.
+
+    Returns None if the model has not been trained yet.
+    """
+    if "lipophilicity" not in _RF_MODEL_CACHE:
+        return None
+    rf = _RF_MODEL_CACHE["lipophilicity"]
+    vec = featurize_smiles(smiles)
+    if vec is None:
+        return None
+    try:
+        return round(float(rf.predict(vec.reshape(1, -1))[0]), 3)
+    except Exception:
+        return None
+
+
+def predict_ames_safety(smiles: str) -> "float | None":
+    """Return P(non-mutagenic) = 1 − P(mutagenic) using the AMES RF model.
+
+    Range: 0.0 (likely mutagenic) → 1.0 (likely safe).
+    Returns None if the model has not been trained yet.
+    """
+    if "ames_mutagenicity" not in _RF_MODEL_CACHE:
+        return None
+    rf = _RF_MODEL_CACHE["ames_mutagenicity"]
+    vec = featurize_smiles(smiles)
+    if vec is None:
+        return None
+    try:
+        # AMES label: Y=1 means mutagenic → class index 1 = P(mutagenic)
+        proba = rf.predict_proba(vec.reshape(1, -1))[0]
+        return round(float(1.0 - proba[1]), 3)
     except Exception:
         return None
 

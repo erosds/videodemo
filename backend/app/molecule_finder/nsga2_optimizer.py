@@ -1,12 +1,13 @@
 """Generative NSGA-II for food aromatic compound design.
 
-Objectives (all computed or RF-predicted — no domain-shift issues):
-  2-obj: maximise logP (Crippen, RDKit), minimise MW (RDKit)
+Objectives (all RF-predicted or RDKit-computed — no domain-shift issues):
+  2-obj: maximise logD at pH 7.4 (ChEMBL Lipophilicity RF), minimise MW (RDKit)
   3-obj: same + maximise P(sweet) (FartDB RandomForest classifier)
 
-logP is computed analytically by RDKit (Crippen method) — no dataset or
-model required. This eliminates the domain-shift problem that arose from
-using AqSolDB (pharma-oriented) to predict food aromatic properties.
+logD at pH 7.4 is predicted by the ChEMBL Lipophilicity RandomForest model
+(trained in the Property Prediction tab). Unlike Crippen logP, logD accounts
+for ionisation at the relevant food-matrix pH, making it the correct descriptor
+for oil-water partitioning of flavour compounds.
 
 P(sweet) is predicted by the FartDB taste classifier (trained on demand in
 the Property Prediction tab). The classifier was trained on sweet/bitter
@@ -26,7 +27,7 @@ in the router for the final Pareto front only).
 from __future__ import annotations
 
 import numpy as np
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 
 # ── Core NSGA-II primitives ────────────────────────────────────────────────────
@@ -196,35 +197,24 @@ def _mutate_aromatic(smiles: str, rng: np.random.Generator, n_attempts: int = 8)
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
-def run_nsga2_generative(
+
+def iter_nsga2_generative(
     initial_pool: list[dict[str, Any]],
-    logP_fn: Callable[[str], "float | None"],
+    logD_fn: Callable[[str], "float | None"],
     mw_fn:   Callable[[str], "float | None"],
-    name_lookup: dict[str, dict],           # canonical_smiles → {name, cid}
-    taste_fn: "Callable[[str], float | None] | None" = None,  # P(sweet); 3-obj only
+    name_lookup: dict[str, dict],
+    taste_fn: "Callable[[str], float | None] | None" = None,
     n_generations: int = 30,
     pop_size: int = 100,
     seed: int = 42,
-) -> list[dict[str, Any]]:
-    """Generative NSGA-II for food aromatic compound optimisation.
+) -> "Iterator[dict[str, Any]]":
+    """Generator version of NSGA-II: yields one generation snapshot at a time.
 
-    Args:
-        initial_pool:  Seed compounds (dicts with 'name', 'smiles', 'cid').
-        logP_fn:       SMILES → Crippen logP (computed by RDKit, no model).
-        mw_fn:         SMILES → exact MW in Da (computed by RDKit).
-        name_lookup:   {canonical_smiles: {'name': str, 'cid': int}} for pool compounds.
-        taste_fn:      SMILES → P(sweet) from FartDB RF. If None, 2-objective mode.
-        n_generations: Number of NSGA-II generations (real, not multiplied).
-        pop_size:      Working population size.
-        seed:          Random seed for reproducibility.
+    Yields dicts of the form::
 
-    Returns:
-        List of generation snapshots::
-
-            [{'gen': 0, 'n_new': 0, 'n_evaluated': N,
-              'candidates': [{'name', 'smiles', 'cid', 'logP', 'mw',
-                              'psweet'(optional), 'dominated', 'is_new'}, ...]
-             }, ...]
+        {'gen': 0, 'n_new': 0, 'n_evaluated': N,
+         'candidates': [{'name', 'smiles', 'cid', 'logD', 'mw',
+                         'psweet'(optional), 'dominated', 'is_new'}, ...]}
     """
     from rdkit import Chem
 
@@ -236,13 +226,11 @@ def run_nsga2_generative(
         return Chem.MolToSmiles(mol, canonical=True) if mol else None
 
     def _get_name_cid(canon: str) -> tuple[str, int | None]:
-        """Return (name, cid) for a canonical SMILES, or generic label if not in pool."""
         info = name_lookup.get(canon)
         if info:
             return info["name"], info.get("cid")
         return "In silico candidate", None
 
-    # Build initial population from a random subset of the pool
     pool_size = min(pop_size, len(initial_pool))
     chosen_idxs = rng.choice(len(initial_pool), size=pool_size, replace=False)
     pop_smiles: list[str] = []
@@ -252,7 +240,6 @@ def run_nsga2_generative(
         if canon:
             pop_smiles.append(canon)
 
-    # Deduplication cache: canonical_smiles → evaluated record
     all_evaluated: dict[str, dict] = {}
 
     def _evaluate_batch(smiles_list: list[str], is_new_flags: list[bool]) -> list[dict]:
@@ -263,16 +250,16 @@ def run_nsga2_generative(
                 rec["is_new"] = is_new
                 records.append(rec)
                 continue
-            logP = logP_fn(smi)
+            logD = logD_fn(smi)
             mw   = mw_fn(smi)
-            if logP is None or mw is None:
+            if logD is None or mw is None:
                 continue
             name, cid = _get_name_cid(smi)
             rec: dict = {
                 "name":   name,
                 "smiles": smi,
                 "cid":    cid,
-                "logP":   round(logP, 3),
+                "logD":   round(logD, 3),
                 "mw":     round(mw, 1),
                 "is_new": is_new,
             }
@@ -284,24 +271,20 @@ def run_nsga2_generative(
         return records
 
     def _build_objectives(records: list[dict]) -> np.ndarray:
-        # All minimised: -logP (maximise logP), +MW (minimise MW), -psweet (maximise P(sweet))
         if three_obj:
-            return np.array([[-r["logP"], r["mw"], -(r.get("psweet") or 0.5)] for r in records])
-        return np.array([[-r["logP"], r["mw"]] for r in records])
+            return np.array([[-r["logD"], r["mw"], -(r.get("psweet") or 0.5)] for r in records])
+        return np.array([[-r["logD"], r["mw"]] for r in records])
 
     def _normalise(F_raw: np.ndarray) -> np.ndarray:
         f_min = F_raw.min(axis=0)
         f_max = F_raw.max(axis=0)
         return (F_raw - f_min) / (f_max - f_min + 1e-9)
 
-    # ── Gen 0: evaluate initial population ────────────────────────────────────
     init_flags = [False] * len(pop_smiles)
     pop_records = _evaluate_batch(pop_smiles, init_flags)
-    generations: list[dict[str, Any]] = []
 
     for gen_idx in range(n_generations):
 
-        # Record snapshot
         F_raw = _build_objectives(pop_records)
         F_norm = _normalise(F_raw)
         fronts = _fast_non_dominated_sort(F_norm)
@@ -314,21 +297,19 @@ def run_nsga2_generative(
             snap_candidates.append(entry)
 
         n_new_this_gen = sum(1 for r in pop_records if r.get("is_new", False))
-        generations.append({
+        yield {
             "gen":         gen_idx,
             "n_new":       n_new_this_gen,
             "n_evaluated": len(all_evaluated),
             "candidates":  snap_candidates,
-        })
+        }
 
         if gen_idx == n_generations - 1:
             break
 
-        # NSGA-II selection
         selected_idxs = _nsga2_select(F_norm, pop_size)
         parents = [pop_records[i] for i in selected_idxs]
 
-        # Mutation: generate offspring via SMARTS reactions
         offspring_smiles: list[str] = []
         for parent in parents:
             new_smi_list = _mutate_aromatic(parent["smiles"], rng, n_attempts=6)
@@ -338,7 +319,6 @@ def run_nsga2_generative(
             if len(offspring_smiles) >= pop_size * 3:
                 break
 
-        # Deduplicate offspring
         seen_off: set[str] = set()
         unique_offspring: list[str] = []
         for s in offspring_smiles:
@@ -346,11 +326,9 @@ def run_nsga2_generative(
                 seen_off.add(s)
                 unique_offspring.append(s)
 
-        # Evaluate offspring
         off_flags = [True] * len(unique_offspring)
         offspring_records = _evaluate_batch(unique_offspring, off_flags)
 
-        # Combine parents + offspring and NSGA-II select for next generation
         combined = parents + offspring_records
         if len(combined) < 2:
             pop_records = parents
@@ -361,9 +339,29 @@ def run_nsga2_generative(
         next_idxs = _nsga2_select(F_combined_norm, pop_size)
         pop_records = [combined[i] for i in next_idxs]
 
-        # Mark is_new: compounds not present in parents
         parent_smiles_set = {p["smiles"] for p in parents}
         for rec in pop_records:
             rec["is_new"] = rec["smiles"] not in parent_smiles_set
 
-    return generations
+
+def run_nsga2_generative(
+    initial_pool: list[dict[str, Any]],
+    logD_fn: Callable[[str], "float | None"],
+    mw_fn:   Callable[[str], "float | None"],
+    name_lookup: dict[str, dict],
+    taste_fn: "Callable[[str], float | None] | None" = None,
+    n_generations: int = 30,
+    pop_size: int = 100,
+    seed: int = 42,
+) -> list[dict[str, Any]]:
+    """Blocking wrapper: returns all generation snapshots as a list."""
+    return list(iter_nsga2_generative(
+        initial_pool=initial_pool,
+        logD_fn=logD_fn,
+        mw_fn=mw_fn,
+        name_lookup=name_lookup,
+        taste_fn=taste_fn,
+        n_generations=n_generations,
+        pop_size=pop_size,
+        seed=seed,
+    ))

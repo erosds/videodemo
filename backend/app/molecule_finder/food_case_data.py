@@ -1,15 +1,16 @@
-"""Reference compound for the vanillin-analog NSGA-II optimisation demo."""
+"""Reference compound for the sweetness enhancer NSGA-II optimisation demo."""
 from __future__ import annotations
 
 REFERENCE_COMPOUND: dict = {
-    "name": "Vanillin",
-    "smiles": "COc1cc(C=O)ccc1O",
-    "cas": "121-33-5",
-    "e_number": "E1001",
+    "name": "Homoeriodictyol",
+    "smiles": "COc1cc(C2CC(=O)c3c(O)cc(O)cc3O2)ccc1O",
+    "cas": "520-33-2",
+    "e_number": None,
     "description": (
-        "Primary flavour compound in vanilla bean (Vanilla planifolia). "
-        "Global production ~20,000 t/year (>85 % synthetic). "
-        "Aqueous solubility ~10 g/L at 25 °C (logS ≈ −1.2 mol/L) — "
-        "a limiting factor in clear-beverage and high-moisture food applications."
+        "Natural citrus flavanone (Eriodictyon californicum, Citrus sinensis). "
+        "Sodium salt (HED-Na) approved by EFSA as Novel Food (2021) for use as a "
+        "sweetness enhancer at 30–150 mg/kg. Amplifies sweetness of sucrose and "
+        "stevia without contributing its own taste — enabling 20–50 % sugar reduction "
+        "in beverages, dairy, and confectionery."
     ),
 }

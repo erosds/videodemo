@@ -1,0 +1,263 @@
+{
+  "source": "Curated PubChem \u2014 flavanone, chalcone, dihydrochalcone, stilbene, and related polyphenol scaffolds with known sweetness-modulating activity",
+  "seeds": [
+    "Homoeriodictyol",
+    "Naringenin",
+    "Eriodictyol",
+    "Phloretin"
+  ],
+  "seed_cids": [
+    119258,
+    932,
+    119271,
+    4788
+  ],
+  "threshold": 0,
+  "mw_range": [
+    224.26,
+    354.4
+  ],
+  "n_candidates": 30,
+  "compounds": [
+    {
+      "cid": 932,
+      "name": "Naringenin",
+      "smiles": "O=C1CC(c2ccc(O)cc2)Oc2cc(O)cc(O)c21",
+      "mw": 272.26,
+      "iupac": "naringenin",
+      "title": "Naringenin"
+    },
+    {
+      "cid": 119271,
+      "name": "Eriodictyol",
+      "smiles": "O=C1CC(c2ccc(O)c(O)c2)Oc2cc(O)cc(O)c21",
+      "mw": 288.26,
+      "iupac": "eriodictyol",
+      "title": "Eriodictyol"
+    },
+    {
+      "cid": 72281,
+      "name": "Hesperetin",
+      "smiles": "COc1ccc(C2CC(=O)c3c(O)cc(O)cc3O2)cc1O",
+      "mw": 302.28,
+      "iupac": "hesperetin",
+      "title": "Hesperetin"
+    },
+    {
+      "cid": 119258,
+      "name": "Homoeriodictyol",
+      "smiles": "COc1cc(C2CC(=O)c3c(O)cc(O)cc3O2)ccc1O",
+      "mw": 302.28,
+      "iupac": "homoeriodictyol",
+      "title": "Homoeriodictyol"
+    },
+    {
+      "cid": 68071,
+      "name": "Pinocembrin",
+      "smiles": "O=C1CC(c2ccccc2)Oc2cc(O)cc(O)c21",
+      "mw": 256.26,
+      "iupac": "pinocembrin",
+      "title": "Pinocembrin"
+    },
+    {
+      "cid": 114829,
+      "name": "Liquiritigenin",
+      "smiles": "O=C1CC(c2ccc(O)cc2)Oc2cc(O)ccc21",
+      "mw": 256.26,
+      "iupac": "liquiritigenin",
+      "title": "Liquiritigenin"
+    },
+    {
+      "cid": 4788,
+      "name": "Phloretin",
+      "smiles": "O=C(CCc1ccc(O)cc1)c1c(O)cc(O)cc1O",
+      "mw": 274.27,
+      "iupac": "phloretin",
+      "title": "Phloretin"
+    },
+    {
+      "cid": 161271,
+      "name": "Sakuranetin",
+      "smiles": "COc1cc(O)c2c(c1)OC(c1ccc(O)cc1)CC2=O",
+      "mw": 286.28,
+      "iupac": "sakuranetin",
+      "title": "Sakuranetin"
+    },
+    {
+      "cid": 68081,
+      "name": "4-Hydroxyflavanone",
+      "smiles": "O=C1CC(c2ccc(O)cc2)Oc2ccccc21",
+      "mw": 240.26,
+      "iupac": "4-hydroxyflavanone",
+      "title": "4-Hydroxyflavanone"
+    },
+    {
+      "cid": 68133,
+      "name": "7-Hydroxyflavanone",
+      "smiles": "O=C1CC(c2ccccc2)Oc2cc(O)ccc21",
+      "mw": 240.26,
+      "iupac": "7-hydroxyflavanone",
+      "title": "7-Hydroxyflavanone"
+    },
+    {
+      "cid": 638278,
+      "name": "Isoliquiritigenin",
+      "smiles": "O=C(/C=C/c1ccc(O)cc1)c1ccc(O)cc1O",
+      "mw": 256.26,
+      "iupac": "isoliquiritigenin",
+      "title": "Isoliquiritigenin"
+    },
+    {
+      "cid": 441765,
+      "name": "Naringenin chalcone",
+      "smiles": "O=C(/C=C/c1ccc(O)cc1)c1c(O)cc(O)cc1O",
+      "mw": 272.26,
+      "iupac": "naringenin chalcone",
+      "title": "Naringenin chalcone"
+    },
+    {
+      "cid": 5281448,
+      "name": "Butein",
+      "smiles": "O=C(/C=C/c1ccc(O)c(O)c1)c1ccc(O)cc1O",
+      "mw": 272.26,
+      "iupac": "butein",
+      "title": "Butein"
+    },
+    {
+      "cid": 10284,
+      "name": "Flavanone",
+      "smiles": "O=C1CC(c2ccccc2)Oc2ccccc21",
+      "mw": 224.26,
+      "iupac": "flavanone",
+      "title": "Flavanone"
+    },
+    {
+      "cid": 637775,
+      "name": "4-Hydroxychalcone",
+      "smiles": "O=C(/C=C/c1ccc(O)cc1)c1ccccc1",
+      "mw": 224.26,
+      "iupac": "4-hydroxychalcone",
+      "title": "4-Hydroxychalcone"
+    },
+    {
+      "cid": 5281452,
+      "name": "2,4-Dihydroxychalcone",
+      "smiles": "O=C(/C=C/c1ccc(O)cc1)c1ccccc1O",
+      "mw": 240.26,
+      "iupac": "2,4-dihydroxychalcone",
+      "title": "2,4-Dihydroxychalcone"
+    },
+    {
+      "cid": 439533,
+      "name": "Taxifolin",
+      "smiles": "O=C1c2c(O)cc(O)cc2OC(c2ccc(O)c(O)c2)[C@@H]1O",
+      "mw": 304.25,
+      "iupac": "taxifolin",
+      "title": "Taxifolin"
+    },
+    {
+      "cid": 445154,
+      "name": "Resveratrol",
+      "smiles": "Oc1ccc(/C=C/c2cc(O)cc(O)c2)cc1",
+      "mw": 228.25,
+      "iupac": "resveratrol",
+      "title": "Resveratrol"
+    },
+    {
+      "cid": 5280443,
+      "name": "Apigenin",
+      "smiles": "O=c1cc(-c2ccc(O)cc2)oc2cc(O)cc(O)c12",
+      "mw": 270.24,
+      "iupac": "apigenin",
+      "title": "Apigenin"
+    },
+    {
+      "cid": 5280863,
+      "name": "Kaempferol",
+      "smiles": "O=c1c(O)c(-c2ccc(O)cc2)oc2cc(O)cc(O)c12",
+      "mw": 286.24,
+      "iupac": "kaempferol",
+      "title": "Kaempferol"
+    },
+    {
+      "cid": 5320680,
+      "name": "Eriodictyol chalcone",
+      "smiles": "O=C(/C=C/c1ccc(O)c(O)c1)c1c(O)cc(O)cc1O",
+      "mw": 288.25,
+      "iupac": "eriodictyol chalcone",
+      "title": "Eriodictyol chalcone"
+    },
+    {
+      "cid": 15195069,
+      "name": "Sterubin",
+      "smiles": "COc1cc(O)c2c(c1)OC(c1ccc(O)c(O)c1)CC2=O",
+      "mw": 302.28,
+      "iupac": "sterubin",
+      "title": "Sterubin"
+    },
+    {
+      "cid": 5280445,
+      "name": "Luteolin",
+      "smiles": "O=c1cc(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12",
+      "mw": 286.24,
+      "iupac": "luteolin",
+      "title": "Luteolin"
+    },
+    {
+      "cid": 2723633,
+      "name": "Isosakuranetin",
+      "smiles": "COc1ccc(C2CC(=O)c3c(O)cc(O)cc3O2)cc1",
+      "mw": 286.28,
+      "iupac": "isosakuranetin",
+      "title": "Isosakuranetin"
+    },
+    {
+      "cid": 5281605,
+      "name": "Biochanin A",
+      "smiles": "COc1ccc(-c2coc3cc(O)cc(O)c3c2=O)cc1",
+      "mw": 284.27,
+      "iupac": "biochanin a",
+      "title": "Biochanin A"
+    },
+    {
+      "cid": 5280962,
+      "name": "Daidzein",
+      "smiles": "O=c1c(-c2ccc(O)cc2)coc2cc(O)cc(O)c12",
+      "mw": 270.24,
+      "iupac": "daidzein",
+      "title": "Daidzein"
+    },
+    {
+      "cid": 72579,
+      "name": "Xanthohumol",
+      "smiles": "COc1cc(CC=C(C)C)c(O)c(C(=O)/C=C/c2ccc(O)cc2)c1O",
+      "mw": 354.4,
+      "iupac": "xanthohumol",
+      "title": "Xanthohumol"
+    },
+    {
+      "cid": 5280520,
+      "name": "Quercetin",
+      "smiles": "O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12",
+      "mw": 302.24,
+      "iupac": "quercetin",
+      "title": "Quercetin"
+    },
+    {
+      "cid": 68171,
+      "name": "6-Hydroxyflavanone",
+      "smiles": "O=C1CC(c2ccccc2)Oc2cccc(O)c21",
+      "mw": 240.26,
+      "iupac": "6-hydroxyflavanone",
+      "title": "6-Hydroxyflavanone"
+    },
+    {
+      "cid": 5321865,
+      "name": "4-Methoxychalcone",
+      "smiles": "COc1ccc(/C=C/C(=O)c2ccccc2)cc1",
+      "mw": 238.29,
+      "iupac": "4-methoxychalcone",
+      "title": "4-Methoxychalcone"
+    }
+  ]
+}

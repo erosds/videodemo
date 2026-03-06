@@ -204,13 +204,36 @@ const PropertyPrediction = () => {
   const timerRef    = useRef(null);
 
   useEffect(() => {
-    fetch(`${BACKEND}/molecule-finder/available-datasets`)
-      .then(r => r.json())
-      .then(data => {
-        setDatasets(data);
-        if (data.length > 0) setSelectedId(data[0].id);
+    // Load available datasets and any previously-saved models in parallel
+    Promise.all([
+      fetch(`${BACKEND}/molecule-finder/available-datasets`).then(r => r.json()),
+      fetch(`${BACKEND}/molecule-finder/saved-models`).then(r => r.json()).catch(() => ({ models: {} })),
+    ])
+      .then(([datasetsData, savedData]) => {
+        setDatasets(datasetsData);
+        if (datasetsData.length > 0) setSelectedId(datasetsData[0].id);
+        const saved = savedData.models ?? {};
+        if (Object.keys(saved).length > 0) {
+          setAllResults(saved);
+          setStatuses(prev => {
+            const next = { ...prev };
+            for (const id of Object.keys(saved)) next[id] = "done";
+            return next;
+          });
+        }
       })
       .catch(() => setErrors({ _global: "Backend unavailable — start uvicorn to enable live training." }));
+  }, []);
+
+  const handleClearModels = useCallback(async () => {
+    await fetch(`${BACKEND}/molecule-finder/saved-models`, { method: "DELETE" }).catch(() => {});
+    setAllResults({});
+    setStatuses({});
+    setElapseds({});
+    setErrors({});
+    queueRef.current = [];
+    runningRef.current = false;
+    clearInterval(timerRef.current);
   }, []);
 
   useEffect(() => () => clearInterval(timerRef.current), []);
@@ -333,13 +356,24 @@ const PropertyPrediction = () => {
               </button>
             );
           })}
-          {activeCount > 0 && (
-            <span className="ml-auto text-[9px] text-gray-600 font-mono">
-              {activeCount === 1
-                ? "1 training…"
-                : `${activeCount} in queue / training…`}
-            </span>
-          )}
+          <div className="ml-auto flex items-center gap-3">
+            {activeCount > 0 && (
+              <span className="text-[9px] text-gray-600 font-mono">
+                {activeCount === 1
+                  ? "1 training…"
+                  : `${activeCount} in queue / training…`}
+              </span>
+            )}
+            {Object.values(statuses).some(s => s === "done") && (
+              <button
+                onClick={handleClearModels}
+                className="px-3 py-1.5 rounded-lg border text-[10px] font-semibold transition-all hover:opacity-75 active:opacity-50"
+                style={{ borderColor: "#374151", background: "#0a0a0a", color: "#6b7280" }}
+              >
+                Clear Models
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ── Main 4-column grid ── */}
@@ -347,7 +381,14 @@ const PropertyPrediction = () => {
 
           {/* Col 1 — Train Model */}
           <div className="rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col gap-3">
-            <div className="text-[11px] uppercase tracking-widest text-gray-500">Train model</div>
+            <div className="flex items-center gap-2">
+              <div className="text-[11px] uppercase tracking-widest text-gray-500">Train model</div>
+              {isDone && !isLoading && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded border border-emerald-800/50 bg-emerald-900/20 text-emerald-500 font-mono">
+                  saved
+                </span>
+              )}
+            </div>
 
             {currentError && (
               <div className="px-3 py-2 rounded-lg bg-red-900/20 border border-red-800/40 text-red-400 text-[10px] leading-snug">

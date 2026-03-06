@@ -1,7 +1,8 @@
-"""Load the PubChem aromatic compound pool and expose get_candidates().
+"""Load the sweetness-enhancer compound pool and expose get_candidates().
 
-The pool is pre-built by fetch_pubchem_pool.py and stored as aromatic_pool.json
-next to this file. No network dependency at runtime.
+The pool is a curated set of flavanones, chalcones, dihydrochalcones, and
+related polyphenols with known sweetness-modulating activity, stored as
+sweetness_pool.json next to this file. No network dependency at runtime.
 """
 from __future__ import annotations
 
@@ -9,7 +10,7 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
-_POOL_FILE = Path(__file__).parent / "aromatic_pool.json"
+_POOL_FILE = Path(__file__).parent / "sweetness_pool.json"
 
 
 @lru_cache(maxsize=1)
