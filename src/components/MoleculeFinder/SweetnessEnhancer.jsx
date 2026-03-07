@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
+import MolImageButton from "./MolImageButton";
 
 const BACKEND = "http://localhost:8000";
 const DUR_POOL_MUTATION = 800;  // dots appear — not much to see
@@ -973,6 +974,7 @@ const SweetnessEnhancer = () => {
                                       </svg>
                                     </button>
                                   )}
+                                  <MolImageButton smiles={c.smiles} hoverColor="hover:text-violet-400" />
                                   {lookup?.status === "loading" && (
                                     <span className="text-[9px] text-gray-600">…</span>
                                   )}
@@ -985,7 +987,10 @@ const SweetnessEnhancer = () => {
                                 )}
                               </div>
                             ) : (
-                              <span className="font-medium text-gray-200">{c.name}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-medium text-gray-200">{c.name}</span>
+                                <MolImageButton cid={c.cid} smiles={c.smiles} hoverColor="hover:text-violet-400" />
+                              </div>
                             )}
                           </td>
                           <td className="px-3 py-2 font-mono">

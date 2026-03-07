@@ -1,20 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import MolImageButton from "./MolImageButton";
+import { LuChevronDown } from "react-icons/lu";
 
 const BACKEND = "http://localhost:8000";
 
 const RUN_OPTIONS = [
-  { value: "2obj",     label: "Case: Solubility-Guided Design",     sub: "607 aromatic compounds · logS + MW" },
-  { value: "3obj",     label: "Case: Sweetness Enhancer Discovery", sub: "80 flavanones/polyphenols · P(sweet) + MW + P(safe)" },
-  { value: "scaffold", label: "Case: Colorant Scaffold Hopping",    sub: "63 natural pigments · conj. score + MW + reg. score" },
+  { value: "2obj", label: "Case: Solubility-Guided Design", sub: "607 aromatic compounds · logS + MW" },
+  { value: "3obj", label: "Case: Sweetness Enhancer Discovery", sub: "80 flavanones/polyphenols · P(sweet) + MW + P(safe)" },
+  { value: "scaffold", label: "Case: Colorant Scaffold Hopping", sub: "63 natural pigments · conj. score + MW + reg. score" },
 ];
 
 // ── Status config ──────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
-  approved:      { label: "Approved",      bg: "bg-emerald-900/30", border: "border-emerald-700/40", text: "text-emerald-400", dot: "#10b981" },
-  restricted:    { label: "Restricted",    bg: "bg-amber-900/30",   border: "border-amber-700/40",   text: "text-amber-400",   dot: "#f59e0b" },
-  banned:        { label: "Banned",        bg: "bg-red-900/30",     border: "border-red-700/40",     text: "text-red-400",     dot: "#ef4444" },
-  not_evaluated: { label: "Not Evaluated", bg: "bg-gray-800/40",    border: "border-gray-700/40",    text: "text-gray-500",    dot: "#6b7280" },
+  approved: { label: "Approved", bg: "bg-emerald-900/30", border: "border-emerald-700/40", text: "text-emerald-400", dot: "#10b981" },
+  restricted: { label: "Restricted", bg: "bg-amber-900/30", border: "border-amber-700/40", text: "text-amber-400", dot: "#f59e0b" },
+  banned: { label: "Banned", bg: "bg-red-900/30", border: "border-red-700/40", text: "text-red-400", dot: "#ef4444" },
+  not_evaluated: { label: "Not Evaluated", bg: "bg-gray-800/40", border: "border-gray-700/40", text: "text-gray-500", dot: "#6b7280" },
 };
 
 const StatusBadge = ({ status }) => {
@@ -40,35 +42,35 @@ const AmesBar = ({ p }) => {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 const Regulatory = () => {
-  const [selectedRun, setSelectedRun]       = useState("2obj");
-  const [savedRuns, setSavedRuns]           = useState({ "2obj": false, "3obj": false, "scaffold": false });
-  const [modelReady, setModelReady]         = useState(false);
+  const [selectedRun, setSelectedRun] = useState("2obj");
+  const [savedRuns, setSavedRuns] = useState({ "2obj": false, "3obj": false, "scaffold": false });
+  const [modelReady, setModelReady] = useState(false);
 
   // Pareto candidates for selected run
-  const [paretoCands, setParetoCands]       = useState([]);
-  const [paretoLoading, setParetoLoading]   = useState(false);
+  const [paretoCands, setParetoCands] = useState([]);
+  const [paretoLoading, setParetoLoading] = useState(false);
 
   // AMES
-  const [amesResults, setAmesResults]       = useState(null);
-  const [amesMeta, setAmesMeta]             = useState(null);
-  const [amesLoading, setAmesLoading]       = useState(false);
-  const [amesError, setAmesError]           = useState(null);
+  const [amesResults, setAmesResults] = useState(null);
+  const [amesMeta, setAmesMeta] = useState(null);
+  const [amesLoading, setAmesLoading] = useState(false);
+  const [amesError, setAmesError] = useState(null);
   const [showAmesResults, setShowAmesResults] = useState(false);
-  const [smilesNames, setSmilesNames]       = useState({});
+  const [smilesNames, setSmilesNames] = useState({});
 
   // Regulatory table (from same Pareto candidates)
-  const [regResults, setRegResults]         = useState([]);
-  const [regLoading, setRegLoading]         = useState(false);
-  const [regError, setRegError]             = useState(null);
-  const [regFilter, setRegFilter]           = useState("all");
-  const [regSelected, setRegSelected]       = useState(null);
+  const [regResults, setRegResults] = useState([]);
+  const [regLoading, setRegLoading] = useState(false);
+  const [regError, setRegError] = useState(null);
+  const [regFilter, setRegFilter] = useState("all");
+  const [regSelected, setRegSelected] = useState(null);
 
   // ── On mount: check model + which runs have saved data ─────────────────────
   useEffect(() => {
     fetch(`${BACKEND}/molecule-finder/available-datasets`)
       .then(r => r.ok ? r.json() : [])
       .then(ds => { if (ds.find(d => d.id === "ames_mutagenicity")?.n_cached) setModelReady(true); })
-      .catch(() => {});
+      .catch(() => { });
 
     Promise.all(
       ["2obj", "3obj", "scaffold"].map(rt =>
@@ -116,8 +118,8 @@ const Regulatory = () => {
       // Merge back smiles + is_new from pareto
       const merged = (regData.results ?? []).map((r, i) => ({
         ...r,
-        smiles:  pareto[i]?.smiles,
-        is_new:  pareto[i]?.cid == null,
+        smiles: pareto[i]?.smiles,
+        is_new: pareto[i]?.cid == null,
       }));
       setRegResults(merged);
     } catch (e) {
@@ -174,12 +176,14 @@ const Regulatory = () => {
   const selectedRunSaved = savedRuns[selectedRun];
   const regFiltered = regFilter === "all" ? regResults : regResults.filter(r => r.status === regFilter);
   const regCounts = {
-    all:           regResults.length,
-    approved:      regResults.filter(r => r.status === "approved").length,
-    restricted:    regResults.filter(r => r.status === "restricted").length,
-    banned:        regResults.filter(r => r.status === "banned").length,
+    all: regResults.length,
+    approved: regResults.filter(r => r.status === "approved").length,
+    restricted: regResults.filter(r => r.status === "restricted").length,
+    banned: regResults.filter(r => r.status === "banned").length,
     not_evaluated: regResults.filter(r => r.status === "not_evaluated").length,
   };
+
+  const [runDropOpen, setRunDropOpen] = useState(false)
 
   return (
     <div className="absolute inset-0 overflow-y-auto no-scrollbar px-12"
@@ -202,8 +206,8 @@ const Regulatory = () => {
             {/* Stats */}
             {[
               { label: "Pareto candidates", value: paretoLoading ? "…" : (paretoCands.length || "—"), color: "text-gray-300" },
-              { label: "Non-mutagenic",     value: amesMeta?.n_safe      ?? "—", color: "text-emerald-400" },
-              { label: "Mutagenic",         value: amesMeta?.n_mutagenic ?? "—", color: "text-red-400" },
+              { label: "Non-mutagenic", value: amesMeta?.n_safe ?? "—", color: "text-emerald-400" },
+              { label: "Mutagenic", value: amesMeta?.n_mutagenic ?? "—", color: "text-red-400" },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex-shrink-0 rounded-xl border border-gray-800 bg-[#111111] px-4 py-3 min-w-[100px]">
                 <div className={`text-2xl font-bold ${color} mb-0.5`}>{amesLoading ? "—" : value}</div>
@@ -213,19 +217,49 @@ const Regulatory = () => {
 
             {/* Controls */}
             <div className="flex-shrink-0 rounded-xl border border-gray-800 bg-[#111111] px-4 py-3 flex flex-col gap-2 justify-center min-w-[230px]">
-              <div className="flex flex-col gap-1">
+
+              <div className="flex flex-col gap-1 relative">
                 <label className="text-[9px] uppercase tracking-widest text-gray-600">Use case</label>
-                <select
-                  value={selectedRun}
-                  onChange={e => setSelectedRun(e.target.value)}
-                  className="w-full bg-[#0e0e0e] border border-gray-700 rounded-lg px-2 py-1.5 text-[11px] text-gray-300
-                    focus:outline-none focus:border-gray-500 transition-colors"
+
+                <button
+                  onClick={() => setRunDropOpen(o => !o)}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-[#0e0e0e] border border-gray-800 rounded-lg text-sm transition-colors hover:border-gray-600"
                 >
-                  {RUN_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-                <div className="text-[9px] text-gray-600">{RUN_OPTIONS.find(o => o.value === selectedRun)?.sub}</div>
+                  <span className="truncate text-gray-600">
+                    {RUN_OPTIONS.find(o => o.value === selectedRun)?.label}
+                  </span>
+
+                  <LuChevronDown
+                    className={`w-3.5 h-3.5 text-gray-700 transition-transform ${runDropOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {runDropOpen && (
+                  <div
+                    className="absolute z-50 mt-1 w-full bg-[#0e0e0e] border border-gray-800 rounded-lg shadow-2xl max-h-52 overflow-y-auto"
+                    style={{ scrollbarWidth: "none" }}
+                  >
+                    {RUN_OPTIONS.map(o => (
+                      <button
+                        key={o.value}
+                        onClick={() => {
+                          setSelectedRun(o.value)
+                          setRunDropOpen(false)
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-xs border-b border-gray-800/40 last:border-0 transition-colors text-gray-500 hover:bg-white/[0.03]"
+                      >
+                        <div>{o.label}</div>
+                        <div className="text-[9px] text-gray-700 mt-0.5">
+                          {o.sub}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="text-[9px] text-gray-600">
+                  {RUN_OPTIONS.find(o => o.value === selectedRun)?.sub}
+                </div>
               </div>
               <button
                 onClick={fetchAmes}
@@ -281,9 +315,9 @@ const Regulatory = () => {
           {selectedRunSaved && (
             <div className="grid grid-cols-4 gap-4 mb-4">
               {[
-                { label: "Candidates",   value: regCounts.all,           color: "text-gray-300" },
-                { label: "EU / FEMA approved", value: regCounts.approved,   color: "text-emerald-400" },
-                { label: "Restricted",   value: regCounts.restricted,    color: "text-amber-400" },
+                { label: "Candidates", value: regCounts.all, color: "text-gray-300" },
+                { label: "EU / FEMA approved", value: regCounts.approved, color: "text-emerald-400" },
+                { label: "Restricted", value: regCounts.restricted, color: "text-amber-400" },
                 { label: "Not evaluated", value: regCounts.not_evaluated, color: "text-gray-500" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="rounded-xl border border-gray-800 bg-[#111111] px-4 py-3">
@@ -303,10 +337,10 @@ const Regulatory = () => {
               <div className="px-4 py-2.5 bg-[#0e0e0e] border-b border-gray-800 flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] uppercase tracking-widest text-gray-500 mr-2">Filter</span>
                 {[
-                  { key: "all",           label: `All (${regCounts.all})` },
-                  { key: "approved",      label: `Approved (${regCounts.approved})` },
-                  { key: "restricted",    label: `Restricted (${regCounts.restricted})` },
-                  { key: "banned",        label: `Banned (${regCounts.banned})` },
+                  { key: "all", label: `All (${regCounts.all})` },
+                  { key: "approved", label: `Approved (${regCounts.approved})` },
+                  { key: "restricted", label: `Restricted (${regCounts.restricted})` },
+                  { key: "banned", label: `Banned (${regCounts.banned})` },
                   { key: "not_evaluated", label: `Not evaluated (${regCounts.not_evaluated})` },
                 ].map(({ key, label }) => (
                   <button key={key}
@@ -363,16 +397,18 @@ const Regulatory = () => {
                                         className="flex-shrink-0 text-gray-600 hover:text-emerald-400 transition-colors"
                                         title="Search in PubChem">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                          <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                          <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                                         </svg>
                                       </button>
                                     )}
+                                    <MolImageButton smiles={r.smiles} hoverColor="hover:text-emerald-400" />
                                     {lookup?.status === "loading" && <span className="text-[9px] text-gray-600">…</span>}
                                   </div>
                                 ) : (
                                   <div className="flex items-center gap-2">
                                     <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: cfg.dot }} />
                                     {r.name}
+                                    <MolImageButton cid={r.cid} smiles={r.smiles} hoverColor="hover:text-emerald-400" />
                                   </div>
                                 )}
                               </td>
@@ -382,7 +418,7 @@ const Regulatory = () => {
                                     target="_blank" rel="noopener noreferrer"
                                     className="hover:text-gray-300 transition-colors"
                                     onClick={e => e.stopPropagation()}>{r.cid}</a>
-                                ) : <span className="text-indigo-500/60 text-[9px]">in silico</span>}
+                                ) : <span className="text-indigo-500/60 text-[9px]">new</span>}
                               </td>
                               <td className="px-3 py-2"><StatusBadge status={r.status} /></td>
                               <td className="px-3 py-2 font-mono text-gray-400">{r.fema ?? <span className="text-gray-600">—</span>}</td>
@@ -466,17 +502,21 @@ const Regulatory = () => {
                                   <button onClick={() => lookupSmiles(r.smiles)}
                                     className="flex-shrink-0 text-gray-500 hover:text-orange-400 transition-colors" title="Search in PubChem">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                      <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                      <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                                     </svg>
                                   </button>
                                 )}
+                                <MolImageButton smiles={r.smiles} hoverColor="hover:text-orange-400" />
                                 {lookup?.status === "loading" && <span className="text-[9px] text-gray-600">…</span>}
                               </div>
                               {lookup?.status === "found" && <div className="text-[9px] text-emerald-400 mt-0.5">{lookup.name}</div>}
                               {lookup?.status === "unknown" && <div className="text-[9px] text-gray-600 mt-0.5">not in PubChem</div>}
                             </div>
                           ) : (
-                            <span className="font-medium text-gray-200">{r.name}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-gray-200">{r.name}</span>
+                              <MolImageButton cid={r.cid} smiles={r.smiles} hoverColor="hover:text-orange-400" />
+                            </div>
                           )}
                         </td>
                         <td className="px-3 py-2 font-mono text-gray-500">

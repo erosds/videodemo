@@ -58,8 +58,8 @@ const STEPS = [
   {
     n: 2, color: "#ec4899",
     title: "Predict properties",
-    desc: "The trained Random Forest scores each candidate on every objective in under 2 ms — no lab, no synthesis.",
-    badge: "uses trained RF",
+    desc: "The trained model scores each candidate on every objective in under 2 ms — no lab, no synthesis.",
+    badge: "uses trained models",
   },
   {
     n: 3, color: "#a855f7",
