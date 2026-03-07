@@ -48,14 +48,14 @@ const UseCard = ({ accent, sector, title, tagline, audience, objectives, refLabe
 const USE_CASES = [
   {
     accent: "#818cf8",
-    sector: "Pharmaceutical",
-    title: "Lead Optimization for Drug Candidates",
-    tagline: "Find molecules the body can absorb safely, without harming the heart.",
+    sector: "Food & Beverage",
+    title: "Functional Snack and Beverage Formulation",
+    tagline: "Balance taste, nutrition, and stability with fewer lab iterations.",
     audience:
-      "A new drug candidate often fails not because it's inactive, but because the body can't absorb it or it causes cardiac side effects. This workflow lets chemists simultaneously optimize three critical properties to find the rare molecules that pass all three gates at once.",
-    objectives: ["Intestinal absorption", "Cardiac safety", "Metabolic stability"],
-    refLabel: "Therapeutic Data Commons — ADME benchmark tasks · tdcommons.ai",
-    refHref: "https://tdcommons.ai/single_pred_tasks/adme/",
+      "Creating new functional snacks or beverages means juggling taste, clean-label constraints, and shelf-life stability. This workflow lets scientists explore thousands of ingredient combinations in silico, jointly optimizing predicted sensory profile, nutritional value, and regulatory fit before committing to expensive bench experiments.",
+    objectives: ["Sensory profile", "Nutritional value", "Formulation stability"],
+    refLabel: "AI-powered food formulation and flavor design · ift.org / pmc.ncbi.nlm.nih.gov",
+    refHref: "https://pmc.ncbi.nlm.nih.gov/articles/PMC10742996/",
   },
   {
     accent: "#4ade80",
@@ -81,18 +81,19 @@ const USE_CASES = [
   },
   {
     accent: "#f472b6",
-    sector: "Infectious Disease",
-    title: "Novel Antibiotic Scaffold Discovery",
-    tagline: "Generate antibiotic candidates to fight bacteria that no existing drug can stop.",
+    sector: "Specialty Chemicals",
+    title: "Green Solvent and Additive Design",
+    tagline: "Generate safer solvents and additives without breaking process constraints.",
     audience:
-      "Antimicrobial resistance kills over a million people per year and the antibiotic pipeline is nearly empty. AI-guided generative design can explore structural space that classical medicinal chemistry has never reached, identifying candidates with the right balance of potency and safety.",
-    objectives: ["Membrane permeability", "Selective vs. human cells", "Non-mutagenic"],
-    refLabel: "WHO Priority Pathogens List — ESKAPE organisms · who.int",
-    refHref: "https://www.who.int/publications/i/item/9789240093461",
+      "Many industrial formulations rely on solvents and additives that face increasing regulatory pressure due to safety and environmental concerns. This workflow uses generative and multi-objective models to propose new molecules that meet process performance targets while reducing hazard and environmental footprint, building on successful case studies in green solvent design.",
+    objectives: ["Process performance", "Low hazard", "Reduced environmental impact"],
+    refLabel: "Generative design of green solvents with diffusion models · pubmed.ncbi.nlm.nih.gov",
+    refHref: "https://pubmed.ncbi.nlm.nih.gov/40049881/",
   },
 ];
 
-const BeyondFood = () => (
+
+const Industries = () => (
   <div
     className="absolute inset-0 overflow-y-auto no-scrollbar px-12"
     style={{ paddingTop: 200, paddingBottom: 100 }}
@@ -107,4 +108,4 @@ const BeyondFood = () => (
   </div>
 );
 
-export default BeyondFood;
+export default Industries;

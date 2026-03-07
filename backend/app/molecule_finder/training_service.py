@@ -12,21 +12,36 @@ retraining.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor
 
 import joblib
 import numpy as np
 import pandas as pd
+
+import os
+
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
-    accuracy_score, f1_score, roc_auc_score,
-    mean_absolute_error, mean_squared_error, r2_score,
+    accuracy_score,
+    f1_score,
+    roc_auc_score,
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score,
 )
-from sklearn.model_selection import train_test_split
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 try:
     from rdkit import Chem
     from rdkit.Chem import Descriptors, DataStructs
+    from rdkit import RDLogger
+    RDLogger.DisableLog("rdApp.*")
 
     # Use the new Generator API (RDKit ≥ 2022.09) to avoid the MorganGenerator
     # deprecation warning emitted by the legacy AllChem.GetMorganFingerprintAsBitVect.
@@ -59,6 +74,7 @@ except ImportError:
 
 # In-memory cache: dataset_id → trained RandomForestRegressor object
 _RF_MODEL_CACHE: dict[str, RandomForestRegressor] = {}
+_SCALER_CACHE: dict[str, StandardScaler] = {}
 
 # In-memory cache: dataset_id → ECFP4 bool array (N×2048) for AD estimation
 _TRAIN_FPS_CACHE: dict[str, "np.ndarray"] = {}
@@ -183,8 +199,18 @@ DATASETS: dict[str, dict] = {
 TREE_STEPS = [25, 50, 100, 150, 200, 300, 500]
 
 # Names for the 5 physicochemical descriptors appended after the 2048 ECFP4 bits
-DESCRIPTOR_NAMES = ["MW", "logP", "TPSA", "HBD", "HBA"]
-
+DESCRIPTOR_NAMES = [
+    "MW",
+    "logP",
+    "TPSA",
+    "HBD",
+    "HBA",
+    "RotBonds",
+    "RingCount",
+    "FractionCSP3",
+    "AromaticRings",
+    "HeavyAtoms",
+]
 
 # ── Dataset loading ────────────────────────────────────────────────────────────
 
@@ -309,39 +335,83 @@ def _load_dataset(dataset_id: str) -> pd.DataFrame:
 
 # ── Featurisation ──────────────────────────────────────────────────────────────
 
-def _featurize(smiles_list: list[str], targets: np.ndarray):
-    """Compute ECFP4 (2048-bit) + 5 physicochemical descriptors per valid SMILES.
+def _featurize_one(args):
+    smi, tgt = args
 
-    Returns:
-        X  — float32 array, shape (n_valid, 2053)
-        y  — float32 array, shape (n_valid,)
-    """
-    X_rows: list[list[float]] = []
-    y_rows: list[float] = []
+    mol = Chem.MolFromSmiles(str(smi))
+    if mol is None:
+        return None
 
-    for smi, tgt in zip(smiles_list, targets):
-        if pd.isna(tgt):
+    try:
+
+        desc = [
+            Descriptors.MolWt(mol),
+            Descriptors.MolLogP(mol),
+            Descriptors.TPSA(mol),
+            float(Descriptors.NumHDonors(mol)),
+            float(Descriptors.NumHAcceptors(mol)),
+            float(Descriptors.NumRotatableBonds(mol)),
+            float(Descriptors.RingCount(mol)),
+            float(Descriptors.FractionCSP3(mol)),
+            float(Descriptors.NumAromaticRings(mol)),
+            float(Descriptors.HeavyAtomCount(mol)),
+        ]
+
+        fp = _morgan_bits(mol)
+
+        return fp + desc, float(tgt)
+
+    except Exception as e:
+        logger.warning("Featurization failed: %s", e)
+        return None
+
+
+def _featurize(smiles_list, targets):
+
+    workers = min(os.cpu_count(), 8)
+
+    with ProcessPoolExecutor(max_workers=workers) as ex:
+        results = list(ex.map(_featurize_one, zip(smiles_list, targets)))
+
+    X = []
+    y = []
+    smiles_valid = []
+
+    for smi, r in zip(smiles_list, results):
+        if r is None:
             continue
-        mol = Chem.MolFromSmiles(str(smi))
-        if mol is None:
-            continue
-        try:
-            desc = [
-                Descriptors.MolWt(mol),
-                Descriptors.MolLogP(mol),
-                Descriptors.TPSA(mol),
-                float(Descriptors.NumHDonors(mol)),
-                float(Descriptors.NumHAcceptors(mol)),
-            ]
-            X_rows.append(_morgan_bits(mol) + desc)
-            y_rows.append(float(tgt))
-        except Exception:
-            continue
+
+        feats, tgt = r
+        X.append(feats)
+        y.append(tgt)
+        smiles_valid.append(smi)
 
     return (
-        np.array(X_rows, dtype=np.float32),
-        np.array(y_rows, dtype=np.float32),
+        np.array(X, dtype=np.float32),
+        np.array(y, dtype=np.float32),
+        smiles_valid
     )
+
+# Caching
+def _dataset_cache_path(dataset_id):
+    return CACHE_DIR / f"{dataset_id}_features.npz"
+
+def _scaffold_split(smiles, test_size=0.2):
+
+    scaffolds = [get_murcko_scaffold(s) for s in smiles]
+
+    unique_scaffolds = list(set(scaffolds))
+    rng = np.random.default_rng(42)
+
+    rng.shuffle(unique_scaffolds)
+
+    split = int(len(unique_scaffolds) * (1 - test_size))
+    train_scaffolds = set(unique_scaffolds[:split])
+
+    train_idx = [i for i, s in enumerate(scaffolds) if s in train_scaffolds]
+    test_idx = [i for i, s in enumerate(scaffolds) if s not in train_scaffolds]
+
+    return train_idx, test_idx
 
 
 # ── Training ───────────────────────────────────────────────────────────────────
@@ -361,6 +431,20 @@ def train_model(dataset_id: str) -> dict:
     smiles = df[cfg["smiles_col"]].tolist()
     targets = df[cfg["target_col"]].values
 
+    cache_file = _dataset_cache_path(dataset_id)
+
+    if cache_file.exists():
+        logger.info("Loading cached features for %s", dataset_id)
+
+        data = np.load(cache_file)
+        X = data["X"]
+        y = data["y"]
+
+    else:
+        X, y, smiles = _featurize(smiles, targets)
+
+        np.savez_compressed(cache_file, X=X, y=y)
+
     # Optional sample cap (Lipo dataset is large — cap for demo speed)
     max_n = cfg.get("max_samples", len(smiles))
     if len(smiles) > max_n:
@@ -369,8 +453,6 @@ def train_model(dataset_id: str) -> dict:
         smiles = [smiles[i] for i in idx]
         targets = targets[idx]
 
-    X, y = _featurize(smiles, targets)
-
     if len(X) < 50:
         raise RuntimeError(
             f"Only {len(X)} valid molecules found — dataset may be corrupted or unavailable."
@@ -378,10 +460,22 @@ def train_model(dataset_id: str) -> dict:
 
     is_clf = cfg.get("task_type") == "classification"
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42,
-        stratify=y if is_clf else None,
-    )
+    train_idx, test_idx = _scaffold_split(smiles)
+
+    X_train = X[train_idx]
+    X_test = X[test_idx]
+
+    y_train = y[train_idx]
+    y_test = y[test_idx]
+
+    scaler = StandardScaler()
+
+    desc_start = 2048
+
+    X_train[:, desc_start:] = scaler.fit_transform(X_train[:, desc_start:])
+    X_test[:, desc_start:] = scaler.transform(X_test[:, desc_start:])
+
+    _SCALER_CACHE[dataset_id] = scaler
 
     # Warm-start RF (regressor or classifier) — OOB score tracked at each step.
     # max_features="sqrt" is explicit for both: with 2053 features (2048 ECFP4 + 5
@@ -389,14 +483,27 @@ def train_model(dataset_id: str) -> dict:
     # per split than sqrt(2053) ≈ 45. Using sqrt also decorrelates trees and is
     # standard practice for high-dimensional fingerprint-based RF models.
     RFClass = RandomForestClassifier if is_clf else RandomForestRegressor
+
     rf = RFClass(
-        n_estimators=1,
-        warm_start=True,
-        oob_score=True,
+        n_estimators=500,
+        max_depth=None,
+        min_samples_leaf=2,
         max_features="sqrt",
+        bootstrap=True,
+        oob_score=True,
         random_state=42,
-        n_jobs=2,
+        n_jobs=-1,
     )
+
+    cv_scores = cross_val_score(
+        rf,
+        X_train,
+        y_train,
+        cv=5,
+        scoring="accuracy" if is_clf else "r2",
+    )
+
+    cv_mean = float(np.mean(cv_scores))
 
     oob_curve: list[dict] = []
     for n in TREE_STEPS:
@@ -445,6 +552,7 @@ def train_model(dataset_id: str) -> dict:
         "oob_curve":           oob_curve,
         "feature_importances": feature_importances,
         "metrics":             metrics,
+        "cv_score":            round(cv_mean, 3),
     }
 
     # Persist model, results, and training FPs (for applicability domain)
@@ -536,7 +644,7 @@ def get_murcko_scaffold(smiles: str) -> "str | None":
 def _save_training_fps(dataset_id: str, X_train: "np.ndarray") -> None:
     """Save first 500 ECFP4 bit-rows from training set for AD estimation."""
     try:
-        fps = X_train[:500, :2048].astype(bool)
+        fps = X_train[:500, :2048].astype(np.uint8)
         np.save(str(MODELS_DIR / f"{dataset_id}_fps.npy"), fps)
         _TRAIN_FPS_CACHE[dataset_id] = fps
     except Exception:
@@ -557,19 +665,27 @@ def _load_training_fps(dataset_id: str) -> "np.ndarray | None":
     return None
 
 
-def get_ad_score(smiles: str, dataset_id: str) -> "float | None":
-    """Max Tanimoto similarity to training set (1.0 = inside domain, 0 = outside)."""
+def get_ad_score(smiles: str, dataset_id: str, k: int = 5):
+
     train_fps = _load_training_fps(dataset_id)
+
     if train_fps is None:
         return None
+
     vec = featurize_smiles(smiles)
     if vec is None:
         return None
-    q = vec[:2048].astype(bool)
+
+    q = vec[:2048].astype(np.uint8)
+
     inter = (q & train_fps).sum(axis=1)
     union = (q | train_fps).sum(axis=1)
-    sim = np.where(union > 0, inter / union, 0.0)
-    return round(float(sim.max()), 3)
+
+    sims = np.where(union > 0, inter / union, 0)
+
+    topk = np.sort(sims)[-k:]
+
+    return round(float(np.mean(topk)), 3)
 
 
 # ── Model persistence ─────────────────────────────────────────────────────────
@@ -672,12 +788,17 @@ def featurize_smiles(smiles: str) -> "np.ndarray | None":
         return None
     try:
         desc = [
-            Descriptors.MolWt(mol),
-            Descriptors.MolLogP(mol),
-            Descriptors.TPSA(mol),
-            float(Descriptors.NumHDonors(mol)),
-            float(Descriptors.NumHAcceptors(mol)),
-        ]
+        Descriptors.MolWt(mol),
+        Descriptors.MolLogP(mol),
+        Descriptors.TPSA(mol),
+        float(Descriptors.NumHDonors(mol)),
+        float(Descriptors.NumHAcceptors(mol)),
+        float(Descriptors.NumRotatableBonds(mol)),
+        float(Descriptors.RingCount(mol)),
+        float(Descriptors.FractionCSP3(mol)),
+        float(Descriptors.NumAromaticRings(mol)),
+        float(Descriptors.HeavyAtomCount(mol)),
+    ]
         return np.array(_morgan_bits(mol) + desc, dtype=np.float32)
     except Exception:
         return None

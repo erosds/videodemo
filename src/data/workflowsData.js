@@ -170,7 +170,7 @@ export const workflows = {
       {
         id: 3,
         title: "multi-objective optimization",
-        subtitle: "<strong>NSGA-II</strong> (Non-dominated Sorting Genetic Algorithm II) evolves a population of new molecules over generations, simultaneously optimising two or more conflicting objectives, producing a <strong>Pareto-optimal frontier</strong> of trade-off solutions.",
+        subtitle: "<strong>NSGA-II</strong> (Non-dominated Sorting Genetic Algorithm II) evolves a population of new molecules over generations, predicts properties with the trained models and optimizes two or more conflicting objectives, producing a <strong>Pareto-optimal frontier</strong> of trade-off solutions.",
         gradient: "from-pink-700 via-rose-600 to-red-600",
       },
       {
@@ -205,8 +205,8 @@ export const workflows = {
       },
       {
         id: 9,
-        title: "beyond food & flavour",
-        subtitle: "The generative pipeline is <strong>domain-agnostic</strong>. Swap the candidate pool and training datasets and the same NSGA-II engine addresses any multi-objective molecular design challenge — from oral drug candidates to crop-protection actives to next-generation UV filters.",
+        title: "industries",
+        subtitle: "The generative pipeline is <strong>domain-agnostic</strong>. Swap the candidate pool and training datasets and the same workflow addresses any multi-objective molecular design challenge — from oral drug candidates to crop-protection actives to next-generation UV filters.",
         gradient: "from-sky-600 via-indigo-600 to-violet-600",
       },
     ]

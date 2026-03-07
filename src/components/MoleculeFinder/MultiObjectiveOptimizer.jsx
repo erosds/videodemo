@@ -1,48 +1,58 @@
 import { useEffect, useState } from "react";
 
 const STAGES = [
-  { gen: 0, pts: [
-    { x: 0.22, y: 0.38, d: false }, { x: 0.40, y: 0.52, d: false },
-    { x: 0.60, y: 0.66, d: false }, { x: 0.80, y: 0.78, d: false },
-    { x: 0.50, y: 0.42, d: true  }, { x: 0.65, y: 0.55, d: true  },
-    { x: 0.70, y: 0.60, d: true  }, { x: 0.85, y: 0.70, d: true  },
-    { x: 0.45, y: 0.35, d: true  }, { x: 0.30, y: 0.28, d: true  },
-    { x: 0.55, y: 0.48, d: true  },
-  ]},
-  { gen: 15, pts: [
-    { x: 0.16, y: 0.47, d: false }, { x: 0.31, y: 0.60, d: false },
-    { x: 0.50, y: 0.73, d: false }, { x: 0.68, y: 0.83, d: false },
-    { x: 0.42, y: 0.52, d: true  }, { x: 0.60, y: 0.65, d: true  },
-    { x: 0.75, y: 0.74, d: true  }, { x: 0.56, y: 0.60, d: true  },
-    { x: 0.36, y: 0.44, d: true  }, { x: 0.80, y: 0.77, d: true  },
-    { x: 0.25, y: 0.38, d: true  },
-  ]},
-  { gen: 30, pts: [
-    { x: 0.11, y: 0.56, d: false }, { x: 0.24, y: 0.68, d: false },
-    { x: 0.40, y: 0.79, d: false }, { x: 0.56, y: 0.88, d: false },
-    { x: 0.73, y: 0.93, d: false },
-    { x: 0.34, y: 0.62, d: true  }, { x: 0.50, y: 0.73, d: true  },
-    { x: 0.65, y: 0.82, d: true  }, { x: 0.20, y: 0.48, d: true  },
-    { x: 0.80, y: 0.88, d: true  }, { x: 0.45, y: 0.70, d: true  },
-  ]},
-  { gen: 50, pts: [
-    { x: 0.07, y: 0.63, d: false }, { x: 0.17, y: 0.74, d: false },
-    { x: 0.30, y: 0.83, d: false }, { x: 0.45, y: 0.90, d: false },
-    { x: 0.62, y: 0.95, d: false },
-    { x: 0.24, y: 0.68, d: true  }, { x: 0.38, y: 0.78, d: true  },
-    { x: 0.55, y: 0.87, d: true  }, { x: 0.13, y: 0.55, d: true  },
-    { x: 0.70, y: 0.90, d: true  }, { x: 0.48, y: 0.83, d: true  },
-    { x: 0.34, y: 0.75, d: true  },
-  ]},
-  { gen: 70, pts: [
-    { x: 0.05, y: 0.69, d: false }, { x: 0.12, y: 0.79, d: false },
-    { x: 0.22, y: 0.87, d: false }, { x: 0.35, y: 0.93, d: false },
-    { x: 0.50, y: 0.96, d: false }, { x: 0.67, y: 0.98, d: false },
-    { x: 0.19, y: 0.73, d: true  }, { x: 0.30, y: 0.83, d: true  },
-    { x: 0.44, y: 0.90, d: true  }, { x: 0.10, y: 0.62, d: true  },
-    { x: 0.58, y: 0.93, d: true  }, { x: 0.28, y: 0.79, d: true  },
-    { x: 0.42, y: 0.87, d: true  },
-  ]},
+  {
+    gen: 0, pts: [
+      { x: 0.22, y: 0.38, d: false }, { x: 0.40, y: 0.52, d: false },
+      { x: 0.60, y: 0.66, d: false }, { x: 0.80, y: 0.78, d: false },
+      { x: 0.50, y: 0.42, d: true }, { x: 0.65, y: 0.55, d: true },
+      { x: 0.70, y: 0.60, d: true }, { x: 0.85, y: 0.70, d: true },
+      { x: 0.45, y: 0.35, d: true }, { x: 0.30, y: 0.28, d: true },
+      { x: 0.55, y: 0.48, d: true },
+    ]
+  },
+  {
+    gen: 15, pts: [
+      { x: 0.16, y: 0.47, d: false }, { x: 0.31, y: 0.60, d: false },
+      { x: 0.50, y: 0.73, d: false }, { x: 0.68, y: 0.83, d: false },
+      { x: 0.42, y: 0.52, d: true }, { x: 0.60, y: 0.65, d: true },
+      { x: 0.75, y: 0.74, d: true }, { x: 0.56, y: 0.60, d: true },
+      { x: 0.36, y: 0.44, d: true }, { x: 0.80, y: 0.77, d: true },
+      { x: 0.25, y: 0.38, d: true },
+    ]
+  },
+  {
+    gen: 30, pts: [
+      { x: 0.11, y: 0.56, d: false }, { x: 0.24, y: 0.68, d: false },
+      { x: 0.40, y: 0.79, d: false }, { x: 0.56, y: 0.88, d: false },
+      { x: 0.73, y: 0.93, d: false },
+      { x: 0.34, y: 0.62, d: true }, { x: 0.50, y: 0.73, d: true },
+      { x: 0.65, y: 0.82, d: true }, { x: 0.20, y: 0.48, d: true },
+      { x: 0.80, y: 0.88, d: true }, { x: 0.45, y: 0.70, d: true },
+    ]
+  },
+  {
+    gen: 50, pts: [
+      { x: 0.07, y: 0.63, d: false }, { x: 0.17, y: 0.74, d: false },
+      { x: 0.30, y: 0.83, d: false }, { x: 0.45, y: 0.90, d: false },
+      { x: 0.62, y: 0.95, d: false },
+      { x: 0.24, y: 0.68, d: true }, { x: 0.38, y: 0.78, d: true },
+      { x: 0.55, y: 0.87, d: true }, { x: 0.13, y: 0.55, d: true },
+      { x: 0.70, y: 0.90, d: true }, { x: 0.48, y: 0.83, d: true },
+      { x: 0.34, y: 0.75, d: true },
+    ]
+  },
+  {
+    gen: 70, pts: [
+      { x: 0.05, y: 0.69, d: false }, { x: 0.12, y: 0.79, d: false },
+      { x: 0.22, y: 0.87, d: false }, { x: 0.35, y: 0.93, d: false },
+      { x: 0.50, y: 0.96, d: false }, { x: 0.67, y: 0.98, d: false },
+      { x: 0.19, y: 0.73, d: true }, { x: 0.30, y: 0.83, d: true },
+      { x: 0.44, y: 0.90, d: true }, { x: 0.10, y: 0.62, d: true },
+      { x: 0.58, y: 0.93, d: true }, { x: 0.28, y: 0.79, d: true },
+      { x: 0.42, y: 0.87, d: true },
+    ]
+  },
 ];
 
 const STEPS = [
@@ -51,23 +61,23 @@ const STEPS = [
     title: "Generate candidates",
     desc: "Draw an initial population from a curated library of real, known compounds — each encoded as a fingerprint.",
     details: [
-      "Valid by construction: candidates start from real SMILES strings — every molecule is chemically guaranteed.",
+      "Targeted design: the candidate pool is pre-filtered to be relevant to the problem at hand, e.g. drug-like molecules with a certain scaffold.",
       "Independent from training: the library is distinct from the model's training set, so predictions are genuinely blind.",
     ],
   },
   {
     n: 2, color: "#ec4899",
     title: "Predict properties",
-    desc: "The trained model scores each candidate on every objective in under 2 ms — no lab, no synthesis.",
+    desc: "The trained model scores each candidate on every objective in under 2 ms, enabling rapid evaluation of large candidate pools.",
     badge: "uses trained models",
   },
   {
     n: 3, color: "#a855f7",
     title: "Find the Pareto front",
-    desc: "Any candidate beaten on every objective simultaneously by another is discarded. The survivors form the Pareto front — the set of honest trade-offs.",
+    desc: "Any candidate beaten on every objective simultaneously by another is discarded. The survivors form the Pareto front — the set of pareto-optimal solutions.",
     details: [
       "Analogy: choosing a car — you want fast, efficient, and cheap. No car wins on all three. The Pareto front is the set where improving one spec always requires sacrificing another.",
-      "A dominated candidate is never the best choice: there is always a Pareto molecule that is both lighter and more soluble at the same time.",
+      "On the other hand, a dominated candidate is never the best choice: there is always a Pareto molecule that is better in at least one aspect.",
     ],
   },
   {
@@ -172,11 +182,11 @@ const ParetoChart = ({ stage }) => {
       ))}
 
       <text x={pad.l + plotW / 2} y={H - 2} fontSize={8} fill="#4b5563" textAnchor="middle">
-        Molecular weight ← minimize
+        Property # 1 ← minimize
       </text>
       <text x={10} y={pad.t + plotH / 2} fontSize={8} fill="#4b5563" textAnchor="middle"
         transform={`rotate(-90,10,${pad.t + plotH / 2})`}>
-        Predicted solubility  →  maximize
+        Property # 2  →  maximize
       </text>
 
       <text x={W - pad.r} y={pad.t + 12} fontSize={9} fill="#6b7280"
@@ -195,25 +205,29 @@ const ParetoChart = ({ stage }) => {
 
 const MultiObjectiveOptimizer = () => {
   const [stageIdx, setStageIdx] = useState(0);
-  const [running,  setRunning]  = useState(false);
-  const [done,     setDone]     = useState(false);
+  const [running, setRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false); // Nuovo stato
+  const [done, setDone] = useState(false);
 
   const handleRun = () => {
     setStageIdx(0);
     setRunning(true);
+    setIsPaused(false); // Reset pausa
     setDone(false);
   };
 
   useEffect(() => {
-    if (!running) return;
+    if (!running || isPaused) return; // Se in pausa, non far partire il timeout
+
     if (stageIdx >= STAGES.length - 1) {
       setRunning(false);
       setDone(true);
       return;
     }
+
     const t = setTimeout(() => setStageIdx(i => i + 1), 1400);
     return () => clearTimeout(t);
-  }, [running, stageIdx]);
+  }, [running, stageIdx, isPaused]); // Aggiungi isPaused alle dipendenze
 
   return (
     <div
@@ -240,18 +254,29 @@ const MultiObjectiveOptimizer = () => {
 
               <div className="flex items-start gap-3 mt-3 ">
                 <p className="flex-1 text-[11px] text-gray-500 leading-snug">
-                  Each dot is a candidate molecule positioned by two properties: in this case solubility is predicted by the trained ML model. Properties could be anything we want to optimize and could be more than two.
+                  Each dot is a candidate molecule positioned by its properties; properties can be predicted by the trained ML models. Properties could be anything we want to optimize and could be more than two.
                   {" "}<span className="text-rose-400 font-medium">Red dots</span> are Pareto-optimal — no other
-                  candidate beats them on <em>both</em> axes at once. Generation after generation, the front pushes toward the top-left ideal corner.
+                  candidate beats them on <em>both</em> axes at once. In the two-objective case, the front pushes toward the top-left ideal corner.
                 </p>
-                <button
-                  onClick={handleRun}
-                  disabled={running}
-                  className="flex-shrink-0 px-8 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-75 active:opacity-50"
-                  style={{ background: "#f43f5e18", borderColor: "#f43f5e55", color: "#f43f5e" }}
-                >
-                  {running ? "Running…" : done ? "↺  Replay" : "▶  Animate"}
-                </button>
+                <div className="flex gap-2">
+                  {running && (
+                    <button
+                      onClick={() => setIsPaused(!isPaused)}
+                      className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-700 text-gray-300 hover:bg-gray-800"
+                    >
+                      {isPaused ? "▶ Play" : "⏸ Pause"}
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handleRun}
+                    disabled={running && !isPaused} // Abilitato solo se finito o in pausa (per ricominciare)
+                    className="flex-shrink-0 px-8 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer disabled:opacity-40"
+                    style={{ background: "#f43f5e18", borderColor: "#f43f5e55", color: "#f43f5e" }}
+                  >
+                    {running ? "Running" : done ? "↺ Replay" : "▶ Animate"}
+                  </button>
+                </div>
               </div>
 
             </div>

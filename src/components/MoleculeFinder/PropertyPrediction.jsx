@@ -81,7 +81,7 @@ const OobCurvePanel = ({ data, targetLabel, taskType = "regression" }) => {
           </span>
         )}
       </div>
-      <p className="text-[10px] text-gray-600 leading-snug border-t border-gray-800/50 pt-2">
+      <p className="text-[11px] text-gray-600 leading-snug border-t border-gray-800/50 pt-2">
         Each point shows how well the model predicts on molecules it never trained on — as
         more decision trees are added, the estimate stabilises. This is called an
         <span className="text-gray-500"> OOB (Out-of-Bag) learning curve</span>: trees

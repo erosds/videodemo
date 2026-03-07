@@ -9,7 +9,7 @@ import SweetnessEnhancer from "./SweetnessEnhancer";
 import ColorantScaffold from "./ColorantScaffold";
 import Regulatory from "./Regulatory";
 import Impact from "./Impact";
-import BeyondFood from "./BeyondFood";
+import Industries from "./Industries";
 
 const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
   const { currentOpacity } = getAnimationProgress(scrollIndex, activeIndex, totalSections);
@@ -24,7 +24,7 @@ const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
     <ColorantScaffold />,
     <Regulatory />,
     <Impact />,
-    <BeyondFood />,
+    <Industries />,
   ];
 
   const content = sections[activeIndex] ?? null;

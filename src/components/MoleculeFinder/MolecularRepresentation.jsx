@@ -163,7 +163,7 @@ const FingerprintGrid = ({ bits, loading }) => {
           <div
             key={i}
             style={{
-              width: 6, height: 6,
+              width: 6, height: 5,
               borderRadius: 1,
               background: bit ? "#60a5fa" : "#1f2937",
               opacity: bit ? 0.85 : 0.25,
@@ -173,9 +173,9 @@ const FingerprintGrid = ({ bits, loading }) => {
       </div>
       <p className="text-[10px] text-gray-500 leading-snug">
         <span className="text-blue-400">{setBits} bits set</span> out of 2,048.
-        Each square is one bit of the full ECFP4 (Morgan, radius 2) fingerprint —{" "}
-        <span className="text-blue-400">blue</span> means the molecule contains
-        that circular substructure fragment; grey means absent.
+        Each square is one bit of the full ECFP4 (Extended-Connectivity Fingerprint, 4 bonds) fingerprint —{" "}
+        <span className="text-blue-400">blue</span> means the molecule contains that circular substructure fragment.
+        Binary fingerprints are one of the most widely used for molecule comparison and similarity searching.
       </p>
     </div>
   );
@@ -203,7 +203,7 @@ const StructureImage = ({ cid, name }) => {
   return (
     <div
       className="rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center h-full"
-      style={{ minHeight: 140 }}
+      style={{ minHeight: 100, maxHeight: 190 }}
     >
       {!error && (
         <img
@@ -211,7 +211,7 @@ const StructureImage = ({ cid, name }) => {
           src={url}
           alt={`2D structure of ${name}`}
           className="w-full object-contain"
-          style={{ maxHeight: 160, display: loaded ? "block" : "none" }}
+          style={{ maxHeight: 190, display: loaded ? "block" : "none" }}
           onLoad={() => { setLoaded(true); setError(false); }}
           onError={() => setError(true)}
         />
@@ -299,21 +299,18 @@ const MolecularRepresentation = () => {
               <span className="text-[11px] uppercase tracking-widest text-gray-300">
                 SMILES / 2D Structure
               </span>
-              <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${catColors.bg} ${catColors.text} ${catColors.border} border`}>
-                {primary.category}
-              </span>
             </div>
 
             <div className="font-mono text-xs text-rose-300 break-all leading-relaxed bg-gray-900/50 rounded-lg p-3">
               {primary.smiles}
             </div>
 
-            <p className="text-[10px] text-gray-500 leading-snug">
-              SMILES (Simplified Molecular-Input Line-Entry System) encodes the full molecular graph as a linear ASCII string — atoms, bond types, ring closures, and stereochemistry included.
+            <p className="text-[11px] text-gray-500 leading-snug">
+              SMILES (Simplified Molecular-Input Line-Entry System) encodes the full molecule as a linear ASCII string — atoms, bond types, ring closures, and stereochemistry included. 2D structure images can be generated from SMILES using specific chemical libraries. 
             </p>
 
             <StructureImage key={primary.cid} cid={primary.cid} name={primary.name} />
-            <div className="text-[9px] text-gray-400 text-center -mt-1">
+            <div className="text-[9px] text-gray-400 text-center">
               2D structure · source: PubChem CID {primary.cid}
             </div>
 

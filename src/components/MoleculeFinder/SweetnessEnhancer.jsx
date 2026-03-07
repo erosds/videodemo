@@ -4,8 +4,8 @@ import MolImageButton from "./MolImageButton";
 
 const BACKEND = "http://localhost:8000";
 const DUR_POOL_MUTATION = 800;  // dots appear — not much to see
-const DUR_PREDICTION    = 1800; // dots animate up — needs time to complete
-const DUR_NSGA2         = 1100; // colour sweep — 250ms delay + 650ms transition + 200ms settle
+const DUR_PREDICTION = 1800; // dots animate up — needs time to complete
+const DUR_NSGA2 = 1100; // colour sweep — 250ms delay + 650ms transition + 200ms settle
 
 // ── Step indicator bar ─────────────────────────────────────────────────────────
 const STEPS = [
@@ -40,9 +40,9 @@ const StepBar = ({ activeStep, pulseStep }) => (
 
 // ── Color helpers ──────────────────────────────────────────────────────────────
 function lerpColor(hex1, hex2, t) {
-  const r1 = parseInt(hex1.slice(1,3),16), g1 = parseInt(hex1.slice(3,5),16), b1 = parseInt(hex1.slice(5,7),16);
-  const r2 = parseInt(hex2.slice(1,3),16), g2 = parseInt(hex2.slice(3,5),16), b2 = parseInt(hex2.slice(5,7),16);
-  return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
+  const r1 = parseInt(hex1.slice(1, 3), 16), g1 = parseInt(hex1.slice(3, 5), 16), b1 = parseInt(hex1.slice(5, 7), 16);
+  const r2 = parseInt(hex2.slice(1, 3), 16), g2 = parseInt(hex2.slice(3, 5), 16), b2 = parseInt(hex2.slice(5, 7), 16);
+  return `rgb(${Math.round(r1 + (r2 - r1) * t)},${Math.round(g1 + (g2 - g1) * t)},${Math.round(b1 + (b2 - b1) * t)})`;
 }
 function psweetColor(p) {
   if (p < 0.5) return lerpColor("#3b82f6", "#14b8a6", p / 0.5);
@@ -65,7 +65,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
   const currentGen = generations[currentGenIdx] ?? generations[0];
   const dots = currentGen?.candidates ?? [];
   const inNsga2 = animPhase === "nsga2" || animPhase === "done" || animPhase === "wait_mutation";
-  const inPred  = animPhase === "prediction";
+  const inPred = animPhase === "prediction";
 
   // P(sweet) ∈ [0, 1] — fix Y-axis to full probability range.
   let mwMin, mwMax;
@@ -76,7 +76,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     const allCands = generations.flatMap(g => g.candidates ?? []);
     const allMW = [...allCands.map(c => c.mw), reference?.mw ?? 302].filter(Boolean);
     mwMin = Math.max(60, Math.min(...allMW) - 12);
-    mwMax =             Math.max(...allMW) + 20;
+    mwMax = Math.max(...allMW) + 20;
   }
   const ldMin = 0;
   const ldMax = 1;
@@ -99,8 +99,8 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     if (inNsga2) return c.dominated ? "#374151" : psafeColor(c.psafe ?? 0.5);
     return "#6b7280";
   };
-  const getDotR   = c => inNsga2 ? (c.dominated ? 3.5 : (c.is_new ? 5 : 5.5)) : 4;
-  const getDotOp  = c => {
+  const getDotR = c => inNsga2 ? (c.dominated ? 3.5 : (c.is_new ? 5 : 5.5)) : 4;
+  const getDotOp = c => {
     if (animPhase === "pool") return 0.5;
     if (inMutation || inPred) {
       if (c.is_new) return inMutation ? 0.65 : 0.75;
@@ -119,7 +119,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     return "fill 0.65s ease 0.25s, opacity 0.55s ease 0.25s, r 0.4s ease 0.2s";
   };
 
-  const getLabelY  = c => (animPhase === "pool") ? axisY - 9 : py(c.psweet) - 9;
+  const getLabelY = c => (animPhase === "pool") ? axisY - 9 : py(c.psweet) - 9;
   const getLabelOp = () => inPred ? 0.72 : 0;
   const getLabelTransition = i => {
     if (animPhase === "pool") return "none";
@@ -131,14 +131,14 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
   const ghostDots = animPhase === "pool" ? (prevAllDots ?? []) : (prevPareto ?? []);
 
   const front = inNsga2
-    ? [...dots].filter(c => !c.dominated).sort((a,b) => a.mw - b.mw)
+    ? [...dots].filter(c => !c.dominated).sort((a, b) => a.mw - b.mw)
     : [];
   const frontPath = front.length > 1
-    ? front.map((c,j) => `${j===0?"M":"L"}${px(c.mw).toFixed(1)},${py(c.psweet).toFixed(1)}`).join(" ")
+    ? front.map((c, j) => `${j === 0 ? "M" : "L"}${px(c.mw).toFixed(1)},${py(c.psweet).toFixed(1)}`).join(" ")
     : "";
 
-  const mwTicks = [80,100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,450,500].filter(v => v >= mwMin && v <= mwMax + 4);
-  const ldTicks = [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0].filter(v => v >= ldMin - 0.01 && v <= ldMax + 0.01);
+  const mwTicks = [80, 100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360, 380, 400, 450, 500].filter(v => v >= mwMin && v <= mwMax + 4);
+  const ldTicks = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0].filter(v => v >= ldMin - 0.01 && v <= ldMax + 0.01);
 
   return (
     <div className="relative">
@@ -151,10 +151,6 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
           <line key={v} x1={pad.l} y1={py(v)} x2={pad.l + plotW} y2={py(v)} stroke="#1f2937" strokeWidth={0.5} />
         ))}
 
-        <rect x={pad.l} y={pad.t} width={plotW * 0.22} height={plotH * 0.22}
-          fill="#a855f7" opacity={0.06} rx={3} />
-        <text x={pad.l + 5} y={pad.t + 12} fontSize={7} fill="#a855f7" opacity={0.45}>ideal</text>
-
         <line x1={pad.l} y1={pad.t} x2={pad.l} y2={axisY} stroke="#374151" strokeWidth={1} />
         <line x1={pad.l} y1={axisY} x2={pad.l + plotW} y2={axisY} stroke="#374151" strokeWidth={1} />
 
@@ -165,7 +161,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
         {ghostDots.map((c, i) => {
           const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : psafeColor(c.psafe ?? 0.5));
-          const op   = animPhase === "pool"
+          const op = animPhase === "pool"
             ? (c.dominated ? 0.12 : 0.22)
             : (c.dominated ? 0.18 : 0.32);
           return (
@@ -280,30 +276,30 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
 // ── Main component ─────────────────────────────────────────────────────────────
 const SweetnessEnhancer = () => {
-  const [animPhase, setAnimPhase]         = useState("idle");
-  const [poolMeta, setPoolMeta]           = useState(null);
-  const [modelMeta, setModelMeta]         = useState(null);
-  const [propRange, setPropRange]         = useState(null);
-  const [generations, setGenerations]     = useState([]);
-  const [reference, setReference]         = useState(null);
+  const [animPhase, setAnimPhase] = useState("idle");
+  const [poolMeta, setPoolMeta] = useState(null);
+  const [modelMeta, setModelMeta] = useState(null);
+  const [propRange, setPropRange] = useState(null);
+  const [generations, setGenerations] = useState([]);
+  const [reference, setReference] = useState(null);
   const [currentGenIdx, setCurrentGenIdx] = useState(0);
-  const [nGensTotal, setNGensTotal]       = useState(0);
-  const [error, setError]                 = useState(null);
-  const [modelsReady, setModelsReady]     = useState({ ames: false, taste: false });
-  const [prevAllDots, setPrevAllDots]     = useState([]);
-  const [prevPareto, setPrevPareto]       = useState([]);
-  const [showResults, setShowResults]     = useState(false);
+  const [nGensTotal, setNGensTotal] = useState(0);
+  const [error, setError] = useState(null);
+  const [modelsReady, setModelsReady] = useState({ ames: false, taste: false });
+  const [prevAllDots, setPrevAllDots] = useState([]);
+  const [prevPareto, setPrevPareto] = useState([]);
+  const [showResults, setShowResults] = useState(false);
   const [parentColorMap, setParentColorMap] = useState(new Map());
-  const [smilesNames, setSmilesNames]     = useState({});
+  const [smilesNames, setSmilesNames] = useState({});
   const [resultsFromCache, setResultsFromCache] = useState(false);
 
-  const phaseTimers    = useRef([]);
-  const gensRef        = useRef([]);
-  const animQueueRef   = useRef([]);
+  const phaseTimers = useRef([]);
+  const gensRef = useRef([]);
+  const animQueueRef = useRef([]);
   const isAnimatingRef = useRef(false);
-  const streamDoneRef  = useRef(false);
+  const streamDoneRef = useRef(false);
   const pendingNextRef = useRef(false);
-  const abortRef       = useRef(null);
+  const abortRef = useRef(null);
 
   useEffect(() => {
     Promise.all([
@@ -312,7 +308,7 @@ const SweetnessEnhancer = () => {
       fetch(`${BACKEND}/molecule-finder/saved-optimization/3obj`).then(r => r.status === 204 ? null : r.ok ? r.json() : null),
     ]).then(([meta, datasets, saved]) => {
       if (meta) setPoolMeta(meta.sweetness);
-      const ames  = datasets.find(d => d.id === "ames_mutagenicity");
+      const ames = datasets.find(d => d.id === "ames_mutagenicity");
       const taste = datasets.find(d => d.id === "flavor_sensory");
       setModelsReady({ ames: !!ames?.n_cached, taste: !!taste?.n_cached });
       if (saved?.generations?.length > 0) {
@@ -327,7 +323,7 @@ const SweetnessEnhancer = () => {
         setAnimPhase("done");
         setResultsFromCache(true);
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const clearAll = () => {
@@ -380,7 +376,7 @@ const SweetnessEnhancer = () => {
     const refMW = reference?.mw ?? 302;
     return {
       mwMin: Math.max(60, Math.min(propRange.mw_min ?? 100, refMW) - 18),
-      mwMax:              Math.max(propRange.mw_max ?? 500, refMW) + 30,
+      mwMax: Math.max(propRange.mw_max ?? 500, refMW) + 30,
     };
   }, [propRange, reference]);
 
@@ -389,10 +385,10 @@ const SweetnessEnhancer = () => {
     abortRef.current = new AbortController();
 
     clearAll();
-    gensRef.current        = [];
-    animQueueRef.current   = [];
+    gensRef.current = [];
+    animQueueRef.current = [];
     isAnimatingRef.current = false;
-    streamDoneRef.current  = false;
+    streamDoneRef.current = false;
     pendingNextRef.current = false;
 
     setAnimPhase("loading");
@@ -417,7 +413,7 @@ const SweetnessEnhancer = () => {
       }
       if (!res.ok) throw new Error(await res.text());
 
-      const reader  = res.body.getReader();
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
@@ -433,10 +429,10 @@ const SweetnessEnhancer = () => {
 
           const lines = block.split("\n");
           let eventType = "message";
-          let dataStr   = "";
+          let dataStr = "";
           for (const line of lines) {
-            if (line.startsWith("event: "))     eventType = line.slice(7).trim();
-            else if (line.startsWith("data: ")) dataStr   = line.slice(6);
+            if (line.startsWith("event: ")) eventType = line.slice(7).trim();
+            else if (line.startsWith("data: ")) dataStr = line.slice(6);
           }
           if (!dataStr) continue;
 
@@ -523,9 +519,9 @@ const SweetnessEnhancer = () => {
   const handleReplay = () => {
     if (gensRef.current.length === 0) return;
     clearAll();
-    animQueueRef.current   = [];
+    animQueueRef.current = [];
     isAnimatingRef.current = false;
-    streamDoneRef.current  = true;
+    streamDoneRef.current = true;
     pendingNextRef.current = false;
 
     const gens = gensRef.current;
@@ -580,11 +576,11 @@ const SweetnessEnhancer = () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ generations, reference, poolMeta, modelMeta, propRange }),
-    }).catch(() => {});
+    }).catch(() => { });
   }, [animPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClear = () => {
-    fetch(`${BACKEND}/molecule-finder/saved-optimization/3obj`, { method: "DELETE" }).catch(() => {});
+    fetch(`${BACKEND}/molecule-finder/saved-optimization/3obj`, { method: "DELETE" }).catch(() => { });
     clearAll();
     abortRef.current?.abort();
     gensRef.current = [];
@@ -609,26 +605,26 @@ const SweetnessEnhancer = () => {
   }, []);
 
   const isRunning = ["pool", "mutation", "wait_mutation", "prediction", "nsga2"].includes(animPhase);
-  const isActive  = isRunning || animPhase === "done";
+  const isActive = isRunning || animPhase === "done";
   const bothReady = modelsReady.ames && modelsReady.taste;
 
   const activeStep =
-    animPhase === "pool"                                          ? 1
-    : (animPhase === "mutation" || animPhase === "wait_mutation") ? 2
-    : animPhase === "prediction"                                  ? 3
-    : (animPhase === "nsga2" || animPhase === "done")             ? 4
-    : 0;
+    animPhase === "pool" ? 1
+      : (animPhase === "mutation" || animPhase === "wait_mutation") ? 2
+        : animPhase === "prediction" ? 3
+          : (animPhase === "nsga2" || animPhase === "done") ? 4
+            : 0;
 
-  const currentGen  = generations[currentGenIdx];
-  const totalGens   = nGensTotal || 1;
-  const progress    = nGensTotal > 1 && currentGenIdx > 0
+  const currentGen = generations[currentGenIdx];
+  const totalGens = nGensTotal || 1;
+  const progress = nGensTotal > 1 && currentGenIdx > 0
     ? (currentGenIdx / (totalGens - 1)) * 100
     : 0;
 
   const finalPareto = animPhase === "done"
     ? [...(generations[generations.length - 1]?.candidates ?? [])]
       .filter(c => !c.dominated)
-      .sort((a,b) => (b.psweet ?? 0.5) - (a.psweet ?? 0.5))
+      .sort((a, b) => (b.psweet ?? 0.5) - (a.psweet ?? 0.5))
     : [];
 
   const s1 = activeStep === 1;
@@ -637,7 +633,7 @@ const SweetnessEnhancer = () => {
   const s4 = activeStep === 4 || animPhase === "done";
 
   const missingModels = [
-    !modelsReady.ames  && "AMES Mutagenicity",
+    !modelsReady.ames && "AMES Mutagenicity",
     !modelsReady.taste && "FartDB Taste",
   ].filter(Boolean);
 
@@ -679,7 +675,7 @@ const SweetnessEnhancer = () => {
               </div>
             </div>
 
-            <div className="h-px bg-gray-800/60 mb-3 mt-2" />
+            <div className="h-px bg-gray-800/60 mb-3" />
 
             {/* Step 1 — Candidate Pool */}
             <div className="flex items-start gap-2.5 pb-3">
@@ -701,16 +697,6 @@ const SweetnessEnhancer = () => {
                         {poolMeta.n_excluded} excluded (halogens/metals)
                       </span>
                     )}
-                    <span>Similarity ≥ <span className="text-gray-400">{poolMeta.threshold}%</span></span>
-                    <div className="flex flex-wrap gap-1 mt-0.5">
-                      {poolMeta.seeds?.map(seed => (
-                        <span key={seed} className={`px-1.5 py-0.5 rounded text-[9px] border transition-colors duration-500
-                          ${s1 ? "bg-violet-900/20 border-violet-800/30 text-violet-400" : "bg-gray-900 border-gray-800 text-gray-600"}`}>
-                          {seed}
-                        </span>
-                      ))}
-                    </div>
-                    <span className="text-[9px] text-gray-600 mt-0.5">First generation only</span>
                   </div>
                 ) : <span className="text-[10px] text-gray-600">Loading…</span>}
               </div>
@@ -745,15 +731,8 @@ const SweetnessEnhancer = () => {
                   Property Prediction
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>P(sweet): <span className="text-gray-400">FartDB taste RF</span></span>
-                  <span>P(safe AMES): <span className="text-gray-400">AMES mutagenicity RF</span></span>
+                  <span>P(sweet) and P(safe AMES): <span className={`text-[9px] leading-snug transition-colors duration-500 text-indigo-400`}>Models trained in the Property Prediction Tab</span></span>
                   <span>MW: <span className="text-gray-400">RDKit ExactMolWt</span></span>
-                  {modelMeta?.oob_accuracy_taste != null && (
-                    <span>OOB acc. taste: <span className={`font-semibold transition-colors duration-500 ${s3 ? "text-emerald-400" : "text-gray-500"}`}>{modelMeta.oob_accuracy_taste}</span></span>
-                  )}
-                  {modelMeta?.oob_accuracy_ames != null && (
-                    <span>OOB acc. AMES: <span className={`font-semibold transition-colors duration-500 ${s3 ? "text-emerald-400" : "text-gray-500"}`}>{modelMeta.oob_accuracy_ames}</span></span>
-                  )}
                   {propRange && (
                     <span className="text-[9px] text-gray-600">
                       P(sweet) {propRange.psweet_min}…{propRange.psweet_max} · MW {propRange.mw_min}–{propRange.mw_max} Da
@@ -776,31 +755,33 @@ const SweetnessEnhancer = () => {
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
                   <span>Obj-1: P(sweet) ↑ &nbsp;·&nbsp; Obj-2: MW ↓ &nbsp;·&nbsp; Obj-3: P(safe AMES) ↑</span>
                   <span className="text-[9px] text-gray-600">Non-dominated rank + crowding distance · selects top 100</span>
-                  {isActive && (
-                    <div className="mt-1">
-                      <div className="flex justify-between text-[9px] text-gray-500 mb-1">
-                        <span>Gen {currentGenIdx} / {totalGens - 1}</span>
-                        <span>
-                          {(currentGen?.n_new ?? 0) > 0 && (
-                            <span className="text-indigo-400 mr-1">+{currentGen.n_new} new</span>
-                          )}
-                          {currentGen?.candidates?.filter(c => !c.dominated).length ?? 0} Pareto-opt.
-                        </span>
-                      </div>
-                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-full transition-all duration-1000"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
 
             <div className="flex-1 min-h-3" />
-            <div className="h-px bg-gray-800/60 mt-3 mb-3" />
+            <div className="h-px bg-gray-800/60 mb-3" />
+            {isActive && (
+              <div className="">
+                <div className="flex justify-between text-[9px] text-gray-500 mb-1">
+                  <span>Gen {currentGenIdx} / {totalGens - 1}</span>
+                  <span>
+                    {(currentGen?.n_new ?? 0) > 0 && (
+                      <span className="text-indigo-400 mr-1">+{currentGen.n_new} new</span>
+                    )}
+                    {currentGen?.candidates?.filter(c => !c.dominated).length ?? 0} Pareto-opt.
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-full transition-all duration-1000"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            <div className="flex-1 min-h-3" />
+            <div className="h-px bg-gray-800/60 mb-3" />
 
             {missingModels.length > 0 && (
               <div className="mb-3 px-3 py-2.5 rounded-lg bg-amber-900/25 border border-amber-700/40 text-[11px] text-amber-300 leading-snug">
@@ -808,12 +789,6 @@ const SweetnessEnhancer = () => {
               </div>
             )}
 
-            {resultsFromCache && (
-              <div className="mb-2 px-3 py-1.5 rounded-lg bg-indigo-900/20 border border-indigo-800/40 text-[10px] text-indigo-400 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />
-                Results loaded from previous run
-              </div>
-            )}
             <div className="flex gap-2">
               <button
                 onClick={handleOptimize}
@@ -823,10 +798,16 @@ const SweetnessEnhancer = () => {
                   disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {animPhase === "loading" ? "Loading…"
-                  : isRunning            ? "Optimising…"
-                  : animPhase === "done" ? "▶ Run again"
-                  : "▶ Run pipeline"}
+                  : isRunning ? "Optimising…"
+                    : animPhase === "done" ? "▶ Run again"
+                      : "▶ Run pipeline"}
               </button>
+              {resultsFromCache && (
+                <div className="px-3 py-1.5 rounded-lg bg-indigo-900/20 border border-indigo-800/40 text-[10px] text-indigo-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />
+                  Results loaded from previous run
+                </div>
+              )}
               {animPhase === "done" && (
                 <button
                   onClick={handleReplay}
@@ -851,7 +832,7 @@ const SweetnessEnhancer = () => {
                 ? `${poolMeta.n_after_filter ?? poolMeta.n_candidates} compounds · colour = P(safe AMES) from AMES RF`
                 : "3-objective Pareto space"}
             </div>
-            <div className="mb-3 flex items-center">
+            <div className="flex items-center">
               <StepBar activeStep={activeStep} pulseStep={animPhase === "wait_mutation" ? 2 : null} />
               {animPhase === "done" && finalPareto.length > 0 && (
                 <>
@@ -881,31 +862,31 @@ const SweetnessEnhancer = () => {
                 />
 
                 <div className="flex items-center gap-2 mt-2">
-                    <span className="text-[9px] text-gray-600">P(safe AMES):</span>
-                    <svg width={90} height={10} viewBox="0 0 90 10">
-                      <defs>
-                        <linearGradient id="psafeGrad" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%"   stopColor="#ef4444" />
-                          <stop offset="50%"  stopColor="#f59e0b" />
-                          <stop offset="100%" stopColor="#22c55e" />
-                        </linearGradient>
-                      </defs>
-                      <rect x={0} y={2} width={90} height={6} rx={3} fill="url(#psafeGrad)" opacity={0.8} />
-                    </svg>
-                    <span className="text-[9px] text-red-400">0 (risky)</span>
-                    <span className="text-[9px] text-emerald-400 ml-1">1 (safe)</span>
+                  <span className="text-[9px] text-gray-600">P(safe AMES):</span>
+                  <svg width={90} height={10} viewBox="0 0 90 10">
+                    <defs>
+                      <linearGradient id="psafeGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#ef4444" />
+                        <stop offset="50%" stopColor="#f59e0b" />
+                        <stop offset="100%" stopColor="#22c55e" />
+                      </linearGradient>
+                    </defs>
+                    <rect x={0} y={2} width={90} height={6} rx={3} fill="url(#psafeGrad)" opacity={0.8} />
+                  </svg>
+                  <span className="text-[9px] text-red-400">0 (risky)</span>
+                  <span className="text-[9px] text-emerald-400 ml-1">1 (safe)</span>
 
-                    <div className="ml-3 flex flex-wrap gap-3">
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 opacity-85" />New offspring
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-gray-600 opacity-60" />Dominated
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Homoeriodictyol (ref)
-                      </div>
+                  <div className="ml-3 flex flex-wrap gap-3">
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 opacity-85" />New offspring
                     </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <div className="w-2.5 h-2.5 rounded-full bg-gray-600 opacity-60" />Dominated
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Homoeriodictyol (ref)
+                    </div>
+                  </div>
                 </div>
               </>
             ) : (
@@ -947,7 +928,7 @@ const SweetnessEnhancer = () => {
                 <table className="w-full text-[11px]">
                   <thead className="sticky top-0 bg-[#0e0e0e]">
                     <tr className="border-b border-gray-800">
-                      {["#","Name","P(sweet) ↑","MW (Da) ↓","P(safe AMES) ↑","QED","SA","PAINS","Origin"].map(h => (
+                      {["#", "Name", "P(sweet) ↑", "MW (Da) ↓", "P(safe AMES) ↑", "QED", "SA", "PAINS", "Origin"].map(h => (
                         <th key={h} className="px-3 py-2 text-left text-gray-500 font-medium">{h}</th>
                       ))}
                     </tr>
@@ -970,7 +951,7 @@ const SweetnessEnhancer = () => {
                                       className="flex-shrink-0 text-gray-500 hover:text-violet-400 transition-colors text-[13px]"
                                       title="Search in PubChem">
                                       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                        <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                                       </svg>
                                     </button>
                                   )}

@@ -7,7 +7,7 @@ const USE_CASES = [
   {
     sector: "Food & Beverage",
     title: "Ingredient reformulation",
-    body: "Sugar, alcohol, and fat reduction are key health targets. Reformulating recipes requires finding molecules that preserve taste and texture while improving nutritional profiles.",
+    body: "Sugar, alcohol, and fat reduction are global key health targets. Reformulating recipes requires finding molecules that preserve taste and texture while improving nutritional profiles.",
   },
   {
     sector: "Cosmetics & Fragrance",
@@ -30,7 +30,7 @@ const UseCaseCard = ({ uc, isLast }) => (
   <div className={`py-3 ${!isLast ? "border-b border-gray-800/50" : ""}`}>
     <div className="text-[9px] uppercase tracking-widest text-gray-600">{uc.sector}</div>
     <span className="text-xs font-semibold uppercase tracking-widest text-gray-300">{uc.title}</span>
-    <p className="text-[11px] text-gray-400 leading-snug">{uc.body}</p>
+    <p className="text-[12px] text-gray-500 leading-snug">{uc.body}</p>
   </div>
 );
 
@@ -104,11 +104,18 @@ const SurfacePlot = () => {
     return `hsl(222,${s.toFixed(0)}%,${l.toFixed(0)}%)`;
   };
 
-  const minPt  = proj(ox, oy, f(ox, oy));
+  const minPt = proj(ox, oy, f(ox, oy));
   const origin = proj(0, 0, 0);
-  const endX   = proj(1.1, 0, 0);
-  const endY   = proj(0, 1.1, 0);
-  const endZ   = proj(0, 0, 0.95);
+  const endX = proj(1.1, 0, 0);
+  const endY = proj(0, 1.1, 0);
+  const endZ = proj(0, 0, 0.95);
+
+  const suboptimalPoints = [
+    { x: 0.20, y: 0.74 }, // Nel secondo pozzo
+    { x: 0.45, y: 0.30 }, // Su un pendio
+    { x: 0.70, y: 0.15 }, // Vicino al bordo
+    { x: 0.10, y: 0.40 }, // Un altro punto casuale
+  ];
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
@@ -130,6 +137,20 @@ const SurfacePlot = () => {
       <text x={endY.sx - 4} y={endY.sy + 3} fontSize={9} fill="#6b7280" textAnchor="end">← property 2</text>
       <text x={endZ.sx - 4} y={endZ.sy + 2} fontSize={9} fill="#6b7280" textAnchor="end">property 3 ↑</text>
 
+      {/* Suboptimal candidates */}
+      {suboptimalPoints.map((pt, i) => {
+        const p = proj(pt.x, pt.y, f(pt.x, pt.y));
+        return (
+          <circle
+            key={i}
+            cx={p.sx}
+            cy={p.sy}
+            r={1.8}
+            fill="#ffffff"
+            fillOpacity={0.8}
+          />
+        );
+      })}
       {/* Optimal candidate */}
       <circle cx={minPt.sx} cy={minPt.sy} r={6.5} fill="none" stroke="#ffffff" strokeWidth={1.1} opacity={0.6} />
       <circle cx={minPt.sx} cy={minPt.sy} r={2.5} fill="#ffffff" opacity={0.85} />
@@ -191,11 +212,11 @@ const Overview = () => (
       {/* State of the art */}
       <div className="border border-purple-900/30 rounded-lg px-3 py-3 bg-purple-950/10 flex flex-col gap-3">
         <p className="text-sm text-gray-400 leading-relaxed">
-          The state of the art today: domain experts narrow down candidates running thousands of miniaturised biochemical tests in parallel. The harder challenge is <strong className="text-gray-300">multi-objective design</strong>: finding a molecule that is simultaneously active, safe, stable, and economically viable.
+          Domain experts narrow down candidates running thousands of miniaturised biochemical tests. The harder challenge is <strong className="text-gray-300">multi-objective design</strong>: finding a molecule that is simultaneously active, safe, stable, and economically viable.
         </p>
         <div className="flex items-center gap-3 border-t border-purple-900/20 pt-3">
           <LuBrain className="w-4 h-4 text-purple-500/60 flex-shrink-0" />
-          <p className="text-base text-gray-300 leading-relaxed">
+          <p className="text-sm text-gray-200 leading-relaxed">
             What if a model could predict a molecule's properties before it is ever synthesised — and learn, generation after generation, where the best candidates are hiding?
           </p>
         </div>

@@ -141,8 +141,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
           <line key={v} x1={pad.l} y1={py(v)} x2={pad.l + plotW} y2={py(v)} stroke="#1f2937" strokeWidth={0.5} />
         ))}
 
-        <rect x={pad.l} y={pad.t} width={plotW * 0.22} height={plotH * 0.22}
-          fill="#22c55e" opacity={0.06} rx={3} />
+        <rect x={pad.l} y={pad.t} width={plotW * 0.22} height={plotH * 0.22} fill="#22c55e" opacity={0.06} rx={3} />
         <text x={pad.l + 5} y={pad.t + 12} fontSize={7} fill="#22c55e" opacity={0.45}>ideal</text>
 
         <line x1={pad.l} y1={pad.t} x2={pad.l} y2={axisY} stroke="#374151" strokeWidth={1} />
@@ -152,7 +151,6 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
           <path d={frontPath} fill="none" stroke="#f43f5e" strokeWidth={1.5}
             strokeDasharray="5 3" opacity={0.6} />
         )}
-
 
         {ghostDots.map((c, i) => {
           const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : "#f43f5e");
@@ -309,7 +307,7 @@ const SolubilityDesign = () => {
         setAnimPhase("done");
         setResultsFromCache(true);
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const clearAll = () => {
@@ -565,11 +563,11 @@ const SolubilityDesign = () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ generations, reference, poolMeta, modelMeta, propRange }),
-    }).catch(() => {});
+    }).catch(() => { });
   }, [animPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClear = () => {
-    fetch(`${BACKEND}/molecule-finder/saved-optimization/2obj`, { method: "DELETE" }).catch(() => {});
+    fetch(`${BACKEND}/molecule-finder/saved-optimization/2obj`, { method: "DELETE" }).catch(() => { });
     clearAll();
     abortRef.current?.abort();
     gensRef.current = [];
@@ -733,29 +731,32 @@ const SolubilityDesign = () => {
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
                   <span>Obj-1: logS ↑ &nbsp;·&nbsp; Obj-2: MW ↓</span>
                   <span className="text-[9px] text-gray-600">Non-dominated rank + crowding distance · selects top 100</span>
-                  {isActive && (
-                    <div className="mt-5">
-                      <div className="flex justify-between text-[9px] text-gray-500 mb-1">
-                        <span>Gen {currentGenIdx} / {totalGens - 1}</span>
-                        <span>
-                          {(currentGen?.n_new ?? 0) > 0 && (
-                            <span className="text-indigo-400 mr-1">+{currentGen.n_new} new</span>
-                          )}
-                          {currentGen?.candidates?.filter(c => !c.dominated).length ?? 0} Pareto-opt.
-                        </span>
-                      </div>
-                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-rose-600 to-fuchsia-600 rounded-full transition-all duration-1000"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
 
+
+            <div className="flex-1 min-h-3" />
+            <div className="h-px bg-gray-800/60 mb-3" />
+            {isActive && (
+              <div className="">
+                <div className="flex justify-between text-[9px] text-gray-500 mb-1">
+                  <span>Gen {currentGenIdx} / {totalGens - 1}</span>
+                  <span>
+                    {(currentGen?.n_new ?? 0) > 0 && (
+                      <span className="text-indigo-400 mr-1">+{currentGen.n_new} new</span>
+                    )}
+                    {currentGen?.candidates?.filter(c => !c.dominated).length ?? 0} Pareto-opt.
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-rose-600 to-fuchsia-600 rounded-full transition-all duration-1000"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="flex-1 min-h-3" />
             <div className="h-px bg-gray-800/60 mb-3" />
 
@@ -765,12 +766,6 @@ const SolubilityDesign = () => {
               </div>
             )}
 
-            {resultsFromCache && (
-              <div className="mb-2 px-3 py-1.5 rounded-lg bg-indigo-900/20 border border-indigo-800/40 text-[10px] text-indigo-400 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />
-                Results loaded from previous run
-              </div>
-            )}
             <div className="flex gap-2">
               <button
                 onClick={handleOptimize}
@@ -784,6 +779,12 @@ const SolubilityDesign = () => {
                     : animPhase === "done" ? "▶ Run again"
                       : "▶ Run pipeline"}
               </button>
+              {resultsFromCache && (
+                <div className="px-3 py-2 rounded-lg bg-rose-900/20 border border-rose-800/40 text-[10px] text-rose-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 flex-shrink-0" />
+                  Results loaded from previous run
+                </div>
+              )}
               {animPhase === "done" && (
                 <button
                   onClick={handleReplay}
@@ -915,7 +916,7 @@ const SolubilityDesign = () => {
                                       className="flex-shrink-0 text-gray-500 hover:text-rose-400 transition-colors text-[13px]"
                                       title="Search in PubChem">
                                       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                        <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                                       </svg>
                                     </button>
                                   )}

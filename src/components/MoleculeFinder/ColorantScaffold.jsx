@@ -4,8 +4,8 @@ import MolImageButton from "./MolImageButton";
 
 const BACKEND = "http://localhost:8000";
 const DUR_POOL_MUTATION = 800;
-const DUR_PREDICTION    = 1800;
-const DUR_NSGA2         = 1100;
+const DUR_PREDICTION = 1800;
+const DUR_NSGA2 = 1100;
 
 // ── Step indicator bar ─────────────────────────────────────────────────────────
 const STEPS = [
@@ -52,7 +52,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
   const currentGen = generations[currentGenIdx] ?? generations[0];
   const dots = currentGen?.candidates ?? [];
   const inNsga2 = animPhase === "nsga2" || animPhase === "done" || animPhase === "wait_mutation";
-  const inPred  = animPhase === "prediction";
+  const inPred = animPhase === "prediction";
 
   let mwMin, mwMax;
   if (bounds) {
@@ -92,7 +92,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     if (inNsga2) return c.dominated ? "#374151" : "#14b8a6";
     return "#6b7280";
   };
-  const getDotR  = c => inNsga2 ? (c.dominated ? 3.5 : (c.is_new ? 5 : 5.5)) : 4;
+  const getDotR = c => inNsga2 ? (c.dominated ? 3.5 : (c.is_new ? 5 : 5.5)) : 4;
   const getDotOp = c => {
     if (animPhase === "pool") return (c.reg_score ?? 0) >= 1.0 ? 0.75 : 0.45;
     if (inMutation || inPred) {
@@ -111,7 +111,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     return "fill 0.65s ease 0.25s, opacity 0.55s ease 0.25s, r 0.4s ease 0.2s";
   };
 
-  const getLabelY  = c => (animPhase === "pool") ? axisY - 9 : py(c.conj_score ?? 0) - 9;
+  const getLabelY = c => (animPhase === "pool") ? axisY - 9 : py(c.conj_score ?? 0) - 9;
   const getLabelOp = () => inPred ? 0.72 : 0;
   const getLabelTransition = i => {
     if (animPhase === "pool") return "none";
@@ -264,29 +264,29 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
 // ── Main component ─────────────────────────────────────────────────────────────
 const ColorantScaffold = () => {
-  const [animPhase, setAnimPhase]       = useState("idle");
-  const [poolMeta, setPoolMeta]         = useState(null);
-  const [modelMeta, setModelMeta]       = useState(null);
-  const [propRange, setPropRange]       = useState(null);
-  const [generations, setGenerations]   = useState([]);
-  const [reference, setReference]       = useState(null);
+  const [animPhase, setAnimPhase] = useState("idle");
+  const [poolMeta, setPoolMeta] = useState(null);
+  const [modelMeta, setModelMeta] = useState(null);
+  const [propRange, setPropRange] = useState(null);
+  const [generations, setGenerations] = useState([]);
+  const [reference, setReference] = useState(null);
   const [currentGenIdx, setCurrentGenIdx] = useState(0);
-  const [nGensTotal, setNGensTotal]     = useState(0);
-  const [error, setError]               = useState(null);
-  const [prevAllDots, setPrevAllDots]   = useState([]);
-  const [prevPareto, setPrevPareto]     = useState([]);
-  const [showResults, setShowResults]   = useState(false);
+  const [nGensTotal, setNGensTotal] = useState(0);
+  const [error, setError] = useState(null);
+  const [prevAllDots, setPrevAllDots] = useState([]);
+  const [prevPareto, setPrevPareto] = useState([]);
+  const [showResults, setShowResults] = useState(false);
   const [parentColorMap, setParentColorMap] = useState(new Map());
-  const [smilesNames, setSmilesNames]   = useState({});
+  const [smilesNames, setSmilesNames] = useState({});
   const [resultsFromCache, setResultsFromCache] = useState(false);
 
-  const phaseTimers    = useRef([]);
-  const gensRef        = useRef([]);
-  const animQueueRef   = useRef([]);
+  const phaseTimers = useRef([]);
+  const gensRef = useRef([]);
+  const animQueueRef = useRef([]);
   const isAnimatingRef = useRef(false);
-  const streamDoneRef  = useRef(false);
+  const streamDoneRef = useRef(false);
   const pendingNextRef = useRef(false);
-  const abortRef       = useRef(null);
+  const abortRef = useRef(null);
 
   useEffect(() => {
     Promise.all([
@@ -306,7 +306,7 @@ const ColorantScaffold = () => {
         setAnimPhase("done");
         setResultsFromCache(true);
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const clearAll = () => {
@@ -368,10 +368,10 @@ const ColorantScaffold = () => {
     abortRef.current = new AbortController();
 
     clearAll();
-    gensRef.current        = [];
-    animQueueRef.current   = [];
+    gensRef.current = [];
+    animQueueRef.current = [];
     isAnimatingRef.current = false;
-    streamDoneRef.current  = false;
+    streamDoneRef.current = false;
     pendingNextRef.current = false;
 
     setAnimPhase("loading");
@@ -390,9 +390,9 @@ const ColorantScaffold = () => {
 
       if (!res.ok) throw new Error(await res.text());
 
-      const reader  = res.body.getReader();
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer    = "";
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -406,7 +406,7 @@ const ColorantScaffold = () => {
 
           const lines = block.split("\n");
           let eventType = "message";
-          let dataStr   = "";
+          let dataStr = "";
           for (const line of lines) {
             if (line.startsWith("event: ")) eventType = line.slice(7).trim();
             else if (line.startsWith("data: ")) dataStr = line.slice(6);
@@ -489,9 +489,9 @@ const ColorantScaffold = () => {
   const handleReplay = () => {
     if (gensRef.current.length === 0) return;
     clearAll();
-    animQueueRef.current   = [];
+    animQueueRef.current = [];
     isAnimatingRef.current = false;
-    streamDoneRef.current  = true;
+    streamDoneRef.current = true;
     pendingNextRef.current = false;
 
     const gens = gensRef.current;
@@ -521,7 +521,7 @@ const ColorantScaffold = () => {
     ];
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a   = document.createElement("a"); a.href = url; a.download = "pareto_scaffold.csv"; a.click();
+    const a = document.createElement("a"); a.href = url; a.download = "pareto_scaffold.csv"; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -547,17 +547,17 @@ const ColorantScaffold = () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ generations, reference, poolMeta, modelMeta, propRange }),
-    }).catch(() => {});
+    }).catch(() => { });
   }, [animPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClear = () => {
-    fetch(`${BACKEND}/molecule-finder/saved-optimization/scaffold`, { method: "DELETE" }).catch(() => {});
+    fetch(`${BACKEND}/molecule-finder/saved-optimization/scaffold`, { method: "DELETE" }).catch(() => { });
     clearAll();
     abortRef.current?.abort();
-    gensRef.current        = [];
-    animQueueRef.current   = [];
+    gensRef.current = [];
+    animQueueRef.current = [];
     isAnimatingRef.current = false;
-    streamDoneRef.current  = false;
+    streamDoneRef.current = false;
     pendingNextRef.current = false;
     setAnimPhase("idle");
     setGenerations([]);
@@ -576,7 +576,7 @@ const ColorantScaffold = () => {
   }, []);
 
   const isRunning = ["pool", "mutation", "prediction", "nsga2", "wait_mutation"].includes(animPhase);
-  const isActive  = isRunning || animPhase === "done";
+  const isActive = isRunning || animPhase === "done";
 
   const activeStep =
     animPhase === "pool" ? 1
@@ -586,8 +586,8 @@ const ColorantScaffold = () => {
             : 0;
 
   const currentGen = generations[currentGenIdx];
-  const totalGens  = nGensTotal || 1;
-  const progress   = totalGens > 1 && currentGenIdx > 0
+  const totalGens = nGensTotal || 1;
+  const progress = totalGens > 1 && currentGenIdx > 0
     ? (currentGenIdx / (totalGens - 1)) * 100
     : 0;
 
@@ -712,38 +712,33 @@ const ColorantScaffold = () => {
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
                   <span>Obj-1: Conj. score ↑ &nbsp;·&nbsp; Obj-2: MW ↓ &nbsp;·&nbsp; Obj-3: Reg. score ↑</span>
                   <span className="text-[9px] text-gray-600">Non-dominated rank + crowding distance · selects top 100</span>
-                  {isActive && (
-                    <div className="mt-5">
-                      <div className="flex justify-between text-[9px] text-gray-500 mb-1">
-                        <span>Gen {currentGenIdx} / {totalGens - 1}</span>
-                        <span>
-                          {(currentGen?.n_new ?? 0) > 0 && (
-                            <span className="text-indigo-400 mr-1">+{currentGen.n_new} new</span>
-                          )}
-                          {currentGen?.candidates?.filter(c => !c.dominated).length ?? 0} Pareto-opt.
-                        </span>
-                      </div>
-                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-teal-600 to-cyan-500 rounded-full transition-all duration-1000"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
 
             <div className="flex-1 min-h-3" />
             <div className="h-px bg-gray-800/60 mb-3" />
-
-            {resultsFromCache && (
-              <div className="mb-2 px-3 py-1.5 rounded-lg bg-teal-900/20 border border-teal-800/40 text-[10px] text-teal-400 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />
-                Results loaded from previous run
+            {isActive && (
+              <div className="">
+                <div className="flex justify-between text-[9px] text-gray-500 mb-1">
+                  <span>Gen {currentGenIdx} / {totalGens - 1}</span>
+                  <span>
+                    {(currentGen?.n_new ?? 0) > 0 && (
+                      <span className="text-indigo-400 mr-1">+{currentGen.n_new} new</span>
+                    )}
+                    {currentGen?.candidates?.filter(c => !c.dominated).length ?? 0} Pareto-opt.
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-teal-600 to-cyan-500 rounded-full transition-all duration-1000"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
               </div>
             )}
+            <div className="flex-1 min-h-3" />
+            <div className="h-px bg-gray-800/60 mb-3" />
 
             <div className="flex gap-2">
               <button
@@ -758,6 +753,12 @@ const ColorantScaffold = () => {
                     : animPhase === "done" ? "▶ Run again"
                       : "▶ Run pipeline"}
               </button>
+              {resultsFromCache && (
+                <div className="px-3 py-1.5 rounded-lg bg-teal-900/20 border border-teal-800/40 text-[10px] text-teal-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />
+                  Results loaded from previous run
+                </div>
+              )}
               {animPhase === "done" && (
                 <button
                   onClick={handleReplay}
@@ -873,12 +874,12 @@ const ColorantScaffold = () => {
                   </thead>
                   <tbody>
                     {finalPareto.map((c, i) => {
-                      const isNew     = c.cid == null;
-                      const refCS     = reference?.conj_score ?? 1.0;
-                      const refMW     = reference?.mw ?? 368;
+                      const isNew = c.cid == null;
+                      const refCS = reference?.conj_score ?? 1.0;
+                      const refMW = reference?.mw ?? 368;
                       const dominates = (c.conj_score ?? 0) > refCS && c.mw < refMW;
-                      const isEU      = (c.reg_score ?? 0) >= 1.0;
-                      const lookup    = smilesNames[c.smiles];
+                      const isEU = (c.reg_score ?? 0) >= 1.0;
+                      const lookup = smilesNames[c.smiles];
                       return (
                         <tr key={i} className={`border-b border-gray-800/40 ${dominates ? "bg-teal-900/10" : ""}`}>
                           <td className="px-3 py-2 text-gray-600">{i + 1}</td>
@@ -892,7 +893,7 @@ const ColorantScaffold = () => {
                                       className="flex-shrink-0 text-gray-500 hover:text-teal-400 transition-colors"
                                       title="Search in PubChem">
                                       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                        <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                                       </svg>
                                     </button>
                                   )}
