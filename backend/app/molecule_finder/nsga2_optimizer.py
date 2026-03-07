@@ -124,6 +124,11 @@ _AROMATIC_MUTATIONS: list[tuple[str, str]] = [
     ("[c:1][CH3]>>[c:1]CC",             "Me→Et"),             # methyl→ethyl homologation
     ("[c:1][CH]=O>>[c:1][CH2][OH]",     "CHO→CH2OH"),
     ("[c:1][CH2][OH]>>[c:1][CH]=O",     "CH2OH→CHO"),
+    # ── Extended food / pigment relevance ──
+    ("[cH:1]>>[c:1]CC=C(C)C",           "add-prenyl"),     # 3,3-dimethylallyl (prenyl) — NHDC-type
+    ("[cH:1]>>[c:1]C(=O)O",             "add-COOH"),       # carboxylic acid substituent
+    ("[c:1][OH]>>[c:1]OC(=O)C",         "OH→OAc"),         # O-acetylation of phenol
+    ("[cH:1]>>[c:1]CC",                 "add-Et"),         # direct ethyl attachment
 ]
 
 _compiled_reactions = None

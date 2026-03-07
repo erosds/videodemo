@@ -92,7 +92,7 @@ const USE_CASES = [
   },
 ];
 
-const UseCases = () => (
+const BeyondFood = () => (
   <div
     className="absolute inset-0 overflow-y-auto no-scrollbar px-12"
     style={{ paddingTop: 200, paddingBottom: 100 }}
@@ -107,4 +107,4 @@ const UseCases = () => (
   </div>
 );
 
-export default UseCases;
+export default BeyondFood;

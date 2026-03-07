@@ -46,26 +46,6 @@ def compute_properties(smiles: str) -> dict:
         return {}
 
 
-def estimate_sa_score_proxy(smiles: str) -> float | None:
-    """Proxy synthetic accessibility score (lower = easier to make).
-
-    Uses ring count and chiral centres as simple heuristics.
-    Returns None on failure.
-    """
-    mol = smiles_to_mol(smiles)
-    if mol is None:
-        return None
-    try:
-        n_rings   = rdMolDescriptors.CalcNumRings(mol)
-        n_chiral  = len(Chem.FindMolChiralCenters(mol, includeUnassigned=True))
-        mw        = Descriptors.ExactMolWt(mol)
-        # Simple heuristic: base 1.5 + ring penalty + chiral penalty + size penalty
-        score = 1.5 + n_rings * 0.25 + n_chiral * 0.35 + max(0, (mw - 200) / 200)
-        return round(min(score, 5.0), 2)
-    except Exception:
-        return None
-
-
 def validate_smiles(smiles: str) -> bool:
     """Return True if the SMILES is valid."""
     return smiles_to_mol(smiles) is not None

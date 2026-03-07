@@ -3,8 +3,8 @@ import { createPortal } from "react-dom";
 
 const BACKEND = "http://localhost:8000";
 const DUR_POOL_MUTATION = 800;  // dots appear — not much to see
-const DUR_PREDICTION    = 1800; // dots animate up — needs time to complete
-const DUR_NSGA2         = 1100; // colour sweep — 250ms delay + 650ms transition + 200ms settle
+const DUR_PREDICTION = 1800; // dots animate up — needs time to complete
+const DUR_NSGA2 = 1100; // colour sweep — 250ms delay + 650ms transition + 200ms settle
 
 // ── Step indicator bar ─────────────────────────────────────────────────────────
 const STEPS = [
@@ -19,12 +19,12 @@ const StepBar = ({ activeStep, pulseStep }) => (
     {STEPS.map((s, i) => (
       <div key={s.n} className="flex items-center">
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-500
-          ${pulseStep === s.n ? "animate-pulse" : ""}
           ${activeStep === s.n
-            ? "bg-violet-900/40 border border-violet-700/50 text-violet-300"
-            : "bg-gray-900/40 border border-gray-800 text-gray-600"}`}>
+            ? "bg-rose-900/40 border border-rose-700/50 text-rose-300"
+            : "bg-gray-900/40 border border-gray-800 text-gray-600"}
+          ${pulseStep === s.n ? "animate-pulse" : ""}`}>
           <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold transition-all duration-500
-            ${activeStep === s.n ? "bg-violet-600 text-white" : "bg-gray-700 text-gray-500"}`}>
+            ${activeStep === s.n ? "bg-rose-600 text-white" : "bg-gray-700 text-gray-500"}`}>
             {s.n}
           </span>
           {s.label}
@@ -37,23 +37,9 @@ const StepBar = ({ activeStep, pulseStep }) => (
   </div>
 );
 
-// ── Color helpers ──────────────────────────────────────────────────────────────
-function lerpColor(hex1, hex2, t) {
-  const r1 = parseInt(hex1.slice(1,3),16), g1 = parseInt(hex1.slice(3,5),16), b1 = parseInt(hex1.slice(5,7),16);
-  const r2 = parseInt(hex2.slice(1,3),16), g2 = parseInt(hex2.slice(3,5),16), b2 = parseInt(hex2.slice(5,7),16);
-  return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
-}
-function psweetColor(p) {
-  if (p < 0.5) return lerpColor("#3b82f6", "#14b8a6", p / 0.5);
-  return lerpColor("#14b8a6", "#f43f5e", (p - 0.5) / 0.5);
-}
-function psafeColor(p) {
-  // green = safe (1), red = mutagenic risk (0)
-  if (p < 0.5) return lerpColor("#ef4444", "#f59e0b", p / 0.5);
-  return lerpColor("#f59e0b", "#22c55e", (p - 0.5) / 0.5);
-}
-
-// ── Animated scatter (3-objective: P(sweet), MW, P(safe AMES)) ────────────────
+// ── Animated scatter ───────────────────────────────────────────────────────────
+// bounds: { mwMin, mwMax, ldMin, ldMax } — fixed scale passed from parent to
+// prevent scale reflows when new generations arrive during streaming.
 const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, prevAllDots, prevPareto, bounds, parentColorMap }) => {
   const W = 380, H = 240;
   const pad = { l: 44, r: 16, t: 28, b: 30 };
@@ -63,10 +49,12 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
   const currentGen = generations[currentGenIdx] ?? generations[0];
   const dots = currentGen?.candidates ?? [];
-  const inNsga2 = animPhase === "nsga2" || animPhase === "done" || animPhase === "wait_mutation";
-  const inPred  = animPhase === "prediction";
+  const inNsga2 = animPhase === "nsga2" || animPhase === "done"
+    || animPhase === "wait_mutation";
+  const inPred = animPhase === "prediction";
 
-  // P(sweet) ∈ [0, 1] — fix Y-axis to full probability range.
+  // P(sweet) ∈ [0, 1] — fix Y-axis to full probability range to avoid
+  // out-of-bounds dots as later generations discover higher-scoring compounds.
   let mwMin, mwMax;
   if (bounds) {
     mwMin = bounds.mwMin;
@@ -75,10 +63,10 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     const allCands = generations.flatMap(g => g.candidates ?? []);
     const allMW = [...allCands.map(c => c.mw), reference?.mw ?? 302].filter(Boolean);
     mwMin = Math.max(60, Math.min(...allMW) - 12);
-    mwMax =             Math.max(...allMW) + 20;
+    mwMax = Math.max(...allMW) + 20;
   }
-  const ldMin = 0;
-  const ldMax = 1;
+  const ldMin = -6;
+  const ldMax = 0;
 
   const px = mw => pad.l + ((mw - mwMin) / (mwMax - mwMin)) * plotW;
   const py = ld => pad.t + (1 - (ld - ldMin) / (ldMax - ldMin)) * plotH;
@@ -86,20 +74,20 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
   const [hovered, setHovered] = useState(null);
 
   const inMutation = animPhase === "mutation";
-  const getDotCy = c => (animPhase === "pool" || (inMutation && c.is_new)) ? axisY : py(c.psweet);
+  const getDotCy = c => (animPhase === "pool" || (inMutation && c.is_new)) ? axisY : py(c.logS ?? ldMin);
 
   const getDotFill = c => {
     if (inMutation || inPred) {
       if (c.is_new) return "#818cf8";                               // this gen's offspring
       const prev = parentColorMap?.get(c.smiles);
-      if (prev) return prev.dominated ? "#374151" : psafeColor(prev.psafe ?? 0.5);
+      if (prev) return prev.dominated ? "#374151" : "#f43f5e";      // parent: colour by prev sort result
       return "#6b7280";
     }
-    if (inNsga2) return c.dominated ? "#374151" : psafeColor(c.psafe ?? 0.5);
+    if (inNsga2) return c.dominated ? "#374151" : "#f43f5e";        // sort result: dominated vs Pareto
     return "#6b7280";
   };
-  const getDotR   = c => inNsga2 ? (c.dominated ? 3.5 : (c.is_new ? 5 : 5.5)) : 4;
-  const getDotOp  = c => {
+  const getDotR = c => inNsga2 ? (c.dominated ? 3.5 : (c.is_new ? 5 : 5.5)) : 4;
+  const getDotOp = c => {
     if (animPhase === "pool") return 0.5;
     if (inMutation || inPred) {
       if (c.is_new) return inMutation ? 0.65 : 0.75;
@@ -118,7 +106,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     return "fill 0.65s ease 0.25s, opacity 0.55s ease 0.25s, r 0.4s ease 0.2s";
   };
 
-  const getLabelY  = c => (animPhase === "pool") ? axisY - 9 : py(c.psweet) - 9;
+  const getLabelY = c => (animPhase === "pool") ? axisY - 9 : py(c.logS ?? ldMin) - 9;
   const getLabelOp = () => inPred ? 0.72 : 0;
   const getLabelTransition = i => {
     if (animPhase === "pool") return "none";
@@ -127,17 +115,19 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     return "opacity 0.3s ease";
   };
 
-  const ghostDots = animPhase === "pool" ? (prevAllDots ?? []) : (prevPareto ?? []);
+  const ghostDots = animPhase === "pool"
+    ? (prevAllDots ?? [])
+    : (prevPareto ?? []);
 
   const front = inNsga2
-    ? [...dots].filter(c => !c.dominated).sort((a,b) => a.mw - b.mw)
+    ? [...dots].filter(c => !c.dominated).sort((a, b) => a.mw - b.mw)
     : [];
   const frontPath = front.length > 1
-    ? front.map((c,j) => `${j===0?"M":"L"}${px(c.mw).toFixed(1)},${py(c.psweet).toFixed(1)}`).join(" ")
+    ? front.map((c, j) => `${j === 0 ? "M" : "L"}${px(c.mw).toFixed(1)},${py(c.logS ?? ldMin).toFixed(1)}`).join(" ")
     : "";
 
-  const mwTicks = [80,100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,450,500].filter(v => v >= mwMin && v <= mwMax + 4);
-  const ldTicks = [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0].filter(v => v >= ldMin - 0.01 && v <= ldMax + 0.01);
+  const mwTicks = [100, 140, 180, 220, 240, 260, 280, 300, 320, 340, 360, 400, 450, 500].filter(v => v >= mwMin && v <= mwMax + 4);
+  const ldTicks = [-6, -5, -4, -3, -2, -1, 0].filter(v => v >= ldMin - 0.01 && v <= ldMax + 0.01);
 
   return (
     <div className="relative">
@@ -151,27 +141,28 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         ))}
 
         <rect x={pad.l} y={pad.t} width={plotW * 0.22} height={plotH * 0.22}
-          fill="#a855f7" opacity={0.06} rx={3} />
-        <text x={pad.l + 5} y={pad.t + 12} fontSize={7} fill="#a855f7" opacity={0.45}>ideal</text>
+          fill="#22c55e" opacity={0.06} rx={3} />
+        <text x={pad.l + 5} y={pad.t + 12} fontSize={7} fill="#22c55e" opacity={0.45}>ideal</text>
 
         <line x1={pad.l} y1={pad.t} x2={pad.l} y2={axisY} stroke="#374151" strokeWidth={1} />
         <line x1={pad.l} y1={axisY} x2={pad.l + plotW} y2={axisY} stroke="#374151" strokeWidth={1} />
 
         {frontPath && (
-          <path d={frontPath} fill="none" stroke="#a855f7" strokeWidth={1.5}
+          <path d={frontPath} fill="none" stroke="#f43f5e" strokeWidth={1.5}
             strokeDasharray="5 3" opacity={0.6} />
         )}
 
+
         {ghostDots.map((c, i) => {
-          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : psafeColor(c.psafe ?? 0.5));
-          const op   = animPhase === "pool"
+          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : "#f43f5e");
+          const op = animPhase === "pool"
             ? (c.dominated ? 0.12 : 0.22)
             : (c.dominated ? 0.18 : 0.32);
           return (
             <circle
               key={`ghost-${c.smiles ?? i}`}
               cx={px(c.mw)}
-              cy={py(c.psweet)}
+              cy={py(c.logS ?? ldMin)}
               r={c.dominated ? 3 : 4}
               fill={fill}
               opacity={op}
@@ -196,7 +187,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
               style={{ transition: getLabelTransition(i) }}
               pointerEvents="none"
             >
-              {c.psweet?.toFixed(3)}
+              {(c.logS ?? ldMin).toFixed(2)}
             </text>
 
             <circle
@@ -210,15 +201,11 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
             {hovered === i && animPhase !== "pool" && (
               <g>
-                <rect x={px(c.mw) + 9} y={py(c.psweet) - 34} width={165} height={48}
+                <rect x={px(c.mw) + 9} y={py(c.logS ?? ldMin) - 26} width={160} height={38}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(c.mw) + 13} y={py(c.psweet) - 21} fontSize={8} fill="#e5e7eb">{c.name}</text>
-                <text x={px(c.mw) + 13} y={py(c.psweet) - 10} fontSize={7} fill="#9ca3af">
-                  P(sweet) {c.psweet?.toFixed(3)} · MW {c.mw} Da
-                </text>
-                <text x={px(c.mw) + 13} y={py(c.psweet) + 1} fontSize={7}
-                  fill={psafeColor(c.psafe ?? 0.5)}>
-                  P(safe AMES) {(c.psafe ?? 0.5).toFixed(3)}{c.is_new ? " · new" : ""}
+                <text x={px(c.mw) + 13} y={py(c.logS ?? ldMin) - 13} fontSize={8} fill="#e5e7eb">{c.name}</text>
+                <text x={px(c.mw) + 13} y={py(c.logS ?? ldMin) - 1} fontSize={7} fill="#9ca3af">
+                  logS {(c.logS ?? ldMin).toFixed(3)} · MW {c.mw} Da{c.is_new ? " · new" : ""}
                 </text>
               </g>
             )}
@@ -233,26 +220,21 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
           </g>
         ))}
 
-        {reference?.psweet != null && reference?.mw != null && (
+        {reference?.logS != null && reference?.mw != null && (
           <g style={{ cursor: "pointer" }}
             onMouseEnter={() => setHovered("ref")}
             onMouseLeave={() => setHovered(null)}>
-            <circle cx={px(reference.mw)} cy={py(reference.psweet)} r={7}
+            <circle cx={px(reference.mw)} cy={py(reference.logS)} r={7}
               fill="none" stroke="#fbbf24" strokeWidth={2} opacity={0.9} />
-            <circle cx={px(reference.mw)} cy={py(reference.psweet)} r={3} fill="#fbbf24" opacity={0.9} />
+            <circle cx={px(reference.mw)} cy={py(reference.logS)} r={3} fill="#fbbf24" opacity={0.9} />
             {hovered === "ref" && (
               <g>
-                <rect x={px(reference.mw) + 9} y={py(reference.psweet) - 34} width={175} height={48}
+                <rect x={px(reference.mw) + 9} y={py(reference.logS) - 26} width={160} height={38}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(reference.mw) + 13} y={py(reference.psweet) - 21} fontSize={8} fill="#fbbf24">Homoeriodictyol (reference)</text>
-                <text x={px(reference.mw) + 13} y={py(reference.psweet) - 10} fontSize={7} fill="#9ca3af">
-                  P(sweet) {reference.psweet?.toFixed(3)} · MW {reference.mw} Da
+                <text x={px(reference.mw) + 13} y={py(reference.logS) - 13} fontSize={8} fill="#fbbf24">Vanillin (reference)</text>
+                <text x={px(reference.mw) + 13} y={py(reference.logS) - 1} fontSize={7} fill="#9ca3af">
+                  logS {reference.logS?.toFixed(3)} · MW {reference.mw} Da
                 </text>
-                {reference.psafe != null && (
-                  <text x={px(reference.mw) + 13} y={py(reference.psweet) + 1} fontSize={7} fill="#fbbf24">
-                    P(safe AMES) {reference.psafe.toFixed(3)}
-                  </text>
-                )}
               </g>
             )}
           </g>
@@ -262,15 +244,15 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
           <text key={v} x={px(v)} y={axisY + 11} fontSize={7} fill="#6b7280" textAnchor="middle">{v}</text>
         ))}
         {ldTicks.map(v => (
-          <text key={v} x={pad.l - 4} y={py(v) + 3} fontSize={7} fill="#6b7280" textAnchor="end">{v.toFixed(1)}</text>
+          <text key={v} x={pad.l - 4} y={py(v) + 3} fontSize={7} fill="#6b7280" textAnchor="end">{v}</text>
         ))}
 
         <text x={pad.l + plotW / 2} y={axisY + 23} fontSize={8} fill="#6b7280" textAnchor="middle">
-          Molecular Weight (Da) — minimise →
+          Molecular Weight (Da) — minimise ←
         </text>
         <text x={10} y={pad.t + plotH / 2} fontSize={8} fill="#6b7280" textAnchor="middle"
           transform={`rotate(-90,10,${pad.t + plotH / 2})`}>
-          P(sweet) — maximise →
+          logS (mol/L) — maximise →
         </text>
       </svg>
     </div>
@@ -278,42 +260,42 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
-const ConstrainedDesign = () => {
-  const [animPhase, setAnimPhase]         = useState("idle");
-  const [poolMeta, setPoolMeta]           = useState(null);
-  const [modelMeta, setModelMeta]         = useState(null);
-  const [propRange, setPropRange]         = useState(null);
-  const [generations, setGenerations]     = useState([]);
-  const [reference, setReference]         = useState(null);
+const SolubilityDesign = () => {
+  const [animPhase, setAnimPhase] = useState("idle");
+  const [poolMeta, setPoolMeta] = useState(null);
+  const [modelMeta, setModelMeta] = useState(null);
+  const [propRange, setPropRange] = useState(null);
+  const [generations, setGenerations] = useState([]);
+  const [reference, setReference] = useState(null);
   const [currentGenIdx, setCurrentGenIdx] = useState(0);
-  const [nGensTotal, setNGensTotal]       = useState(0);
-  const [error, setError]                 = useState(null);
-  const [modelsReady, setModelsReady]     = useState({ ames: false, taste: false });
-  const [prevAllDots, setPrevAllDots]     = useState([]);
-  const [prevPareto, setPrevPareto]       = useState([]);
-  const [showResults, setShowResults]     = useState(false);
+  const [nGensTotal, setNGensTotal] = useState(0);
+  const [error, setError] = useState(null);
+  const [modelReady, setModelReady] = useState(false);
+  const [prevAllDots, setPrevAllDots] = useState([]);
+  const [prevPareto, setPrevPareto] = useState([]);
+  const [showResults, setShowResults] = useState(false);
   const [parentColorMap, setParentColorMap] = useState(new Map());
-  const [smilesNames, setSmilesNames]     = useState({});
+  const [smilesNames, setSmilesNames] = useState({});
   const [resultsFromCache, setResultsFromCache] = useState(false);
 
-  const phaseTimers    = useRef([]);
-  const gensRef        = useRef([]);
-  const animQueueRef   = useRef([]);
-  const isAnimatingRef = useRef(false);
-  const streamDoneRef  = useRef(false);
-  const pendingNextRef = useRef(false);
-  const abortRef       = useRef(null);
+  // Refs — never stale inside setTimeout callbacks
+  const phaseTimers = useRef([]);
+  const gensRef = useRef([]);        // accumulates gens as SSE arrives
+  const animQueueRef = useRef([]);        // queue of { genIdx, prevCands, prevFront }
+  const isAnimatingRef = useRef(false);     // true while a gen's 3-step cycle is running
+  const streamDoneRef = useRef(false);     // true after SSE stream ends
+  const pendingNextRef = useRef(false);     // true when queue was empty but animation wants next
+  const abortRef = useRef(null);
 
   useEffect(() => {
     Promise.all([
       fetch(`${BACKEND}/molecule-finder/candidates/meta`).then(r => r.ok ? r.json() : null),
       fetch(`${BACKEND}/molecule-finder/available-datasets`).then(r => r.ok ? r.json() : []),
-      fetch(`${BACKEND}/molecule-finder/saved-optimization/3obj`).then(r => r.status === 204 ? null : r.ok ? r.json() : null),
+      fetch(`${BACKEND}/molecule-finder/saved-optimization/2obj`).then(r => r.status === 204 ? null : r.ok ? r.json() : null),
     ]).then(([meta, datasets, saved]) => {
-      if (meta) setPoolMeta(meta);
-      const ames  = datasets.find(d => d.id === "ames_mutagenicity");
-      const taste = datasets.find(d => d.id === "flavor_sensory");
-      setModelsReady({ ames: !!ames?.n_cached, taste: !!taste?.n_cached });
+      if (meta) setPoolMeta(meta.solubility);
+      const aqsol = datasets.find(d => d.id === "aqsoldb");
+      if (aqsol?.n_cached) setModelReady(true);
       if (saved?.generations?.length > 0) {
         const gens = saved.generations;
         gensRef.current = gens;
@@ -334,16 +316,22 @@ const ConstrainedDesign = () => {
     phaseTimers.current = [];
   };
 
+  // ── Event-driven animation ─────────────────────────────────────────────────
+  // Called when the next queued gen should start its pool→prediction→nsga2 cycle.
+  // All data reads use refs so stale closures inside setTimeout are safe.
   const processNextGen = () => {
     if (animQueueRef.current.length === 0) {
-      isAnimatingRef.current = false;
       if (streamDoneRef.current) {
+        isAnimatingRef.current = false;
         setGenerations([...gensRef.current]);
         setNGensTotal(gensRef.current.length);
         setAnimPhase("done");
       } else {
-        setAnimPhase("wait_mutation");
+        // Animation caught up with stream — park on step 2 (pulsing) until
+        // the next generation arrives from the backend.
+        isAnimatingRef.current = false;
         pendingNextRef.current = true;
+        setAnimPhase("wait_mutation");
       }
       return;
     }
@@ -351,6 +339,7 @@ const ConstrainedDesign = () => {
     isAnimatingRef.current = true;
     const { genIdx, prevCands, prevFront } = animQueueRef.current.shift();
 
+    // Pool phase: new gen's dots appear at the bottom axis
     setGenerations([...gensRef.current]);
     setCurrentGenIdx(genIdx);
     setAnimPhase(genIdx === 0 ? "pool" : "mutation");
@@ -373,13 +362,14 @@ const ConstrainedDesign = () => {
     phaseTimers.current.push(t1);
   };
 
-  // Y-axis (P(sweet)) always [0, 1] inside AnimatedScatter.
+  // Fixed MW bounds derived from propRange + reference — stable across generations.
+  // Y-axis (P(sweet)) is always [0, 1] inside AnimatedScatter.
   const scatterBounds = useMemo(() => {
     if (!propRange) return null;
     const refMW = reference?.mw ?? 302;
     return {
       mwMin: Math.max(60, Math.min(propRange.mw_min ?? 100, refMW) - 18),
-      mwMax:              Math.max(propRange.mw_max ?? 500, refMW) + 30,
+      mwMax: Math.max(propRange.mw_max ?? 500, refMW) + 30,
     };
   }, [propRange, reference]);
 
@@ -388,10 +378,10 @@ const ConstrainedDesign = () => {
     abortRef.current = new AbortController();
 
     clearAll();
-    gensRef.current        = [];
-    animQueueRef.current   = [];
+    gensRef.current = [];
+    animQueueRef.current = [];
     isAnimatingRef.current = false;
-    streamDoneRef.current  = false;
+    streamDoneRef.current = false;
     pendingNextRef.current = false;
 
     setAnimPhase("loading");
@@ -403,20 +393,15 @@ const ConstrainedDesign = () => {
     setParentColorMap(new Map());
 
     try {
-      const res = await fetch(`${BACKEND}/molecule-finder/optimize-3obj/stream`, {
+      const res = await fetch(`${BACKEND}/molecule-finder/optimize-2obj/stream`, {
         method: "POST",
         signal: abortRef.current.signal,
       });
 
-      if (res.status === 409) {
-        setError("Models not ready.");
-        setAnimPhase("idle");
-        setModelsReady({ ames: false, taste: false });
-        return;
-      }
+      if (res.status === 409) { setAnimPhase("idle"); setModelReady(false); return; }
       if (!res.ok) throw new Error(await res.text());
 
-      const reader  = res.body.getReader();
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
@@ -432,10 +417,10 @@ const ConstrainedDesign = () => {
 
           const lines = block.split("\n");
           let eventType = "message";
-          let dataStr   = "";
+          let dataStr = "";
           for (const line of lines) {
-            if (line.startsWith("event: "))     eventType = line.slice(7).trim();
-            else if (line.startsWith("data: ")) dataStr   = line.slice(6);
+            if (line.startsWith("event: ")) eventType = line.slice(7).trim();
+            else if (line.startsWith("data: ")) dataStr = line.slice(6);
           }
           if (!dataStr) continue;
 
@@ -443,7 +428,7 @@ const ConstrainedDesign = () => {
           try { data = JSON.parse(dataStr); } catch { continue; }
 
           if (eventType === "meta") {
-            setModelsReady({ ames: true, taste: true });
+            setModelReady(true);
             setPoolMeta(data.pool_meta);
             setModelMeta(data.model_meta);
             setReference(data.reference);
@@ -452,6 +437,7 @@ const ConstrainedDesign = () => {
           } else if (eventType === "generation") {
             if (data.property_range) setPropRange(data.property_range);
 
+            // prevCands = last gen's candidates (become ghost dots in pool phase)
             const prevCands = gensRef.current.length > 0
               ? (gensRef.current[gensRef.current.length - 1].candidates ?? [])
               : [];
@@ -461,13 +447,17 @@ const ConstrainedDesign = () => {
             animQueueRef.current.push({ genIdx: data.gen, prevCands, prevFront });
 
             if (pendingNextRef.current) {
+              // Animation was waiting for this gen — start immediately
               pendingNextRef.current = false;
               processNextGen();
             } else if (!isAnimatingRef.current) {
+              // Very first gen: kick off the animation
               processNextGen();
             }
 
           } else if (eventType === "pareto_final") {
+            // Merge enriched properties (QED, SA, PAINS, scaffold, pubchem_verified)
+            // back into the last generation's candidates so finalPareto gets them.
             const bySmiles = new Map(data.map(c => [c.smiles, c]));
             if (gensRef.current.length > 0) {
               const lastIdx = gensRef.current.length - 1;
@@ -492,19 +482,14 @@ const ConstrainedDesign = () => {
             }
 
           } else if (eventType === "error") {
-            if (data.status === 409) {
-              setError(data.detail ?? "Models not ready.");
-              setAnimPhase("idle");
-              setModelsReady({ ames: false, taste: false });
-            } else {
-              setError(data.detail);
-              setAnimPhase("idle");
-            }
+            if (data.status === 409) { setAnimPhase("idle"); setModelReady(false); }
+            else { setError(data.detail); setAnimPhase("idle"); }
             return;
           }
         }
       }
 
+      // Reader ended (stream closed by server after pareto_final + done events)
       streamDoneRef.current = true;
       if (!isAnimatingRef.current && animQueueRef.current.length === 0) {
         setGenerations([...gensRef.current]);
@@ -522,11 +507,12 @@ const ConstrainedDesign = () => {
   const handleReplay = () => {
     if (gensRef.current.length === 0) return;
     clearAll();
-    animQueueRef.current   = [];
+    animQueueRef.current = [];
     isAnimatingRef.current = false;
-    streamDoneRef.current  = true;
+    streamDoneRef.current = true;  // all gens already in ref
     pendingNextRef.current = false;
 
+    // Re-queue every gen for replay
     const gens = gensRef.current;
     for (let i = 0; i < gens.length; i++) {
       const prevCands = i > 0 ? (gens[i - 1].candidates ?? []) : [];
@@ -538,13 +524,12 @@ const ConstrainedDesign = () => {
 
   const exportCsv = () => {
     const rows = [
-      ["#", "Name/SMILES", "P(sweet)", "MW (Da)", "P(safe AMES)", "QED", "SA Score", "PAINS", "Origin"],
+      ["#", "Name/SMILES", "logS", "MW (Da)", "QED", "SA Score", "PAINS", "Origin"],
       ...finalPareto.map((c, i) => [
         i + 1,
         c.cid == null ? c.smiles : c.name,
-        (c.psweet ?? 0).toFixed(3),
+        (c.logS ?? -6).toFixed(3),
         c.mw,
-        (c.psafe ?? 0.5).toFixed(3),
         c.qed != null ? c.qed.toFixed(3) : "",
         c.sa_score != null ? c.sa_score.toFixed(2) : "",
         (c.pains?.length ?? 0) > 0 ? c.pains.join("; ") : "clean",
@@ -553,7 +538,7 @@ const ConstrainedDesign = () => {
     ];
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a = document.createElement("a"); a.href = url; a.download = "pareto_3obj.csv"; a.click();
+    const a = document.createElement("a"); a.href = url; a.download = "pareto_2obj.csv"; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -575,7 +560,7 @@ const ConstrainedDesign = () => {
   // Persist results whenever a live run completes
   useEffect(() => {
     if (animPhase !== "done" || generations.length === 0 || resultsFromCache) return;
-    fetch(`${BACKEND}/molecule-finder/save-optimization/3obj`, {
+    fetch(`${BACKEND}/molecule-finder/save-optimization/2obj`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ generations, reference, poolMeta, modelMeta, propRange }),
@@ -583,7 +568,7 @@ const ConstrainedDesign = () => {
   }, [animPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClear = () => {
-    fetch(`${BACKEND}/molecule-finder/saved-optimization/3obj`, { method: "DELETE" }).catch(() => {});
+    fetch(`${BACKEND}/molecule-finder/saved-optimization/2obj`, { method: "DELETE" }).catch(() => {});
     clearAll();
     abortRef.current?.abort();
     gensRef.current = [];
@@ -607,38 +592,33 @@ const ConstrainedDesign = () => {
     abortRef.current?.abort();
   }, []);
 
-  const isRunning = ["pool", "mutation", "wait_mutation", "prediction", "nsga2"].includes(animPhase);
-  const isActive  = isRunning || animPhase === "done";
-  const bothReady = modelsReady.ames && modelsReady.taste;
+  const isRunning = ["pool", "mutation", "prediction", "nsga2",
+    "wait_mutation"].includes(animPhase);
+  const isActive = isRunning || animPhase === "done";
 
   const activeStep =
-    animPhase === "pool"                                          ? 1
-    : (animPhase === "mutation" || animPhase === "wait_mutation") ? 2
-    : animPhase === "prediction"                                  ? 3
-    : (animPhase === "nsga2" || animPhase === "done")             ? 4
-    : 0;
+    animPhase === "pool" ? 1
+      : (animPhase === "mutation" || animPhase === "wait_mutation") ? 2
+        : animPhase === "prediction" ? 3
+          : (animPhase === "nsga2" || animPhase === "done") ? 4
+            : 0;
 
-  const currentGen  = generations[currentGenIdx];
-  const totalGens   = nGensTotal || 1;
-  const progress    = nGensTotal > 1 && currentGenIdx > 0
+  const currentGen = generations[currentGenIdx];
+  const totalGens = nGensTotal || 1;
+  const progress = totalGens > 1 && currentGenIdx > 0
     ? (currentGenIdx / (totalGens - 1)) * 100
     : 0;
 
   const finalPareto = animPhase === "done"
     ? [...(generations[generations.length - 1]?.candidates ?? [])]
       .filter(c => !c.dominated)
-      .sort((a,b) => (b.psweet ?? 0.5) - (a.psweet ?? 0.5))
+      .sort((a, b) => (b.logS ?? -6) - (a.logS ?? -6))
     : [];
 
   const s1 = activeStep === 1;
   const s2 = activeStep === 2;
   const s3 = activeStep === 3;
   const s4 = activeStep === 4 || animPhase === "done";
-
-  const missingModels = [
-    !modelsReady.ames  && "AMES Mutagenicity",
-    !modelsReady.taste && "FartDB Taste",
-  ].filter(Boolean);
 
   return (
     <div
@@ -667,23 +647,20 @@ const ConstrainedDesign = () => {
                 <div className="w-3 h-3 rounded-full border-2 border-amber-400" />
               </div>
               <div className="text-[10px] text-gray-500">
-                <span className="text-amber-300 font-semibold">Homoeriodictyol</span>
-                <span className="ml-1.5 text-gray-600">CAS 520-33-2 · 302.28 Da</span>
-                {reference?.psweet != null && (
-                  <span className="ml-1.5 text-gray-600">· P(sweet) {reference.psweet.toFixed(2)}</span>
-                )}
-                {reference?.psafe != null && (
-                  <span className="ml-1.5 text-gray-600">· P(safe) {reference.psafe.toFixed(2)}</span>
+                <span className="text-amber-300 font-semibold">Vanillin</span>
+                <span className="ml-1.5 text-gray-600">CAS 121-33-5 · 152.15 Da</span>
+                {reference?.logS != null && (
+                  <span className="ml-1.5 text-gray-600">· logS {reference.logS.toFixed(2)}</span>
                 )}
               </div>
             </div>
 
-            <div className="h-px bg-gray-800/60 mb-3 mt-2" />
+            <div className="h-px bg-gray-800/60 mb-3" />
 
             {/* Step 1 — Candidate Pool */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s1 ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-500"}`}>1</span>
+                ${s1 ? "bg-rose-600 text-white" : "bg-gray-800 text-gray-500"}`}>1</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s1 ? "text-gray-200" : "text-gray-500"}`}>
                   Candidate Pool
@@ -691,25 +668,11 @@ const ConstrainedDesign = () => {
                 {poolMeta ? (
                   <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
                     <span>
-                      <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>
-                        {poolMeta.n_after_filter ?? poolMeta.n_candidates}
-                      </span> flavanone / chalcone compounds · PubChem
+                      <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>{poolMeta.n_candidates}</span> aromatic compounds · PubChem
                     </span>
-                    {(poolMeta.n_excluded ?? 0) > 0 && (
-                      <span className="text-[9px] text-gray-600">
-                        {poolMeta.n_excluded} excluded (halogens/metals)
-                      </span>
-                    )}
-                    <span>Similarity ≥ <span className="text-gray-400">{poolMeta.threshold}%</span></span>
-                    <div className="flex flex-wrap gap-1 mt-0.5">
-                      {poolMeta.seeds?.map(seed => (
-                        <span key={seed} className={`px-1.5 py-0.5 rounded text-[9px] border transition-colors duration-500
-                          ${s1 ? "bg-violet-900/20 border-violet-800/30 text-violet-400" : "bg-gray-900 border-gray-800 text-gray-600"}`}>
-                          {seed}
-                        </span>
-                      ))}
-                    </div>
-                    <span className="text-[9px] text-gray-600 mt-0.5">First generation only</span>
+                    <span className="text-[9px] text-gray-600 leading-snug">
+                      Selected by ≥{poolMeta.threshold}% structural similarity to {poolMeta.seeds?.join(", ")} — known food flavourings used as seeds.
+                    </span>
                   </div>
                 ) : <span className="text-[10px] text-gray-600">Loading…</span>}
               </div>
@@ -720,7 +683,8 @@ const ConstrainedDesign = () => {
             {/* Step 2 — NSGA-II Mutation */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s2 ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-500"}`}>2</span>
+                ${s2 ? "bg-rose-600 text-white" : "bg-gray-800 text-gray-500"}
+                ${animPhase === "wait_mutation" ? "animate-pulse" : ""}`}>2</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s2 ? "text-gray-200" : "text-gray-500"}`}>
                   NSGA-II Mutation
@@ -738,26 +702,19 @@ const ConstrainedDesign = () => {
             {/* Step 3 — Property Prediction */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s3 ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-500"}`}>3</span>
+                ${s3 ? "bg-rose-600 text-white" : "bg-gray-800 text-gray-500"}`}>3</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s3 ? "text-gray-200" : "text-gray-500"}`}>
                   Property Prediction
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>P(sweet): <span className="text-gray-400">FartDB taste RF</span></span>
-                  <span>P(safe AMES): <span className="text-gray-400">AMES mutagenicity RF</span></span>
+                  <span>logS: <span className="text-gray-400">AqSolDB RF regressor</span></span>
+                  <span className={`text-[9px] leading-snug transition-colors duration-500 text-indigo-400`}>
+                    Model trained in the Property Prediction tab
+                    {modelMeta?.oob_r2 != null && <span className="ml-1 font-mono">· OOB R² {modelMeta.oob_r2}</span>}
+                  </span>
                   <span>MW: <span className="text-gray-400">RDKit ExactMolWt</span></span>
-                  {modelMeta?.oob_accuracy_taste != null && (
-                    <span>OOB acc. taste: <span className={`font-semibold transition-colors duration-500 ${s3 ? "text-emerald-400" : "text-gray-500"}`}>{modelMeta.oob_accuracy_taste}</span></span>
-                  )}
-                  {modelMeta?.oob_accuracy_ames != null && (
-                    <span>OOB acc. AMES: <span className={`font-semibold transition-colors duration-500 ${s3 ? "text-emerald-400" : "text-gray-500"}`}>{modelMeta.oob_accuracy_ames}</span></span>
-                  )}
-                  {propRange && (
-                    <span className="text-[9px] text-gray-600">
-                      P(sweet) {propRange.psweet_min}…{propRange.psweet_max} · MW {propRange.mw_min}–{propRange.mw_max} Da
-                    </span>
-                  )}
+
                 </div>
               </div>
             </div>
@@ -767,16 +724,16 @@ const ConstrainedDesign = () => {
             {/* Step 4 — NSGA-II Sort */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s4 ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-500"}`}>4</span>
+                ${s4 ? "bg-rose-600 text-white" : "bg-gray-800 text-gray-500"}`}>4</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s4 ? "text-gray-200" : "text-gray-500"}`}>
                   NSGA-II Sort
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>Obj-1: P(sweet) ↑ &nbsp;·&nbsp; Obj-2: MW ↓ &nbsp;·&nbsp; Obj-3: P(safe AMES) ↑</span>
+                  <span>Obj-1: logS ↑ &nbsp;·&nbsp; Obj-2: MW ↓</span>
                   <span className="text-[9px] text-gray-600">Non-dominated rank + crowding distance · selects top 100</span>
                   {isActive && (
-                    <div className="mt-1">
+                    <div className="mt-5">
                       <div className="flex justify-between text-[9px] text-gray-500 mb-1">
                         <span>Gen {currentGenIdx} / {totalGens - 1}</span>
                         <span>
@@ -788,7 +745,7 @@ const ConstrainedDesign = () => {
                       </div>
                       <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-full transition-all duration-1000"
+                          className="h-full bg-gradient-to-r from-rose-600 to-fuchsia-600 rounded-full transition-all duration-1000"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -799,11 +756,11 @@ const ConstrainedDesign = () => {
             </div>
 
             <div className="flex-1 min-h-3" />
-            <div className="h-px bg-gray-800/60 mt-3 mb-3" />
+            <div className="h-px bg-gray-800/60 mb-3" />
 
-            {missingModels.length > 0 && (
+            {!modelReady && (
               <div className="mb-3 px-3 py-2.5 rounded-lg bg-amber-900/25 border border-amber-700/40 text-[11px] text-amber-300 leading-snug">
-                ⚠ Train first in <strong>Property Prediction</strong>: {missingModels.join(" · ")}.
+                ⚠ Train the <strong>AqSolDB</strong> model first in the <strong>Property Prediction</strong> tab.
               </div>
             )}
 
@@ -816,15 +773,15 @@ const ConstrainedDesign = () => {
             <div className="flex gap-2">
               <button
                 onClick={handleOptimize}
-                disabled={!bothReady || isRunning || animPhase === "loading"}
+                disabled={!modelReady || isRunning || animPhase === "loading"}
                 className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all
-                  bg-violet-700/80 border border-violet-600/60 text-white hover:bg-violet-600/80
+                  bg-rose-700/80 border border-rose-600/60 text-white hover:bg-rose-600/80
                   disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {animPhase === "loading" ? "Loading…"
-                  : isRunning            ? "Optimising…"
-                  : animPhase === "done" ? "▶ Run again"
-                  : "▶ Run pipeline"}
+                  : isRunning ? "Optimising…"
+                    : animPhase === "done" ? "▶ Run again"
+                      : "▶ Run pipeline"}
               </button>
               {animPhase === "done" && (
                 <button
@@ -841,25 +798,24 @@ const ConstrainedDesign = () => {
                 >×</button>
               )}
             </div>
+
           </div>
 
           {/* ── Right column — chart ── */}
           <div className="col-span-3 rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col">
             <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
-              {poolMeta
-                ? `${poolMeta.n_after_filter ?? poolMeta.n_candidates} compounds · colour = P(safe AMES) from AMES RF`
-                : "3-objective Pareto space"}
+              {poolMeta ? `${poolMeta.n_candidates} PubChem aromatic compounds + generated analogs` : "Pareto space"}
             </div>
-            <div className="mb-3 flex items-center">
+            <div className="flex items-center">
               <StepBar activeStep={activeStep} pulseStep={animPhase === "wait_mutation" ? 2 : null} />
               {animPhase === "done" && finalPareto.length > 0 && (
                 <>
                   <div className="h-px w-6 mx-1 bg-gray-800" />
                   <button
                     onClick={() => setShowResults(true)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-violet-900/40 border border-violet-700/50 text-violet-300 hover:bg-violet-800/40 transition-all whitespace-nowrap"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-rose-900/40 border border-rose-700/50 text-rose-300 hover:bg-rose-800/40 transition-all whitespace-nowrap"
                   >
-                    <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-violet-600 text-white">↗</span>
+                    <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-rose-600 text-white">↗</span>
                     Show results
                   </button>
                 </>
@@ -878,40 +834,26 @@ const ConstrainedDesign = () => {
                   bounds={scatterBounds}
                   parentColorMap={parentColorMap}
                 />
-
-                <div className="flex items-center gap-2 mt-2">
-                    <span className="text-[9px] text-gray-600">P(safe AMES):</span>
-                    <svg width={90} height={10} viewBox="0 0 90 10">
-                      <defs>
-                        <linearGradient id="psafeGrad" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%"   stopColor="#ef4444" />
-                          <stop offset="50%"  stopColor="#f59e0b" />
-                          <stop offset="100%" stopColor="#22c55e" />
-                        </linearGradient>
-                      </defs>
-                      <rect x={0} y={2} width={90} height={6} rx={3} fill="url(#psafeGrad)" opacity={0.8} />
-                    </svg>
-                    <span className="text-[9px] text-red-400">0 (risky)</span>
-                    <span className="text-[9px] text-emerald-400 ml-1">1 (safe)</span>
-
-                    <div className="ml-3 flex flex-wrap gap-3">
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 opacity-85" />New offspring
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-gray-600 opacity-60" />Dominated
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Homoeriodictyol (ref)
-                      </div>
-                    </div>
+                <div className="flex flex-wrap gap-4 mt-3">
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                    <div className="w-2.5 h-2.5 rounded-full bg-rose-500 opacity-85" />Pareto-optimal
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 opacity-85" />New offspring
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                    <div className="w-2.5 h-2.5 rounded-full bg-gray-600 opacity-60" />Dominated
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Vanillin (ref)
+                  </div>
                 </div>
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center min-h-48">
                 {animPhase === "loading" ? (
                   <div className="flex flex-col items-center gap-3">
-                    <div className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-6 h-6 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
                     <span className="text-gray-600 text-sm">Evaluating pool & running NSGA-II…</span>
                   </div>
                 ) : (
@@ -934,7 +876,7 @@ const ConstrainedDesign = () => {
                   Pareto-optimal candidates — Final generation
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-gray-600">sorted by P(sweet) ↓</span>
+                  <span className="text-[10px] text-gray-600">sorted by logS ↓</span>
                   <button onClick={exportCsv}
                     className="px-2.5 py-1 rounded text-[10px] border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all"
                     title="Export CSV">⬇ CSV</button>
@@ -946,7 +888,7 @@ const ConstrainedDesign = () => {
                 <table className="w-full text-[11px]">
                   <thead className="sticky top-0 bg-[#0e0e0e]">
                     <tr className="border-b border-gray-800">
-                      {["#","Name","P(sweet) ↑","MW (Da) ↓","P(safe AMES) ↑","QED","SA","PAINS","Origin"].map(h => (
+                      {["#", "Name", "logS ↑", "MW (Da) ↓", "QED", "SA", "PAINS", "vs Vanillin", "Origin"].map(h => (
                         <th key={h} className="px-3 py-2 text-left text-gray-500 font-medium">{h}</th>
                       ))}
                     </tr>
@@ -954,10 +896,13 @@ const ConstrainedDesign = () => {
                   <tbody>
                     {finalPareto.map((c, i) => {
                       const isNew = c.cid == null;
-                      const ps = c.psafe ?? 0.5;
+                      const refLD = reference?.logS ?? -1.3;
+                      const refMW = reference?.mw ?? 152;
+                      const dominates = (c.logS ?? -6) > refLD && c.mw < refMW;
+                      const delta = (c.logS ?? -6) - refLD;
                       const lookup = smilesNames[c.smiles];
                       return (
-                        <tr key={i} className={`border-b border-gray-800/40 ${ps > 0.6 ? "bg-emerald-900/10" : ""}`}>
+                        <tr key={i} className={`border-b border-gray-800/40 ${dominates ? "bg-rose-900/10" : ""}`}>
                           <td className="px-3 py-2 text-gray-600">{i + 1}</td>
                           <td className="px-3 py-2 max-w-[220px]">
                             {isNew ? (
@@ -966,7 +911,7 @@ const ConstrainedDesign = () => {
                                   <span className="font-mono text-[9px] text-gray-400 truncate max-w-[150px] block">{c.smiles}</span>
                                   {!lookup && (
                                     <button onClick={() => lookupSmiles(c.smiles)}
-                                      className="flex-shrink-0 text-gray-500 hover:text-violet-400 transition-colors text-[13px]"
+                                      className="flex-shrink-0 text-gray-500 hover:text-rose-400 transition-colors text-[13px]"
                                       title="Search in PubChem">
                                       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                                         <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -989,17 +934,11 @@ const ConstrainedDesign = () => {
                             )}
                           </td>
                           <td className="px-3 py-2 font-mono">
-                            <span style={{ color: (c.psweet ?? 0) > (reference?.psweet ?? 0.7) ? "#22c55e" : "#9ca3af" }}>
-                              {(c.psweet ?? 0).toFixed(3)}
+                            <span style={{ color: (c.logS ?? -6) > refLD ? "#22c55e" : "#9ca3af" }}>
+                              {(c.logS ?? -6).toFixed(2)}
                             </span>
                           </td>
                           <td className="px-3 py-2 font-mono text-gray-400">{c.mw}</td>
-                          <td className="px-3 py-2 font-mono">
-                            <span style={{ color: psafeColor(ps) }}>{ps.toFixed(3)}</span>
-                            {ps > 0.6 && (
-                              <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-emerald-900/30 text-emerald-400">safe</span>
-                            )}
-                          </td>
                           <td className="px-3 py-2 font-mono">
                             {c.qed != null ? (
                               <span style={{ color: c.qed >= 0.5 ? "#22c55e" : c.qed >= 0.3 ? "#f59e0b" : "#9ca3af" }}>
@@ -1025,6 +964,17 @@ const ConstrainedDesign = () => {
                             )}
                           </td>
                           <td className="px-3 py-2">
+                            {dominates ? (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-900/30 text-green-400 font-semibold">
+                                dominates ✓
+                              </span>
+                            ) : (
+                              <span className="font-mono text-gray-500 text-[10px]">
+                                {delta > 0 ? "+" : ""}{delta.toFixed(2)} logS
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
                             {isNew ? (
                               <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-900/30 text-indigo-400">new</span>
                             ) : (
@@ -1038,11 +988,10 @@ const ConstrainedDesign = () => {
                 </table>
               </div>
               <div className="px-4 py-2 border-t border-gray-800/60 text-[10px] text-gray-600 flex-shrink-0">
-                Seed pool: {poolMeta?.n_after_filter ?? poolMeta?.n_candidates} PubChem compounds ·
-                SMARTS mutation generated {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_after_filter ?? poolMeta?.n_candidates ?? 0))} analogs ·{" "}
+                Seed pool: {poolMeta?.n_candidates} PubChem compounds · SMARTS mutation generated{" "}
+                {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_candidates ?? 0))} analogs ·{" "}
                 {generations[generations.length - 1]?.n_evaluated ?? 0} total evaluated.
-                P(sweet): FartDB taste RF · OOB acc. {modelMeta?.oob_accuracy_taste ?? "—"}.
-                P(safe AMES): AMES mutagenicity RF · OOB acc. {modelMeta?.oob_accuracy_ames ?? "—"}.
+                logS: AqSolDB RF regressor · OOB R² {modelMeta?.oob_r2 ?? "—"}.
               </div>
             </div>
           </div>,
@@ -1054,4 +1003,4 @@ const ConstrainedDesign = () => {
   );
 };
 
-export default ConstrainedDesign;
+export default SolubilityDesign;

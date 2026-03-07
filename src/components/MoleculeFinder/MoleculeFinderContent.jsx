@@ -4,11 +4,12 @@ import Overview from "./Overview";
 import MolecularRepresentation from "./MolecularRepresentation";
 import PropertyPrediction from "./PropertyPrediction";
 import MultiObjectiveOptimizer from "./MultiObjectiveOptimizer";
-import AllergenReplacement from "./AllergenReplacement";
-import ConstrainedDesign from "./ConstrainedDesign";
-import SafetyAndCompliance from "./SafetyAndCompliance";
+import SolubilityDesign from "./SolubilityDesign";
+import SweetnessEnhancer from "./SweetnessEnhancer";
+import ColorantScaffold from "./ColorantScaffold";
+import Regulatory from "./Regulatory";
 import Impact from "./Impact";
-import UseCases from "./UseCases";
+import BeyondFood from "./BeyondFood";
 
 const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
   const { currentOpacity } = getAnimationProgress(scrollIndex, activeIndex, totalSections);
@@ -18,11 +19,12 @@ const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
     <MolecularRepresentation />,
     <PropertyPrediction />,
     <MultiObjectiveOptimizer />,
-    <AllergenReplacement />,
-    <ConstrainedDesign />,
-    <SafetyAndCompliance />,
+    <SolubilityDesign />,
+    <SweetnessEnhancer />,
+    <ColorantScaffold />,
+    <Regulatory />,
     <Impact />,
-    <UseCases />,
+    <BeyondFood />,
   ];
 
   const content = sections[activeIndex] ?? null;

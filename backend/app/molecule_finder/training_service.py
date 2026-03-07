@@ -709,6 +709,47 @@ def get_logP(smiles: str) -> "float | None":
         return None
 
 
+def predict_log_solubility(smiles: str) -> "float | None":
+    """Predict aqueous logS (mol/L) using the trained AqSolDB RF regressor.
+
+    Returns None if the model has not been trained yet.
+    Higher logS (closer to 0) = more water-soluble.
+    """
+    if "aqsoldb" not in _RF_MODEL_CACHE:
+        return None
+    rf = _RF_MODEL_CACHE["aqsoldb"]
+    vec = featurize_smiles(smiles)
+    if vec is None:
+        return None
+    try:
+        return round(float(rf.predict(vec.reshape(1, -1))[0]), 3)
+    except Exception:
+        return None
+
+
+def compute_conjugation_score(smiles: str) -> "float | None":
+    """Estimate chromophore extent: sp2 atom count normalised to curcumin (~20).
+
+    Counts all sp2-hybridised atoms (aromatic ring carbons, C=C, C=O carbons).
+    Curcumin baseline ≈ 20 sp2 atoms → score ≈ 1.0.
+    Returns None if the SMILES is invalid or RDKit is unavailable.
+    """
+    if not RDKIT_OK:
+        return None
+    mol = Chem.MolFromSmiles(str(smiles))
+    if mol is None:
+        return None
+    try:
+        from rdkit.Chem.rdchem import HybridizationType
+        sp2_count = sum(
+            1 for a in mol.GetAtoms()
+            if a.GetHybridization() == HybridizationType.SP2
+        )
+        return round(float(sp2_count) / 20.0, 3)
+    except Exception:
+        return None
+
+
 def predict_logD(smiles: str) -> "float | None":
     """Predict logD at pH 7.4 using the trained ChEMBL Lipophilicity RF model.
 

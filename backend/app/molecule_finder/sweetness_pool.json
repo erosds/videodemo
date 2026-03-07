@@ -1,5 +1,5 @@
 {
-  "source": "Curated PubChem \u2014 flavanone, chalcone, dihydrochalcone, stilbene, and related polyphenol scaffolds with known sweetness-modulating activity",
+  "source": "Curated PubChem \u2014 flavanone, chalcone, dihydrochalcone, flavone, isoflavone, flavonol, stilbenoid and related polyphenol scaffolds with known sweetness-modulating activity",
   "seeds": [
     "Homoeriodictyol",
     "Naringenin",
@@ -14,10 +14,10 @@
   ],
   "threshold": 0,
   "mw_range": [
-    224.26,
+    162.14,
     354.4
   ],
-  "n_candidates": 30,
+  "n_candidates": 80,
   "compounds": [
     {
       "cid": 932,
@@ -258,6 +258,406 @@
       "mw": 238.29,
       "iupac": "4-methoxychalcone",
       "title": "4-Methoxychalcone"
+    },
+    {
+      "cid": 5280961,
+      "name": "Genistein",
+      "smiles": "O=c1c(-c2ccc(O)cc2)coc2cc(O)cc(O)c12",
+      "mw": 270.24,
+      "iupac": "genistein",
+      "title": "Genistein"
+    },
+    {
+      "cid": 5280378,
+      "name": "Formononetin",
+      "smiles": "COc1ccc(-c2coc3cc(O)cc(O)c3c2=O)cc1",
+      "mw": 268.26,
+      "iupac": "formononetin",
+      "title": "Formononetin"
+    },
+    {
+      "cid": 5318587,
+      "name": "Calycosin",
+      "smiles": "COc1ccc(-c2coc3cc(O)ccc3c2=O)cc1O",
+      "mw": 284.27,
+      "iupac": "calycosin",
+      "title": "Calycosin"
+    },
+    {
+      "cid": 5281614,
+      "name": "Fisetin",
+      "smiles": "O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)ccc12",
+      "mw": 286.24,
+      "iupac": "fisetin",
+      "title": "Fisetin"
+    },
+    {
+      "cid": 5281672,
+      "name": "Myricetin",
+      "smiles": "O=c1c(O)c(-c2cc(O)c(O)c(O)c2)oc2cc(O)cc(O)c12",
+      "mw": 318.23,
+      "iupac": "myricetin",
+      "title": "Myricetin"
+    },
+    {
+      "cid": 5281670,
+      "name": "Morin",
+      "smiles": "O=c1c(O)c(-c2cc(O)ccc2O)oc2cc(O)cc(O)c12",
+      "mw": 302.24,
+      "iupac": "morin",
+      "title": "Morin"
+    },
+    {
+      "cid": 5281616,
+      "name": "Galangin",
+      "smiles": "O=c1c(O)c(-c2ccccc2)oc2cc(O)cc(O)c12",
+      "mw": 270.24,
+      "iupac": "galangin",
+      "title": "Galangin"
+    },
+    {
+      "cid": 5281654,
+      "name": "Isorhamnetin",
+      "smiles": "COc1ccc(-c2oc3cc(O)cc(O)c3c(=O)c2O)cc1O",
+      "mw": 316.26,
+      "iupac": "isorhamnetin",
+      "title": "Isorhamnetin"
+    },
+    {
+      "cid": 5274585,
+      "name": "Chrysin",
+      "smiles": "O=c1cc(-c2ccccc2)oc2cc(O)cc(O)c12",
+      "mw": 254.24,
+      "iupac": "chrysin",
+      "title": "Chrysin"
+    },
+    {
+      "cid": 5280442,
+      "name": "Acacetin",
+      "smiles": "COc1ccc(-c2cc(=O)c3c(O)cc(O)cc3o2)cc1",
+      "mw": 284.27,
+      "iupac": "acacetin",
+      "title": "Acacetin"
+    },
+    {
+      "cid": 5281703,
+      "name": "Wogonin",
+      "smiles": "COc1c(O)cc(O)c2c(=O)cc(-c3ccccc3)oc12",
+      "mw": 284.27,
+      "iupac": "wogonin",
+      "title": "Wogonin"
+    },
+    {
+      "cid": 5281612,
+      "name": "Diosmetin",
+      "smiles": "COc1ccc(-c2cc(=O)c3c(O)cc(O)cc3o2)cc1O",
+      "mw": 300.27,
+      "iupac": "diosmetin",
+      "title": "Diosmetin"
+    },
+    {
+      "cid": 161557,
+      "name": "Dihydromyricetin",
+      "smiles": "O=C1c2c(O)cc(O)cc2OC(c2cc(O)c(O)c(O)c2)[C@@H]1O",
+      "mw": 320.25,
+      "iupac": "dihydromyricetin",
+      "title": "Dihydromyricetin"
+    },
+    {
+      "cid": 68072,
+      "name": "Dihydrokaempferol",
+      "smiles": "O=C1c2c(O)cc(O)cc2OC(c2ccc(O)cc2)[C@@H]1O",
+      "mw": 288.26,
+      "iupac": "dihydrokaempferol",
+      "title": "Dihydrokaempferol"
+    },
+    {
+      "cid": 68073,
+      "name": "Pinobanksin",
+      "smiles": "O=C1[C@@H](O)c2c(O)cc(O)cc2OC1c1ccccc1",
+      "mw": 272.26,
+      "iupac": "pinobanksin",
+      "title": "Pinobanksin"
+    },
+    {
+      "cid": 637776,
+      "name": "4,4'-Dihydroxychalcone",
+      "smiles": "O=C(/C=C/c1ccc(O)cc1)c1ccc(O)cc1",
+      "mw": 240.26,
+      "iupac": "4,4'-dihydroxychalcone",
+      "title": "4,4'-Dihydroxychalcone"
+    },
+    {
+      "cid": 5317577,
+      "name": "Kaempferide",
+      "smiles": "COc1ccc(-c2oc3cc(O)cc(O)c3c(=O)c2O)cc1",
+      "mw": 300.27,
+      "iupac": "kaempferide",
+      "title": "Kaempferide"
+    },
+    {
+      "cid": 10399,
+      "name": "Flavone",
+      "smiles": "O=c1cc(-c2ccccc2)oc2ccccc12",
+      "mw": 222.24,
+      "iupac": "flavone",
+      "title": "Flavone"
+    },
+    {
+      "cid": 68248,
+      "name": "4'-Hydroxyflavone",
+      "smiles": "O=c1cc(-c2ccc(O)cc2)oc2ccccc12",
+      "mw": 238.24,
+      "iupac": "4'-hydroxyflavone",
+      "title": "4'-Hydroxyflavone"
+    },
+    {
+      "cid": 68471,
+      "name": "7-Hydroxyflavone",
+      "smiles": "O=c1cc(-c2ccccc2)oc2cc(O)ccc12",
+      "mw": 238.24,
+      "iupac": "7-hydroxyflavone",
+      "title": "7-Hydroxyflavone"
+    },
+    {
+      "cid": 68636,
+      "name": "7-Methoxyflavanone",
+      "smiles": "COc1ccc2c(c1)OC(c1ccccc1)CC2=O",
+      "mw": 254.28,
+      "iupac": "7-methoxyflavanone",
+      "title": "7-Methoxyflavanone"
+    },
+    {
+      "cid": 5281727,
+      "name": "Pterostilbene",
+      "smiles": "COc1cc(/C=C/c2cc(OC)cc(O)c2)cc(OC)c1",
+      "mw": 256.30,
+      "iupac": "pterostilbene",
+      "title": "Pterostilbene"
+    },
+    {
+      "cid": 5281718,
+      "name": "Oxyresveratrol",
+      "smiles": "Oc1ccc(/C=C/c2cc(O)cc(O)c2)c(O)c1",
+      "mw": 244.24,
+      "iupac": "oxyresveratrol",
+      "title": "Oxyresveratrol"
+    },
+    {
+      "cid": 5280522,
+      "name": "Pinosylvin",
+      "smiles": "Oc1cc(/C=C/c2ccccc2)cc(O)c1",
+      "mw": 212.25,
+      "iupac": "pinosylvin",
+      "title": "Pinosylvin"
+    },
+    {
+      "cid": 9064,
+      "name": "Catechin",
+      "smiles": "OC1Cc2c(O)cc(O)cc2OC1c1ccc(O)c(O)c1",
+      "mw": 290.27,
+      "iupac": "catechin",
+      "title": "Catechin"
+    },
+    {
+      "cid": null,
+      "name": "Gallocatechin",
+      "smiles": "OC1Cc2c(O)cc(O)cc2OC1c1cc(O)c(O)c(O)c1",
+      "mw": 306.27,
+      "iupac": "gallocatechin",
+      "title": "Gallocatechin"
+    },
+    {
+      "cid": 689043,
+      "name": "Caffeic acid",
+      "smiles": "OC(=O)/C=C/c1ccc(O)c(O)c1",
+      "mw": 180.16,
+      "iupac": "caffeic acid",
+      "title": "Caffeic acid"
+    },
+    {
+      "cid": 445858,
+      "name": "Ferulic acid",
+      "smiles": "COc1cc(/C=C/C(=O)O)ccc1O",
+      "mw": 194.18,
+      "iupac": "ferulic acid",
+      "title": "Ferulic acid"
+    },
+    {
+      "cid": 637542,
+      "name": "p-Coumaric acid",
+      "smiles": "OC(=O)/C=C/c1ccc(O)cc1",
+      "mw": 164.16,
+      "iupac": "p-coumaric acid",
+      "title": "p-Coumaric acid"
+    },
+    {
+      "cid": null,
+      "name": "Sinapic acid",
+      "smiles": "COc1cc(/C=C/C(=O)O)cc(OC)c1O",
+      "mw": 224.21,
+      "iupac": "sinapic acid",
+      "title": "Sinapic acid"
+    },
+    {
+      "cid": 5281426,
+      "name": "Umbelliferone",
+      "smiles": "Oc1ccc2c(c1)oc(=O)cc2",
+      "mw": 162.14,
+      "iupac": "umbelliferone",
+      "title": "Umbelliferone"
+    },
+    {
+      "cid": 5281455,
+      "name": "Esculetin",
+      "smiles": "O=c1ccc2cc(O)c(O)cc2o1",
+      "mw": 178.14,
+      "iupac": "esculetin",
+      "title": "Esculetin"
+    },
+    {
+      "cid": 5281415,
+      "name": "Scopoletin",
+      "smiles": "COc1cc2ccc(=O)oc2cc1O",
+      "mw": 192.17,
+      "iupac": "scopoletin",
+      "title": "Scopoletin"
+    },
+    {
+      "cid": 370,
+      "name": "Gallic acid",
+      "smiles": "OC(=O)c1cc(O)c(O)c(O)c1",
+      "mw": 170.12,
+      "iupac": "gallic acid",
+      "title": "Gallic acid"
+    },
+    {
+      "cid": 637515,
+      "name": "Chalcone",
+      "smiles": "O=C(/C=C/c1ccccc1)c1ccccc1",
+      "mw": 208.26,
+      "iupac": "chalcone",
+      "title": "Chalcone"
+    },
+    {
+      "cid": 5321867,
+      "name": "3',4'-Dimethoxychalcone",
+      "smiles": "COc1ccc(/C=C/C(=O)c2ccccc2)cc1OC",
+      "mw": 268.31,
+      "iupac": "3',4'-dimethoxychalcone",
+      "title": "3',4'-Dimethoxychalcone"
+    },
+    {
+      "cid": 644073,
+      "name": "p-Methylchalcone",
+      "smiles": "O=C(/C=C/c1ccc(C)cc1)c1ccccc1",
+      "mw": 222.28,
+      "iupac": "p-methylchalcone",
+      "title": "p-Methylchalcone"
+    },
+    {
+      "cid": null,
+      "name": "4,4'-Dimethoxychalcone",
+      "smiles": "COc1ccc(/C=C/C(=O)c2ccc(OC)cc2)cc1",
+      "mw": 268.31,
+      "iupac": "4,4'-dimethoxychalcone",
+      "title": "4,4'-Dimethoxychalcone"
+    },
+    {
+      "cid": null,
+      "name": "2'-Methoxychalcone",
+      "smiles": "O=C(/C=C/c1ccccc1)c1ccccc1OC",
+      "mw": 238.28,
+      "iupac": "2'-methoxychalcone",
+      "title": "2'-Methoxychalcone"
+    },
+    {
+      "cid": 68245,
+      "name": "6-Hydroxyflavone",
+      "smiles": "O=c1cc(-c2ccccc2)oc2cccc(O)c12",
+      "mw": 238.24,
+      "iupac": "6-hydroxyflavone",
+      "title": "6-Hydroxyflavone"
+    },
+    {
+      "cid": 68616,
+      "name": "3',4'-Dihydroxyflavone",
+      "smiles": "O=c1cc(-c2ccc(O)c(O)c2)oc2ccccc12",
+      "mw": 254.24,
+      "iupac": "3',4'-dihydroxyflavone",
+      "title": "3',4'-Dihydroxyflavone"
+    },
+    {
+      "cid": null,
+      "name": "5-Methoxyflavanone",
+      "smiles": "O=C1CC(c2ccccc2)Oc2c(OC)cccc21",
+      "mw": 256.30,
+      "iupac": "5-methoxyflavanone",
+      "title": "5-Methoxyflavanone"
+    },
+    {
+      "cid": null,
+      "name": "3,7-Dihydroxyflavone",
+      "smiles": "O=c1c(O)cc(-c2ccccc2)oc2cc(O)ccc12",
+      "mw": 254.24,
+      "iupac": "3,7-dihydroxyflavone",
+      "title": "3,7-Dihydroxyflavone"
+    },
+    {
+      "cid": 68637,
+      "name": "Alpinetin",
+      "smiles": "O=C1CC(c2ccccc2)Oc2c(O)cc(OC)cc21",
+      "mw": 270.28,
+      "iupac": "alpinetin",
+      "title": "Alpinetin"
+    },
+    {
+      "cid": 5321034,
+      "name": "2',6'-Dihydroxychalcone",
+      "smiles": "O=C(/C=C/c1ccccc1)c1c(O)cccc1O",
+      "mw": 240.26,
+      "iupac": "2',6'-dihydroxychalcone",
+      "title": "2',6'-Dihydroxychalcone"
+    },
+    {
+      "cid": null,
+      "name": "Okanin",
+      "smiles": "O=C(/C=C/c1ccc(O)c(O)c1)c1c(O)c(O)ccc1O",
+      "mw": 288.25,
+      "iupac": "okanin",
+      "title": "Okanin"
+    },
+    {
+      "cid": 5281693,
+      "name": "Tamarixetin",
+      "smiles": "O=c1c(O)c(-c2ccc(OC)c(O)c2)oc2cc(O)cc(O)c12",
+      "mw": 316.26,
+      "iupac": "tamarixetin",
+      "title": "Tamarixetin"
+    },
+    {
+      "cid": null,
+      "name": "Pinocembrin chalcone",
+      "smiles": "O=C(/C=C/c1ccccc1)c1c(O)cc(O)cc1O",
+      "mw": 256.26,
+      "iupac": "pinocembrin chalcone",
+      "title": "Pinocembrin chalcone"
+    },
+    {
+      "cid": null,
+      "name": "2',4'-Dihydroxychalcone",
+      "smiles": "O=C(/C=C/c1ccccc1)c1ccc(O)cc1O",
+      "mw": 240.26,
+      "iupac": "2',4'-dihydroxychalcone",
+      "title": "2',4'-Dihydroxychalcone"
+    },
+    {
+      "cid": null,
+      "name": "Naringenin chalcone 4'-OMe",
+      "smiles": "COc1ccc(/C=C/C(=O)c2c(O)cc(O)cc2O)cc1",
+      "mw": 302.28,
+      "iupac": "naringenin chalcone 4'-methyl ether",
+      "title": "Naringenin chalcone 4'-OMe"
     }
   ]
 }
