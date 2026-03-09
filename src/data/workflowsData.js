@@ -194,7 +194,7 @@ export const workflows = {
       {
         id: 6,
         title: "case: colorant scaffold hopping",
-        subtitle: "3-objective NSGA-II starting from <strong>63 natural yellow/orange pigments</strong> seeded on Curcumin (E100). Maximizing <strong>conjugation score</strong> (extended π-system, proxy for colour intensity) and <strong>regulatory score</strong> (EU E-number status) while minimizing <strong>MW</strong>. Discovers novel bio-based colorant scaffolds.",
+        subtitle: "3-objective NSGA-II starting from <strong>63 natural yellow/orange pigments</strong> seeded on Curcumin (E100). Maximizing <strong>conjugation score</strong> (proxy for colour intensity) and <strong>regulatory score</strong> (EU E-number status) while minimizing <strong>MW</strong>. Discovers novel bio-based colorant scaffolds.",
         gradient: "from-teal-600 via-emerald-600 to-green-600",
       },
       {

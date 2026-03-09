@@ -6,8 +6,8 @@ import { LuChevronDown } from "react-icons/lu";
 const BACKEND = "http://localhost:8000";
 
 const RUN_OPTIONS = [
-  { value: "2obj", label: "Case: Solubility-Guided Design", sub: "aromatic compounds · logS + MW" },
-  { value: "3obj", label: "Case: Sweetness Enhancer Discovery", sub: "flavanones/polyphenols · P(sweet) + MW + P(safe)" },
+  { value: "2obj", label: "Case: Lipophilicity-Guided Design", sub: "aromatic compounds · logD + SA Score" },
+  { value: "3obj", label: "Case: Sweetness Enhancer Discovery", sub: "DHC/flavanone compounds · P(sweet) + MW + logS" },
   { value: "scaffold", label: "Case: Colorant Scaffold Hopping", sub: "natural pigments · conj. score + MW + reg. score" },
 ];
 
