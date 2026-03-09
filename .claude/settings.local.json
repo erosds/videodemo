@@ -44,7 +44,8 @@
       "Bash(npx vite:*)",
       "Bash(npm run:*)",
       "WebFetch(domain:tdcommons.ai)",
-      "Bash(ffprobe:*)"
+      "Bash(ffprobe:*)",
+      "Bash(ls:*)"
     ]
   }
 }
