@@ -1,8 +1,8 @@
 """Multi-pool compound loader for MoleculeFinder use cases.
 
 Three curated pools are available:
-  - aromatic_pool.json  : 607 PubChem aromatic compounds (solubility use case)
-  - sweetness_pool.json : 80 flavanone/chalcone/polyphenol compounds (sweetness use case)
+  - aromatic_pool.json  : 607 PubChem aromatic compounds (lipophilicity use case)
+  - sweetness_pool.json : 325 DHC/isocoumarin/flavanone compounds seeded on sweet phenolics (sweetness use case)
   - colorant_pool.json  : 63 natural yellow/orange pigments (colorant scaffold hopping)
 """
 from __future__ import annotations
@@ -45,7 +45,7 @@ def get_aromatic_pool() -> list[dict]:
 
 
 def get_sweetness_pool() -> list[dict]:
-    """80 flavanone/chalcone/polyphenol compounds — sweetness enhancer discovery."""
+    """325 DHC/isocoumarin/flavanone compounds seeded on sweet phenolics — sweetness enhancer discovery."""
     return _load_sweetness()["compounds"]
 
 

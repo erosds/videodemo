@@ -43,7 +43,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npx vite:*)",
       "Bash(npm run:*)",
-      "WebFetch(domain:tdcommons.ai)"
+      "WebFetch(domain:tdcommons.ai)",
+      "Bash(ffprobe:*)"
     ]
   }
 }

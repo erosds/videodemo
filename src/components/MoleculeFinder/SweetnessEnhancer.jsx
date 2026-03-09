@@ -48,13 +48,16 @@ function psweetColor(p) {
   if (p < 0.5) return lerpColor("#3b82f6", "#14b8a6", p / 0.5);
   return lerpColor("#14b8a6", "#f43f5e", (p - 0.5) / 0.5);
 }
-function psafeColor(p) {
-  // green = safe (1), red = mutagenic risk (0)
-  if (p < 0.5) return lerpColor("#ef4444", "#f59e0b", p / 0.5);
-  return lerpColor("#f59e0b", "#22c55e", (p - 0.5) / 0.5);
+function logSColor(v) {
+  // v = logS, range roughly -6 to 2. Higher is better (more soluble).
+  // green ≥ -1, amber ≥ -3, red < -3
+  if (v == null) return "#6b7280";
+  if (v >= -1) return "#22c55e";
+  if (v >= -3) return "#f59e0b";
+  return "#ef4444";
 }
 
-// ── Animated scatter (3-objective: P(sweet), MW, P(safe AMES)) ────────────────
+// ── Animated scatter (3-objective: P(sweet), MW, logS) ────────────────────────
 const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, prevAllDots, prevPareto, bounds, parentColorMap }) => {
   const W = 380, H = 240;
   const pad = { l: 44, r: 16, t: 28, b: 30 };
@@ -93,10 +96,10 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     if (inMutation || inPred) {
       if (c.is_new) return "#818cf8";                               // this gen's offspring
       const prev = parentColorMap?.get(c.smiles);
-      if (prev) return prev.dominated ? "#374151" : psafeColor(prev.psafe ?? 0.5);
+      if (prev) return prev.dominated ? "#374151" : logSColor(prev.logS ?? -4);
       return "#6b7280";
     }
-    if (inNsga2) return c.dominated ? "#374151" : psafeColor(c.psafe ?? 0.5);
+    if (inNsga2) return c.dominated ? "#374151" : logSColor(c.logS ?? -4);
     return "#6b7280";
   };
   const getDotR = c => inNsga2 ? (c.dominated ? 3.5 : (c.is_new ? 5 : 5.5)) : 4;
@@ -160,7 +163,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         )}
 
         {ghostDots.map((c, i) => {
-          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : psafeColor(c.psafe ?? 0.5));
+          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : logSColor(c.logS ?? -4));
           const op = animPhase === "pool"
             ? (c.dominated ? 0.12 : 0.22)
             : (c.dominated ? 0.18 : 0.32);
@@ -209,13 +212,15 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
               <g>
                 <rect x={px(c.mw) + 9} y={py(c.psweet) - 34} width={165} height={48}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(c.mw) + 13} y={py(c.psweet) - 21} fontSize={8} fill="#e5e7eb">{c.name}</text>
+                <text x={px(c.mw) + 13} y={py(c.psweet) - 21} fontSize={8} fill="#e5e7eb">
+                  {c.cid == null ? (c.smiles?.length > 28 ? c.smiles.slice(0, 28) + "…" : c.smiles) : c.name}
+                </text>
                 <text x={px(c.mw) + 13} y={py(c.psweet) - 10} fontSize={7} fill="#9ca3af">
                   P(sweet) {c.psweet?.toFixed(3)} · MW {c.mw} Da
                 </text>
                 <text x={px(c.mw) + 13} y={py(c.psweet) + 1} fontSize={7}
-                  fill={psafeColor(c.psafe ?? 0.5)}>
-                  P(safe AMES) {(c.psafe ?? 0.5).toFixed(3)}{c.is_new ? " · new" : ""}
+                  fill={logSColor(c.logS ?? -4)}>
+                  logS {(c.logS ?? -4).toFixed(3)}{c.is_new ? " · new" : ""}
                 </text>
               </g>
             )}
@@ -223,7 +228,9 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
               <g>
                 <rect x={px(c.mw) + 9} y={axisY - 36} width={120} height={26}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(c.mw) + 13} y={axisY - 23} fontSize={8} fill="#e5e7eb">{c.name}</text>
+                <text x={px(c.mw) + 13} y={axisY - 23} fontSize={8} fill="#e5e7eb">
+                  {c.cid == null ? (c.smiles?.length > 28 ? c.smiles.slice(0, 28) + "…" : c.smiles) : c.name}
+                </text>
                 <text x={px(c.mw) + 13} y={axisY - 11} fontSize={7} fill="#9ca3af">MW {c.mw} Da</text>
               </g>
             )}
@@ -241,13 +248,13 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
               <g>
                 <rect x={px(reference.mw) + 9} y={py(reference.psweet) - 34} width={175} height={48}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(reference.mw) + 13} y={py(reference.psweet) - 21} fontSize={8} fill="#fbbf24">Homoeriodictyol (reference)</text>
+                <text x={px(reference.mw) + 13} y={py(reference.psweet) - 21} fontSize={8} fill="#fbbf24">Sucrose (reference)</text>
                 <text x={px(reference.mw) + 13} y={py(reference.psweet) - 10} fontSize={7} fill="#9ca3af">
                   P(sweet) {reference.psweet?.toFixed(3)} · MW {reference.mw} Da
                 </text>
-                {reference.psafe != null && (
+                {reference.logS != null && (
                   <text x={px(reference.mw) + 13} y={py(reference.psweet) + 1} fontSize={7} fill="#fbbf24">
-                    P(safe AMES) {reference.psafe.toFixed(3)}
+                    logS {reference.logS?.toFixed(3)}
                   </text>
                 )}
               </g>
@@ -285,13 +292,14 @@ const SweetnessEnhancer = () => {
   const [currentGenIdx, setCurrentGenIdx] = useState(0);
   const [nGensTotal, setNGensTotal] = useState(0);
   const [error, setError] = useState(null);
-  const [modelsReady, setModelsReady] = useState({ ames: false, taste: false });
+  const [modelsReady, setModelsReady] = useState({ aqsol: false, taste: false });
   const [prevAllDots, setPrevAllDots] = useState([]);
   const [prevPareto, setPrevPareto] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const [parentColorMap, setParentColorMap] = useState(new Map());
   const [smilesNames, setSmilesNames] = useState({});
   const [resultsFromCache, setResultsFromCache] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
 
   const phaseTimers = useRef([]);
   const gensRef = useRef([]);
@@ -308,9 +316,9 @@ const SweetnessEnhancer = () => {
       fetch(`${BACKEND}/molecule-finder/saved-optimization/3obj`).then(r => r.status === 204 ? null : r.ok ? r.json() : null),
     ]).then(([meta, datasets, saved]) => {
       if (meta) setPoolMeta(meta.sweetness);
-      const ames = datasets.find(d => d.id === "ames_mutagenicity");
+      const aqsol = datasets.find(d => d.id === "aqsoldb");
       const taste = datasets.find(d => d.id === "flavor_sensory");
-      setModelsReady({ ames: !!ames?.n_cached, taste: !!taste?.n_cached });
+      setModelsReady({ aqsol: !!aqsol?.n_cached, taste: !!taste?.n_cached });
       if (saved?.generations?.length > 0) {
         const gens = saved.generations;
         gensRef.current = gens;
@@ -408,7 +416,7 @@ const SweetnessEnhancer = () => {
       if (res.status === 409) {
         setError("Models not ready.");
         setAnimPhase("idle");
-        setModelsReady({ ames: false, taste: false });
+        setModelsReady({ aqsol: false, taste: false });
         return;
       }
       if (!res.ok) throw new Error(await res.text());
@@ -440,7 +448,7 @@ const SweetnessEnhancer = () => {
           try { data = JSON.parse(dataStr); } catch { continue; }
 
           if (eventType === "meta") {
-            setModelsReady({ ames: true, taste: true });
+            setModelsReady({ aqsol: true, taste: true });
             setPoolMeta(data.pool_meta);
             setModelMeta(data.model_meta);
             setReference(data.reference);
@@ -492,7 +500,7 @@ const SweetnessEnhancer = () => {
             if (data.status === 409) {
               setError(data.detail ?? "Models not ready.");
               setAnimPhase("idle");
-              setModelsReady({ ames: false, taste: false });
+              setModelsReady({ aqsol: false, taste: false });
             } else {
               setError(data.detail);
               setAnimPhase("idle");
@@ -535,13 +543,13 @@ const SweetnessEnhancer = () => {
 
   const exportCsv = () => {
     const rows = [
-      ["#", "Name/SMILES", "P(sweet)", "MW (Da)", "P(safe AMES)", "QED", "SA Score", "PAINS", "Origin"],
+      ["#", "Name/SMILES", "P(sweet)", "MW (Da)", "logS", "QED", "SA Score", "PAINS", "Origin"],
       ...finalPareto.map((c, i) => [
         i + 1,
         c.cid == null ? c.smiles : c.name,
         (c.psweet ?? 0).toFixed(3),
         c.mw,
-        (c.psafe ?? 0.5).toFixed(3),
+        (c.logS ?? -4).toFixed(3),
         c.qed != null ? c.qed.toFixed(3) : "",
         c.sa_score != null ? c.sa_score.toFixed(2) : "",
         (c.pains?.length ?? 0) > 0 ? c.pains.join("; ") : "clean",
@@ -606,7 +614,7 @@ const SweetnessEnhancer = () => {
 
   const isRunning = ["pool", "mutation", "wait_mutation", "prediction", "nsga2"].includes(animPhase);
   const isActive = isRunning || animPhase === "done";
-  const bothReady = modelsReady.ames && modelsReady.taste;
+  const bothReady = modelsReady.aqsol && modelsReady.taste;
 
   const activeStep =
     animPhase === "pool" ? 1
@@ -633,9 +641,37 @@ const SweetnessEnhancer = () => {
   const s4 = activeStep === 4 || animPhase === "done";
 
   const missingModels = [
-    !modelsReady.ames && "AMES Mutagenicity",
+    !modelsReady.aqsol && "AqSolDB Solubility",
     !modelsReady.taste && "FartDB Taste",
   ].filter(Boolean);
+
+  const handleSort = (key) => {
+    setSortConfig(prev => prev.key === key && prev.dir === 'asc' ? { key, dir: 'desc' } : { key, dir: 'asc' });
+  };
+
+  const COLUMN_DEFS = [
+    { label: "#", key: null },
+    { label: "Name", key: "name" },
+    { label: "P(sweet) ↑", key: "psweet" },
+    { label: "MW (Da) ↓", key: "mw" },
+    { label: "logS ↑", key: "logS" },
+    { label: "QED", key: "qed" },
+    { label: "SA", key: "sa_score" },
+    { label: "PAINS", key: null },
+    { label: "Origin", key: "is_new" },
+  ];
+
+  const sortedPareto = useMemo(() => {
+    if (!sortConfig.key) return finalPareto;
+    return [...finalPareto].sort((a, b) => {
+      let av = a[sortConfig.key] ?? (typeof b[sortConfig.key] === 'number' ? -Infinity : '');
+      let bv = b[sortConfig.key] ?? (typeof a[sortConfig.key] === 'number' ? -Infinity : '');
+      if (sortConfig.key === 'is_new') { av = a.cid == null ? 1 : 0; bv = b.cid == null ? 1 : 0; }
+      if (sortConfig.key === 'name') { av = (a.cid == null ? a.smiles : a.name) ?? ''; bv = (b.cid == null ? b.smiles : b.name) ?? ''; }
+      if (typeof av === 'string') return sortConfig.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortConfig.dir === 'asc' ? av - bv : bv - av;
+    });
+  }, [finalPareto, sortConfig]);
 
   return (
     <div
@@ -664,13 +700,13 @@ const SweetnessEnhancer = () => {
                 <div className="w-3 h-3 rounded-full border-2 border-amber-400" />
               </div>
               <div className="text-[10px] text-gray-500">
-                <span className="text-amber-300 font-semibold">Homoeriodictyol</span>
-                <span className="ml-1.5 text-gray-600">CAS 520-33-2 · 302.28 Da</span>
+                <span className="text-amber-300 font-semibold">Sucrose</span>
+                <span className="ml-1.5 text-gray-600">CAS 57-50-1 · 342.30 Da</span>
                 {reference?.psweet != null && (
                   <span className="ml-1.5 text-gray-600">· P(sweet) {reference.psweet.toFixed(2)}</span>
                 )}
-                {reference?.psafe != null && (
-                  <span className="ml-1.5 text-gray-600">· P(safe) {reference.psafe.toFixed(2)}</span>
+                {reference?.logS != null && (
+                  <span className="ml-1.5 text-gray-600">· logS {reference.logS?.toFixed(2)}</span>
                 )}
               </div>
             </div>
@@ -690,7 +726,7 @@ const SweetnessEnhancer = () => {
                     <span>
                       <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>
                         {poolMeta.n_after_filter ?? poolMeta.n_candidates}
-                      </span> flavanone / chalcone / polyphenol compounds · PubChem
+                      </span> DHC / isocoumarin / flavanone compounds · PubChem
                     </span>
                     {(poolMeta.n_excluded ?? 0) > 0 && (
                       <span className="text-[9px] text-gray-600">
@@ -715,7 +751,7 @@ const SweetnessEnhancer = () => {
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
                   <span>13 SMARTS reactions applied to selected parents</span>
                   <span className="text-[9px] text-gray-600">add-OH · OMe→OEt · Me→Et · CHO→CH2OH · …</span>
-                  <span className="text-[9px] text-gray-600">Novel analogs · MW 100–500 Da · phenolic scaffold required</span>
+                  <span className="text-[9px] text-gray-600">Novel analogs · offspring MW 60–350 Da · phenolic scaffold required</span>
                 </div>
               </div>
             </div>
@@ -731,7 +767,7 @@ const SweetnessEnhancer = () => {
                   Property Prediction
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>P(sweet) and P(safe AMES): <span className={`text-[9px] leading-snug transition-colors duration-500 text-indigo-400`}>Models trained in the Property Prediction Tab</span></span>
+                  <span>P(sweet) and logS (AqSolDB): <span className={`text-[9px] leading-snug transition-colors duration-500 text-indigo-400`}>Models trained in the Property Prediction Tab</span></span>
                   <span>MW: <span className="text-gray-400">RDKit ExactMolWt</span></span>
                   {propRange && (
                     <span className="text-[9px] text-gray-600">
@@ -753,7 +789,7 @@ const SweetnessEnhancer = () => {
                   NSGA-II Sort
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>Obj-1: P(sweet) ↑ &nbsp;·&nbsp; Obj-2: MW ↓ &nbsp;·&nbsp; Obj-3: P(safe AMES) ↑</span>
+                  <span>Obj-1: P(sweet) ↑ &nbsp;·&nbsp; Obj-2: MW ↓ &nbsp;·&nbsp; Obj-3: logS ↑</span>
                   <span className="text-[9px] text-gray-600">Non-dominated rank + crowding distance · selects top 100</span>
                 </div>
               </div>
@@ -829,7 +865,7 @@ const SweetnessEnhancer = () => {
           <div className="col-span-3 rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col">
             <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
               {poolMeta
-                ? `${poolMeta.n_after_filter ?? poolMeta.n_candidates} compounds · colour = P(safe AMES) from AMES RF`
+                ? `${poolMeta.n_after_filter ?? poolMeta.n_candidates} compounds · colour = logS from AqSolDB RF`
                 : "3-objective Pareto space"}
             </div>
             <div className="flex items-center">
@@ -862,19 +898,19 @@ const SweetnessEnhancer = () => {
                 />
 
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-[9px] text-gray-600">P(safe AMES):</span>
+                  <span className="text-[9px] text-gray-600">logS (solubility):</span>
                   <svg width={90} height={10} viewBox="0 0 90 10">
                     <defs>
-                      <linearGradient id="psafeGrad" x1="0" y1="0" x2="1" y2="0">
+                      <linearGradient id="logSGrad" x1="0" y1="0" x2="1" y2="0">
                         <stop offset="0%" stopColor="#ef4444" />
                         <stop offset="50%" stopColor="#f59e0b" />
                         <stop offset="100%" stopColor="#22c55e" />
                       </linearGradient>
                     </defs>
-                    <rect x={0} y={2} width={90} height={6} rx={3} fill="url(#psafeGrad)" opacity={0.8} />
+                    <rect x={0} y={2} width={90} height={6} rx={3} fill="url(#logSGrad)" opacity={0.8} />
                   </svg>
-                  <span className="text-[9px] text-red-400">0 (risky)</span>
-                  <span className="text-[9px] text-emerald-400 ml-1">1 (safe)</span>
+                  <span className="text-[9px] text-red-400">low (−6)</span>
+                  <span className="text-[9px] text-emerald-400 ml-1">high (−1+)</span>
 
                   <div className="ml-3 flex flex-wrap gap-3">
                     <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
@@ -884,7 +920,7 @@ const SweetnessEnhancer = () => {
                       <div className="w-2.5 h-2.5 rounded-full bg-gray-600 opacity-60" />Dominated
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Homoeriodictyol (ref)
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Sucrose (ref)
                     </div>
                   </div>
                 </div>
@@ -916,7 +952,9 @@ const SweetnessEnhancer = () => {
                   Pareto-optimal candidates — Final generation
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-gray-600">sorted by P(sweet) ↓</span>
+                  <span className="text-[10px] text-gray-600">
+                    {sortConfig.key ? `sorted by ${sortConfig.key} ${sortConfig.dir === 'asc' ? '▲' : '▼'}` : 'click column to sort'}
+                  </span>
                   <button onClick={exportCsv}
                     className="px-2.5 py-1 rounded text-[10px] border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all"
                     title="Export CSV">⬇ CSV</button>
@@ -928,24 +966,36 @@ const SweetnessEnhancer = () => {
                 <table className="w-full text-[11px]">
                   <thead className="sticky top-0 bg-[#0e0e0e]">
                     <tr className="border-b border-gray-800">
-                      {["#", "Name", "P(sweet) ↑", "MW (Da) ↓", "P(safe AMES) ↑", "QED", "SA", "PAINS", "Origin"].map(h => (
-                        <th key={h} className="px-3 py-2 text-left text-gray-500 font-medium">{h}</th>
+                      {COLUMN_DEFS.map(({ label, key }) => (
+                        <th
+                          key={label}
+                          onClick={key ? () => handleSort(key) : undefined}
+                          className={`px-3 py-2 text-left font-medium text-[11px] select-none ${key ? 'cursor-pointer hover:text-gray-300' : ''} ${sortConfig.key === key && key ? 'text-gray-200' : 'text-gray-500'}`}
+                        >
+                          {label}
+                          {key && sortConfig.key === key && (
+                            <span className="ml-1 text-[9px]">{sortConfig.dir === 'asc' ? '▲' : '▼'}</span>
+                          )}
+                          {key && sortConfig.key !== key && (
+                            <span className="ml-1 text-[9px] text-gray-700">⇅</span>
+                          )}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {finalPareto.map((c, i) => {
+                    {sortedPareto.map((c, i) => {
                       const isNew = c.cid == null;
-                      const ps = c.psafe ?? 0.5;
+                      const logSval = c.logS ?? -4;
                       const lookup = smilesNames[c.smiles];
                       return (
-                        <tr key={i} className={`border-b border-gray-800/40 ${ps > 0.6 ? "bg-emerald-900/10" : ""}`}>
+                        <tr key={i} className={`border-b border-gray-800/40 ${logSval >= -1 ? "bg-emerald-900/10" : ""}`}>
                           <td className="px-3 py-2 text-gray-600">{i + 1}</td>
                           <td className="px-3 py-2 max-w-[220px]">
                             {isNew ? (
                               <div>
                                 <div className="flex items-center gap-1.5">
-                                  <span className="font-mono text-[9px] text-gray-400 truncate max-w-[150px] block">{c.smiles}</span>
+                                  <span className="font-mono text-[9px] text-gray-400 break-all block">{c.smiles}</span>
                                   {!lookup && (
                                     <button onClick={() => lookupSmiles(c.smiles)}
                                       className="flex-shrink-0 text-gray-500 hover:text-violet-400 transition-colors text-[13px]"
@@ -981,9 +1031,9 @@ const SweetnessEnhancer = () => {
                           </td>
                           <td className="px-3 py-2 font-mono text-gray-400">{c.mw}</td>
                           <td className="px-3 py-2 font-mono">
-                            <span style={{ color: psafeColor(ps) }}>{ps.toFixed(3)}</span>
-                            {ps > 0.6 && (
-                              <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-emerald-900/30 text-emerald-400">safe</span>
+                            <span style={{ color: logSColor(logSval) }}>{logSval.toFixed(3)}</span>
+                            {logSval >= -1 && (
+                              <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-emerald-900/30 text-emerald-400">soluble</span>
                             )}
                           </td>
                           <td className="px-3 py-2 font-mono">
@@ -1028,7 +1078,7 @@ const SweetnessEnhancer = () => {
                 SMARTS mutation generated {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_after_filter ?? poolMeta?.n_candidates ?? 0))} analogs ·{" "}
                 {generations[generations.length - 1]?.n_evaluated ?? 0} total evaluated.
                 P(sweet): FartDB taste RF · OOB acc. {modelMeta?.oob_accuracy_taste ?? "—"}.
-                P(safe AMES): AMES mutagenicity RF · OOB acc. {modelMeta?.oob_accuracy_ames ?? "—"}.
+                logS: AqSolDB solubility RF · OOB R² {modelMeta?.oob_r2_solubility ?? "—"}.
               </div>
             </div>
           </div>,

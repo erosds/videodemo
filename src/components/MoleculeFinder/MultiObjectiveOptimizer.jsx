@@ -3,54 +3,87 @@ import { useEffect, useState } from "react";
 const STAGES = [
   {
     gen: 0, pts: [
-      { x: 0.22, y: 0.38, d: false }, { x: 0.40, y: 0.52, d: false },
-      { x: 0.60, y: 0.66, d: false }, { x: 0.80, y: 0.78, d: false },
-      { x: 0.50, y: 0.42, d: true }, { x: 0.65, y: 0.55, d: true },
-      { x: 0.70, y: 0.60, d: true }, { x: 0.85, y: 0.70, d: true },
-      { x: 0.45, y: 0.35, d: true }, { x: 0.30, y: 0.28, d: true },
-      { x: 0.55, y: 0.48, d: true },
+      { x: 0.17, y: 0.38, d: false }, { x: 0.35, y: 0.52, d: false },
+      { x: 0.55, y: 0.66, d: false }, { x: 0.75, y: 0.78, d: false },
+      { x: 0.45, y: 0.42, d: true }, { x: 0.60, y: 0.55, d: true },
+      { x: 0.65, y: 0.60, d: true }, { x: 0.80, y: 0.70, d: true },
+      { x: 0.40, y: 0.35, d: true }, { x: 0.25, y: 0.28, d: true },
+      { x: 0.50, y: 0.48, d: true }, { x: 0.70, y: 0.30, d: true },
+      { x: 0.85, y: 0.45, d: true }, { x: 0.30, y: 0.20, d: true },
+      { x: 0.57, y: 0.38, d: true }, { x: 0.43, y: 0.25, d: true },
+      { x: 0.73, y: 0.52, d: true }, { x: 0.87, y: 0.62, d: true },
+      { x: 0.53, y: 0.28, d: true }, { x: 0.78, y: 0.40, d: true },
+      { x: 0.63, y: 0.44, d: true }, { x: 0.37, y: 0.44, d: true },
+      { x: 0.90, y: 0.55, d: true }, { x: 0.67, y: 0.68, d: true },
+      { x: 0.33, y: 0.32, d: true }, { x: 0.83, y: 0.33, d: true },
     ]
   },
   {
     gen: 15, pts: [
-      { x: 0.16, y: 0.47, d: false }, { x: 0.31, y: 0.60, d: false },
-      { x: 0.50, y: 0.73, d: false }, { x: 0.68, y: 0.83, d: false },
-      { x: 0.42, y: 0.52, d: true }, { x: 0.60, y: 0.65, d: true },
-      { x: 0.75, y: 0.74, d: true }, { x: 0.56, y: 0.60, d: true },
-      { x: 0.36, y: 0.44, d: true }, { x: 0.80, y: 0.77, d: true },
-      { x: 0.25, y: 0.38, d: true },
+      { x: 0.11, y: 0.47, d: false }, { x: 0.26, y: 0.60, d: false },
+      { x: 0.45, y: 0.73, d: false }, { x: 0.63, y: 0.83, d: false },
+      { x: 0.37, y: 0.52, d: true }, { x: 0.55, y: 0.65, d: true },
+      { x: 0.70, y: 0.74, d: true }, { x: 0.51, y: 0.60, d: true },
+      { x: 0.31, y: 0.44, d: true }, { x: 0.75, y: 0.77, d: true },
+      { x: 0.20, y: 0.38, d: true }, { x: 0.65, y: 0.50, d: true },
+      { x: 0.83, y: 0.68, d: true }, { x: 0.40, y: 0.30, d: true },
+      { x: 0.58, y: 0.42, d: true }, { x: 0.47, y: 0.35, d: true },
+      { x: 0.77, y: 0.58, d: true }, { x: 0.89, y: 0.72, d: true },
+      { x: 0.62, y: 0.55, d: true }, { x: 0.72, y: 0.63, d: true },
+      { x: 0.35, y: 0.38, d: true }, { x: 0.85, y: 0.46, d: true },
+      { x: 0.53, y: 0.48, d: true }, { x: 0.67, y: 0.40, d: true },
+      { x: 0.80, y: 0.82, d: true }, { x: 0.43, y: 0.42, d: true },
     ]
   },
   {
     gen: 30, pts: [
-      { x: 0.11, y: 0.56, d: false }, { x: 0.24, y: 0.68, d: false },
-      { x: 0.40, y: 0.79, d: false }, { x: 0.56, y: 0.88, d: false },
-      { x: 0.73, y: 0.93, d: false },
-      { x: 0.34, y: 0.62, d: true }, { x: 0.50, y: 0.73, d: true },
-      { x: 0.65, y: 0.82, d: true }, { x: 0.20, y: 0.48, d: true },
-      { x: 0.80, y: 0.88, d: true }, { x: 0.45, y: 0.70, d: true },
+      { x: 0.06, y: 0.56, d: false }, { x: 0.19, y: 0.68, d: false },
+      { x: 0.35, y: 0.79, d: false }, { x: 0.51, y: 0.88, d: false },
+      { x: 0.68, y: 0.93, d: false },
+      { x: 0.29, y: 0.62, d: true }, { x: 0.45, y: 0.73, d: true },
+      { x: 0.60, y: 0.82, d: true }, { x: 0.15, y: 0.48, d: true },
+      { x: 0.75, y: 0.88, d: true }, { x: 0.40, y: 0.70, d: true },
+      { x: 0.55, y: 0.55, d: true }, { x: 0.70, y: 0.65, d: true },
+      { x: 0.83, y: 0.78, d: true }, { x: 0.25, y: 0.52, d: true },
+      { x: 0.65, y: 0.72, d: true }, { x: 0.50, y: 0.60, d: true },
+      { x: 0.37, y: 0.56, d: true }, { x: 0.80, y: 0.70, d: true },
+      { x: 0.57, y: 0.68, d: true }, { x: 0.73, y: 0.80, d: true },
+      { x: 0.88, y: 0.85, d: true }, { x: 0.33, y: 0.45, d: true },
+      { x: 0.63, y: 0.60, d: true }, { x: 0.47, y: 0.50, d: true },
     ]
   },
   {
     gen: 50, pts: [
-      { x: 0.07, y: 0.63, d: false }, { x: 0.17, y: 0.74, d: false },
-      { x: 0.30, y: 0.83, d: false }, { x: 0.45, y: 0.90, d: false },
-      { x: 0.62, y: 0.95, d: false },
-      { x: 0.24, y: 0.68, d: true }, { x: 0.38, y: 0.78, d: true },
-      { x: 0.55, y: 0.87, d: true }, { x: 0.13, y: 0.55, d: true },
-      { x: 0.70, y: 0.90, d: true }, { x: 0.48, y: 0.83, d: true },
-      { x: 0.34, y: 0.75, d: true },
+      { x: 0.02, y: 0.63, d: false }, { x: 0.12, y: 0.74, d: false },
+      { x: 0.25, y: 0.83, d: false }, { x: 0.40, y: 0.90, d: false },
+      { x: 0.57, y: 0.95, d: false },
+      { x: 0.19, y: 0.68, d: true }, { x: 0.33, y: 0.78, d: true },
+      { x: 0.50, y: 0.87, d: true }, { x: 0.08, y: 0.55, d: true },
+      { x: 0.65, y: 0.90, d: true }, { x: 0.43, y: 0.83, d: true },
+      { x: 0.29, y: 0.75, d: true }, { x: 0.53, y: 0.72, d: true },
+      { x: 0.75, y: 0.85, d: true }, { x: 0.60, y: 0.80, d: true },
+      { x: 0.37, y: 0.65, d: true }, { x: 0.70, y: 0.76, d: true },
+      { x: 0.85, y: 0.88, d: true }, { x: 0.47, y: 0.70, d: true },
+      { x: 0.15, y: 0.60, d: true }, { x: 0.63, y: 0.84, d: true },
+      { x: 0.78, y: 0.92, d: true }, { x: 0.39, y: 0.72, d: true },
+      { x: 0.55, y: 0.62, d: true }, { x: 0.73, y: 0.70, d: true },
     ]
   },
   {
     gen: 70, pts: [
-      { x: 0.05, y: 0.69, d: false }, { x: 0.12, y: 0.79, d: false },
-      { x: 0.22, y: 0.87, d: false }, { x: 0.35, y: 0.93, d: false },
-      { x: 0.50, y: 0.96, d: false }, { x: 0.67, y: 0.98, d: false },
-      { x: 0.19, y: 0.73, d: true }, { x: 0.30, y: 0.83, d: true },
-      { x: 0.44, y: 0.90, d: true }, { x: 0.10, y: 0.62, d: true },
-      { x: 0.58, y: 0.93, d: true }, { x: 0.28, y: 0.79, d: true },
-      { x: 0.42, y: 0.87, d: true },
+      { x: 0.00, y: 0.69, d: false }, { x: 0.07, y: 0.79, d: false },
+      { x: 0.17, y: 0.87, d: false }, { x: 0.30, y: 0.93, d: false },
+      { x: 0.45, y: 0.96, d: false }, { x: 0.62, y: 0.98, d: false },
+      { x: 0.14, y: 0.73, d: true }, { x: 0.25, y: 0.83, d: true },
+      { x: 0.39, y: 0.90, d: true }, { x: 0.05, y: 0.62, d: true },
+      { x: 0.53, y: 0.93, d: true }, { x: 0.23, y: 0.79, d: true },
+      { x: 0.37, y: 0.87, d: true }, { x: 0.50, y: 0.78, d: true },
+      { x: 0.67, y: 0.91, d: true }, { x: 0.58, y: 0.85, d: true },
+      { x: 0.33, y: 0.72, d: true }, { x: 0.75, y: 0.88, d: true },
+      { x: 0.43, y: 0.82, d: true }, { x: 0.12, y: 0.65, d: true },
+      { x: 0.65, y: 0.80, d: true }, { x: 0.80, y: 0.93, d: true },
+      { x: 0.20, y: 0.70, d: true }, { x: 0.55, y: 0.72, d: true },
+      { x: 0.71, y: 0.84, d: true }, { x: 0.87, y: 0.90, d: true },
     ]
   },
 ];
@@ -252,31 +285,34 @@ const MultiObjectiveOptimizer = () => {
 
               <ParetoChart stage={STAGES[stageIdx]} />
 
-              <div className="flex items-start gap-3 mt-3 ">
-                <p className="flex-1 text-[11px] text-gray-500 leading-snug">
-                  Each dot is a candidate molecule positioned by its properties; properties can be predicted by the trained ML models. Properties could be anything we want to optimize and could be more than two.
-                  {" "}<span className="text-rose-400 font-medium">Red dots</span> are Pareto-optimal — no other
-                  candidate beats them on <em>both</em> axes at once. In the two-objective case, the front pushes toward the top-left ideal corner.
-                </p>
-                <div className="flex gap-2">
-                  {running && (
+              <div className="flex flex-col gap-2 mt-1">
+                <div className="flex items-center gap-3">
+                  <p className="flex-1 text-[11px] text-gray-500 leading-snug">
+                    Each dot is a candidate molecule positioned by its properties. Properties could be anything we want to optimize and could be more than two.
+                    {" "}<span className="text-rose-400 font-medium">Red dots</span> are Pareto-optimal — no other candidate beats them on <em>both</em> axes at once.
+                  </p>
+                  <div className="flex gap-2 flex-shrink-0">
+                    {running && (
+                      <button
+                        onClick={() => setIsPaused(!isPaused)}
+                        className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-700 text-gray-300 hover:bg-gray-800"
+                      >
+                        {isPaused ? "▶ Play" : "⏸ Pause"}
+                      </button>
+                    )}
                     <button
-                      onClick={() => setIsPaused(!isPaused)}
-                      className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-700 text-gray-300 hover:bg-gray-800"
+                      onClick={handleRun}
+                      disabled={running && !isPaused}
+                      className="px-8 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer disabled:opacity-40"
+                      style={{ background: "#f43f5e18", borderColor: "#f43f5e55", color: "#f43f5e" }}
                     >
-                      {isPaused ? "▶ Play" : "⏸ Pause"}
+                      {running ? "Running" : done ? "↺ Replay" : "▶ Animate"}
                     </button>
-                  )}
-
-                  <button
-                    onClick={handleRun}
-                    disabled={running && !isPaused} // Abilitato solo se finito o in pausa (per ricominciare)
-                    className="flex-shrink-0 px-8 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer disabled:opacity-40"
-                    style={{ background: "#f43f5e18", borderColor: "#f43f5e55", color: "#f43f5e" }}
-                  >
-                    {running ? "Running" : done ? "↺ Replay" : "▶ Animate"}
-                  </button>
+                  </div>
                 </div>
+                <p className="text-[12px] text-gray-300 leading-snug">
+                  Only a small, already-promising subset moves forward to wet-lab validation — cutting synthesis costs and time-to-hit by orders of magnitude.
+                </p>
               </div>
 
             </div>

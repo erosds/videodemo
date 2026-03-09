@@ -3,18 +3,18 @@ const MetricCard = ({ value, unit, label, sub, color, href }) => (
     href={href}
     target="_blank"
     rel="noopener noreferrer"
-    className="rounded-xl border border-gray-800 bg-[#111111] px-4 py-3 flex items-center gap-3 hover:border-gray-600 transition-colors group"
+    className="rounded-xl border border-gray-800 bg-[#111111] px-6 py-5 flex items-center gap-5 hover:border-gray-600 transition-colors group"
   >
-    <div className="flex-shrink-0 text-right min-w-[3rem]">
-      <div className="text-xl font-bold leading-none" style={{ color }}>{value}</div>
-      <div className="text-[9px] text-gray-600 mt-0.5 leading-tight">{unit}</div>
+    <div className="flex-shrink-0 text-right min-w-[4rem]">
+      <div className="text-3xl font-bold leading-none" style={{ color }}>{value}</div>
+      <div className="text-[10px] text-gray-600 mt-1 leading-tight">{unit}</div>
     </div>
-    <div className="border-l border-gray-800 pl-3">
+    <div className="border-l border-gray-800 pl-5">
       <div className="flex items-center gap-1.5">
-        <div className="text-[11px] font-medium text-gray-300 leading-snug">{label}</div>
-        <div className="text-[8px] opacity-0 group-hover:opacity-100 text-gray-500 transition-opacity">↗</div>
+        <div className="text-[13px] font-medium text-gray-300 leading-snug">{label}</div>
+        <div className="text-[9px] opacity-0 group-hover:opacity-100 text-gray-500 transition-opacity">↗</div>
       </div>
-      {sub && <div className="text-[10px] text-gray-600 mt-0.5 leading-snug">{sub}</div>}
+      {sub && <div className="text-[11px] text-gray-600 mt-1 leading-snug">{sub}</div>}
     </div>
   </a>
 );
@@ -72,7 +72,7 @@ const Impact = () => (
     <div className="max-w-6xl mx-auto w-full">
 
       {/* Metrics — compact horizontal */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-4 gap-3 mb-3">
         <MetricCard value="53%" unit="outperforms" label="Human Panels" sub="AI predicts odors better than average panelist" color="#f43f5e" href="https://neurosciencenews.com/odor-perception-ai-23858/" />
         <MetricCard value="90%" unit="fewer tests" label="Via Simulation" sub="AI predicts safety/toxicity pre-lab" color="#ec4899" href="https://www.chemcopilot.com/blog/ai-in-perfumery-crafting-sustainable-fragrances-without-animal-testing" />
         <MetricCard value="~weeks" unit="timeline" label="Reformulation Cycle" sub="AI cuts from 6-18 mo to weeks" color="#a855f7" href="https://www.scento.com/blog/ai-vs-traditional-perfumery-key-differences" />

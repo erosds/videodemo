@@ -4,6 +4,7 @@ import Overview from "./Overview";
 import MolecularRepresentation from "./MolecularRepresentation";
 import PropertyPrediction from "./PropertyPrediction";
 import MultiObjectiveOptimizer from "./MultiObjectiveOptimizer";
+import PipelinePilot from "./PipelinePilot";
 import SolubilityDesign from "./SolubilityDesign";
 import SweetnessEnhancer from "./SweetnessEnhancer";
 import ColorantScaffold from "./ColorantScaffold";
@@ -19,6 +20,7 @@ const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
     <MolecularRepresentation />,
     <PropertyPrediction />,
     <MultiObjectiveOptimizer />,
+    <PipelinePilot />,
     <SolubilityDesign />,
     <SweetnessEnhancer />,
     <ColorantScaffold />,

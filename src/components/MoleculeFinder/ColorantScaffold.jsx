@@ -40,8 +40,15 @@ const StepBar = ({ activeStep, pulseStep }) => (
 
 // ── Animated scatter ───────────────────────────────────────────────────────────
 // X = MW, Y = conj_score (sp2 count / 20, curcumin baseline ~1.0)
-// Dot color in pool phase: gold if reg_score >= 1.0 (EU E-number), else gray
-// In nsga2 phase: teal (Pareto) / indigo (new) / dark (dominated)
+// Dot color encodes regulatory score (3rd objective) in all phases:
+//   gold (#fbbf24) = EU E-number approved (reg_score >= 1.0)
+//   teal (#14b8a6) = Pareto-optimal, not EU-approved
+//   indigo (#818cf8) = new offspring (mutation)
+//   dark gray (#374151) = dominated
+
+function regColor(reg_score) {
+  return (reg_score ?? 0) >= 1.0 ? "#fbbf24" : "#14b8a6";
+}
 const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, prevAllDots, prevPareto, bounds, parentColorMap }) => {
   const W = 380, H = 240;
   const pad = { l: 44, r: 16, t: 28, b: 30 };
@@ -86,10 +93,10 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     if (inMutation || inPred) {
       if (c.is_new) return "#818cf8";
       const prev = parentColorMap?.get(c.smiles);
-      if (prev) return prev.dominated ? "#374151" : "#14b8a6";
+      if (prev) return prev.dominated ? "#374151" : regColor(prev.reg_score);
       return "#6b7280";
     }
-    if (inNsga2) return c.dominated ? "#374151" : "#14b8a6";
+    if (inNsga2) return c.dominated ? "#374151" : regColor(c.reg_score);
     return "#6b7280";
   };
   const getDotR = c => inNsga2 ? (c.dominated ? 3.5 : (c.is_new ? 5 : 5.5)) : 4;
@@ -157,7 +164,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         )}
 
         {ghostDots.map((c, i) => {
-          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : "#14b8a6");
+          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : regColor(c.reg_score));
           const op = animPhase === "pool"
             ? (c.dominated ? 0.12 : 0.22)
             : (c.dominated ? 0.18 : 0.32);
@@ -206,7 +213,9 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
               <g>
                 <rect x={px(c.mw) + 9} y={py(c.conj_score ?? 0) - 26} width={170} height={38}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(c.mw) + 13} y={py(c.conj_score ?? 0) - 13} fontSize={8} fill="#e5e7eb">{c.name}</text>
+                <text x={px(c.mw) + 13} y={py(c.conj_score ?? 0) - 13} fontSize={8} fill="#e5e7eb">
+                  {c.cid == null ? (c.smiles?.length > 28 ? c.smiles.slice(0, 28) + "…" : c.smiles) : c.name}
+                </text>
                 <text x={px(c.mw) + 13} y={py(c.conj_score ?? 0) - 1} fontSize={7} fill="#9ca3af">
                   Conj {(c.conj_score ?? 0).toFixed(3)} · MW {c.mw} Da · reg {(c.reg_score ?? 0).toFixed(1)}{c.is_new ? " · new" : ""}
                 </text>
@@ -216,7 +225,9 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
               <g>
                 <rect x={px(c.mw) + 9} y={axisY - 36} width={140} height={26}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(c.mw) + 13} y={axisY - 23} fontSize={8} fill="#e5e7eb">{c.name}</text>
+                <text x={px(c.mw) + 13} y={axisY - 23} fontSize={8} fill="#e5e7eb">
+                  {c.cid == null ? (c.smiles?.length > 28 ? c.smiles.slice(0, 28) + "…" : c.smiles) : c.name}
+                </text>
                 <text x={px(c.mw) + 13} y={axisY - 11} fontSize={7} fill="#9ca3af">MW {c.mw} Da · reg {(c.reg_score ?? 0).toFixed(1)}</text>
               </g>
             )}
@@ -279,6 +290,7 @@ const ColorantScaffold = () => {
   const [parentColorMap, setParentColorMap] = useState(new Map());
   const [smilesNames, setSmilesNames] = useState({});
   const [resultsFromCache, setResultsFromCache] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
 
   const phaseTimers = useRef([]);
   const gensRef = useRef([]);
@@ -602,6 +614,35 @@ const ColorantScaffold = () => {
   const s3 = activeStep === 3;
   const s4 = activeStep === 4 || animPhase === "done";
 
+  const handleSort = (key) => {
+    setSortConfig(prev => prev.key === key && prev.dir === 'asc' ? { key, dir: 'desc' } : { key, dir: 'asc' });
+  };
+
+  const COLUMN_DEFS = [
+    { label: "#", key: null },
+    { label: "Name", key: "name" },
+    { label: "Conj ↑", key: "conj_score" },
+    { label: "MW (Da) ↓", key: "mw" },
+    { label: "Reg Score", key: "reg_score" },
+    { label: "Regulatory", key: null },
+    { label: "QED", key: "qed" },
+    { label: "SA", key: "sa_score" },
+    { label: "PAINS", key: null },
+    { label: "Origin", key: "is_new" },
+  ];
+
+  const sortedPareto = useMemo(() => {
+    if (!sortConfig.key) return finalPareto;
+    return [...finalPareto].sort((a, b) => {
+      let av = a[sortConfig.key] ?? (typeof b[sortConfig.key] === 'number' ? -Infinity : '');
+      let bv = b[sortConfig.key] ?? (typeof a[sortConfig.key] === 'number' ? -Infinity : '');
+      if (sortConfig.key === 'is_new') { av = a.cid == null ? 1 : 0; bv = b.cid == null ? 1 : 0; }
+      if (sortConfig.key === 'name') { av = (a.cid == null ? a.smiles : a.name) ?? ''; bv = (b.cid == null ? b.smiles : b.name) ?? ''; }
+      if (typeof av === 'string') return sortConfig.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortConfig.dir === 'asc' ? av - bv : bv - av;
+    });
+  }, [finalPareto, sortConfig]);
+
   return (
     <div
       className="absolute inset-0 overflow-y-auto no-scrollbar px-12"
@@ -812,16 +853,16 @@ const ColorantScaffold = () => {
                 />
                 <div className="flex flex-wrap gap-4 mt-3">
                   <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                    <div className="w-2.5 h-2.5 rounded-full bg-teal-500 opacity-85" />Pareto-optimal
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Pareto · EU E-number
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                    <div className="w-2.5 h-2.5 rounded-full bg-teal-500 opacity-85" />Pareto · not evaluated
                   </div>
                   <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
                     <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 opacity-85" />New offspring
                   </div>
                   <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
                     <div className="w-2.5 h-2.5 rounded-full bg-gray-600 opacity-60" />Dominated
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />EU E-number (pool)
                   </div>
                   <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
                     <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Curcumin E100 (ref)
@@ -855,7 +896,9 @@ const ColorantScaffold = () => {
                   Pareto-optimal candidates — Final generation
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-gray-600">sorted by conjugation score ↓</span>
+                  <span className="text-[10px] text-gray-600">
+                    {sortConfig.key ? `sorted by ${sortConfig.key} ${sortConfig.dir === 'asc' ? '▲' : '▼'}` : 'click column to sort'}
+                  </span>
                   <button onClick={exportCsv}
                     className="px-2.5 py-1 rounded text-[10px] border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all"
                     title="Export CSV">⬇ CSV</button>
@@ -867,13 +910,25 @@ const ColorantScaffold = () => {
                 <table className="w-full text-[11px]">
                   <thead className="sticky top-0 bg-[#0e0e0e]">
                     <tr className="border-b border-gray-800">
-                      {["#", "Name", "Conj ↑", "MW (Da) ↓", "Reg Score", "Regulatory", "QED", "SA", "PAINS", "Origin"].map(h => (
-                        <th key={h} className="px-3 py-2 text-left text-gray-500 font-medium">{h}</th>
+                      {COLUMN_DEFS.map(({ label, key }) => (
+                        <th
+                          key={label}
+                          onClick={key ? () => handleSort(key) : undefined}
+                          className={`px-3 py-2 text-left font-medium text-[11px] select-none ${key ? 'cursor-pointer hover:text-gray-300' : ''} ${sortConfig.key === key && key ? 'text-gray-200' : 'text-gray-500'}`}
+                        >
+                          {label}
+                          {key && sortConfig.key === key && (
+                            <span className="ml-1 text-[9px]">{sortConfig.dir === 'asc' ? '▲' : '▼'}</span>
+                          )}
+                          {key && sortConfig.key !== key && (
+                            <span className="ml-1 text-[9px] text-gray-700">⇅</span>
+                          )}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {finalPareto.map((c, i) => {
+                    {sortedPareto.map((c, i) => {
                       const isNew = c.cid == null;
                       const refCS = reference?.conj_score ?? 1.0;
                       const refMW = reference?.mw ?? 368;
@@ -887,7 +942,7 @@ const ColorantScaffold = () => {
                             {isNew ? (
                               <div>
                                 <div className="flex items-center gap-1.5">
-                                  <span className="font-mono text-[9px] text-gray-400 truncate max-w-[140px] block">{c.smiles}</span>
+                                  <span className="font-mono text-[9px] text-gray-400 break-all block">{c.smiles}</span>
                                   {!lookup && (
                                     <button onClick={() => lookupSmiles(c.smiles)}
                                       className="flex-shrink-0 text-gray-500 hover:text-teal-400 transition-colors"

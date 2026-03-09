@@ -9,22 +9,22 @@ REFERENCE_COMPOUNDS: dict[str, dict] = {
         "cas": "121-33-5",
         "description": (
             "Food-grade phenolic aldehyde (vanilla bean, Vanilla planifolia). "
-            "FEMA GRAS 3107 · EU FL 04.002. Aqueous solubility log S ≈ −1.3 mol/L "
-            "(moderately water-soluble), MW 152.15 Da. Used as reference for the "
-            "solubility-guided NSGA-II run: candidates competing on logS ↑ + MW ↓."
+            "FEMA GRAS 3107 · EU FL 04.002. logD at pH 7.4 ≈ 1.1 "
+            "(moderately lipophilic), SA Score ≈ 1.0 (trivially synthesisable), "
+            "MW 152.15 Da. Used as reference for the lipophilicity-guided NSGA-II "
+            "run: candidates competing on logD ↑ + SA Score ↓."
         ),
     },
     "sweetness": {
-        "name": "Homoeriodictyol",
-        "smiles": "COc1cc(C2CC(=O)c3c(O)cc(O)cc3O2)ccc1O",
-        "cid": 119258,
-        "cas": "520-33-2",
+        "name": "Sucrose",
+        "smiles": "OC[C@H]1O[C@@](CO)(O[C@H]2O[C@H](CO)[C@@H](O)[C@H](O)[C@H]2O)[C@@H](O)[C@@H]1O",
+        "cid": 5988,
+        "cas": "57-50-1",
         "description": (
-            "Natural citrus flavanone (Eriodictyon californicum, Citrus sinensis). "
-            "Sodium salt (HED-Na) approved by EFSA as Novel Food (2021) for use as a "
-            "sweetness enhancer at 30–150 mg/kg. Amplifies sweetness of sucrose and "
-            "stevia without contributing its own taste — enabling 20–50% sugar reduction "
-            "in beverages, dairy, and confectionery."
+            "The canonical reference sweetener. Benchmark against which all sweetness "
+            "intensity is measured (1× by definition). MW 342.30 Da, logS ≈ 0.0 mol/L "
+            "(highly water-soluble). Used as reference for the sweetness-enhancer NSGA-II "
+            "run: candidates compete on P(sweet) ↑ + MW ↓ + logS ↑."
         ),
     },
     "colorant": {

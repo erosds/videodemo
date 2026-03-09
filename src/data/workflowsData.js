@@ -175,14 +175,20 @@ export const workflows = {
       },
       {
         id: 4,
-        title: "case: solubility-guided design",
-        subtitle: "2-objective NSGA-II starting from <strong>607 PubChem aromatic compounds</strong> seeded on food-relevant phenolics. Maximizing <strong>logS</strong> (AqSolDB RF regressor) while minimizing <strong>MW</strong>. Pareto front reveals the trade-off between predicted aqueous solubility and molecular size.",
+        title: "pipeline pilot",
+        subtitle: "The entire workflow is orchestrated inside <strong>BIOVIA Pipeline Pilot</strong> — Dassault Systèmes' visual scientific workflow platform. Protocols are built as drag-and-drop pipelines of reusable components, making every step <strong>reproducible, auditable and shareable</strong>.",
+        gradient: "from-blue-700 via-cyan-600 to-sky-600",
+      },
+      {
+        id: 5,
+        title: "case: lipophilicity-guided design",
+        subtitle: "2-objective NSGA-II starting from <strong>607 PubChem aromatic compounds</strong> seeded on food-relevant phenolics. Maximizing <strong>logD at pH 7.4</strong> while minimizing <strong>SA Score</strong> (synthetic accessibility). Pareto front reveals the trade-off between predicted lipophilicity and ease of synthesis.",
         gradient: "from-orange-600 via-rose-600 to-pink-600",
       },
       {
         id: 5,
         title: "case: sweetness enhancer discovery",
-        subtitle: "3-objective NSGA-II on <strong>80 flavanone/chalcone/polyphenol compounds</strong> seeded on Homoeriodictyol. Simultaneously maximizing <strong>P(sweet)</strong> (FartDB RF) and <strong>P(AMES safe)</strong> while minimizing <strong>MW</strong>. The Pareto front balances predicted sweetness, mutagenic safety and molecular size.",
+        subtitle: "3-objective NSGA-II on <strong>325 dihydrochalcone and flavanone compounds</strong> seeded on Phloretin, Hesperetin, Phyllodulcin and NHDC — all known sweet or structurally sweet-adjacent phenolics. Simultaneously maximizing <strong>sweetness probability</strong> and <strong>logS</strong> while minimizing <strong>MW</strong>.",
         gradient: "from-violet-600 via-purple-600 to-fuchsia-600",
       },
       {

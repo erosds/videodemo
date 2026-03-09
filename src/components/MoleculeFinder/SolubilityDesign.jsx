@@ -39,7 +39,7 @@ const StepBar = ({ activeStep, pulseStep }) => (
 );
 
 // ── Animated scatter ───────────────────────────────────────────────────────────
-// bounds: { mwMin, mwMax, ldMin, ldMax } — fixed scale passed from parent to
+// bounds: { saMin, saMax, ldMin, ldMax } — fixed scale passed from parent to
 // prevent scale reflows when new generations arrive during streaming.
 const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, prevAllDots, prevPareto, bounds, parentColorMap }) => {
   const W = 380, H = 240;
@@ -54,28 +54,27 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     || animPhase === "wait_mutation";
   const inPred = animPhase === "prediction";
 
-  // P(sweet) ∈ [0, 1] — fix Y-axis to full probability range to avoid
-  // out-of-bounds dots as later generations discover higher-scoring compounds.
-  let mwMin, mwMax;
+  // X-axis: SA Score (lower is better — minimise), Y-axis: logD (higher is better — maximise)
+  let saMin, saMax;
   if (bounds) {
-    mwMin = bounds.mwMin;
-    mwMax = bounds.mwMax;
+    saMin = bounds.saMin;
+    saMax = bounds.saMax;
   } else {
     const allCands = generations.flatMap(g => g.candidates ?? []);
-    const allMW = [...allCands.map(c => c.mw), reference?.mw ?? 302].filter(Boolean);
-    mwMin = Math.max(60, Math.min(...allMW) - 12);
-    mwMax = Math.max(...allMW) + 20;
+    const allSA = [...allCands.map(c => c.sa_score), reference?.sa_score ?? 3.0].filter(v => v != null && isFinite(v));
+    saMin = Math.max(1, Math.min(...allSA) - 0.5);
+    saMax = Math.min(10, Math.max(...allSA) + 0.5);
   }
-  const ldMin = -6;
-  const ldMax = 0;
+  const ldMin = bounds?.ldMin ?? -2;
+  const ldMax = bounds?.ldMax ?? 5;
 
-  const px = mw => pad.l + ((mw - mwMin) / (mwMax - mwMin)) * plotW;
+  const px = sa => pad.l + ((sa - saMin) / (saMax - saMin)) * plotW;
   const py = ld => pad.t + (1 - (ld - ldMin) / (ldMax - ldMin)) * plotH;
 
   const [hovered, setHovered] = useState(null);
 
   const inMutation = animPhase === "mutation";
-  const getDotCy = c => (animPhase === "pool" || (inMutation && c.is_new)) ? axisY : py(c.logS ?? ldMin);
+  const getDotCy = c => (animPhase === "pool" || (inMutation && c.is_new)) ? axisY : py(c.logD ?? ldMin);
 
   const getDotFill = c => {
     if (inMutation || inPred) {
@@ -107,7 +106,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     return "fill 0.65s ease 0.25s, opacity 0.55s ease 0.25s, r 0.4s ease 0.2s";
   };
 
-  const getLabelY = c => (animPhase === "pool") ? axisY - 9 : py(c.logS ?? ldMin) - 9;
+  const getLabelY = c => (animPhase === "pool") ? axisY - 9 : py(c.logD ?? ldMin) - 9;
   const getLabelOp = () => inPred ? 0.72 : 0;
   const getLabelTransition = i => {
     if (animPhase === "pool") return "none";
@@ -121,20 +120,20 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     : (prevPareto ?? []);
 
   const front = inNsga2
-    ? [...dots].filter(c => !c.dominated).sort((a, b) => a.mw - b.mw)
+    ? [...dots].filter(c => !c.dominated).sort((a, b) => (a.sa_score ?? 10) - (b.sa_score ?? 10))
     : [];
   const frontPath = front.length > 1
-    ? front.map((c, j) => `${j === 0 ? "M" : "L"}${px(c.mw).toFixed(1)},${py(c.logS ?? ldMin).toFixed(1)}`).join(" ")
+    ? front.map((c, j) => `${j === 0 ? "M" : "L"}${px(c.sa_score ?? saMin).toFixed(1)},${py(c.logD ?? ldMin).toFixed(1)}`).join(" ")
     : "";
 
-  const mwTicks = [100, 140, 180, 220, 240, 260, 280, 300, 320, 340, 360, 400, 450, 500].filter(v => v >= mwMin && v <= mwMax + 4);
-  const ldTicks = [-6, -5, -4, -3, -2, -1, 0].filter(v => v >= ldMin - 0.01 && v <= ldMax + 0.01);
+  const saTicks = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10].filter(v => v >= saMin - 0.1 && v <= saMax + 0.1);
+  const ldTicks = [-3, -2, -1, 0, 1, 2, 3, 4, 5].filter(v => v >= ldMin - 0.01 && v <= ldMax + 0.01);
 
   return (
     <div className="relative">
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
 
-        {mwTicks.map(v => (
+        {saTicks.map(v => (
           <line key={v} x1={px(v)} y1={pad.t} x2={px(v)} y2={axisY} stroke="#1f2937" strokeWidth={0.5} />
         ))}
         {ldTicks.map(v => (
@@ -160,8 +159,8 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
           return (
             <circle
               key={`ghost-${c.smiles ?? i}`}
-              cx={px(c.mw)}
-              cy={py(c.logS ?? ldMin)}
+              cx={px(c.sa_score ?? saMin)}
+              cy={py(c.logD ?? ldMin)}
               r={c.dominated ? 3 : 4}
               fill={fill}
               opacity={op}
@@ -177,7 +176,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
             onMouseLeave={() => setHovered(null)}>
 
             <text
-              x={px(c.mw)}
+              x={px(c.sa_score ?? saMin)}
               y={getLabelY(c)}
               textAnchor="middle"
               fontSize={6}
@@ -186,11 +185,11 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
               style={{ transition: getLabelTransition(i) }}
               pointerEvents="none"
             >
-              {(c.logS ?? ldMin).toFixed(2)}
+              {(c.logD ?? ldMin).toFixed(2)}
             </text>
 
             <circle
-              cx={px(c.mw)}
+              cx={px(c.sa_score ?? saMin)}
               cy={getDotCy(c)}
               r={getDotR(c)}
               fill={getDotFill(c)}
@@ -200,46 +199,50 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
             {hovered === i && animPhase !== "pool" && (
               <g>
-                <rect x={px(c.mw) + 9} y={py(c.logS ?? ldMin) - 26} width={160} height={38}
+                <rect x={px(c.sa_score ?? saMin) + 9} y={py(c.logD ?? ldMin) - 26} width={165} height={38}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(c.mw) + 13} y={py(c.logS ?? ldMin) - 13} fontSize={8} fill="#e5e7eb">{c.name}</text>
-                <text x={px(c.mw) + 13} y={py(c.logS ?? ldMin) - 1} fontSize={7} fill="#9ca3af">
-                  logS {(c.logS ?? ldMin).toFixed(3)} · MW {c.mw} Da{c.is_new ? " · new" : ""}
+                <text x={px(c.sa_score ?? saMin) + 13} y={py(c.logD ?? ldMin) - 13} fontSize={8} fill="#e5e7eb">
+                  {c.cid == null ? (c.smiles?.length > 28 ? c.smiles.slice(0, 28) + "…" : c.smiles) : c.name}
+                </text>
+                <text x={px(c.sa_score ?? saMin) + 13} y={py(c.logD ?? ldMin) - 1} fontSize={7} fill="#9ca3af">
+                  logD {(c.logD ?? -2).toFixed(3)} · SA {c.sa_score?.toFixed(2)}{c.is_new ? " · new" : ""}
                 </text>
               </g>
             )}
             {hovered === i && animPhase === "pool" && (
               <g>
-                <rect x={px(c.mw) + 9} y={axisY - 36} width={120} height={26}
+                <rect x={px(c.sa_score ?? saMin) + 9} y={axisY - 36} width={120} height={26}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(c.mw) + 13} y={axisY - 23} fontSize={8} fill="#e5e7eb">{c.name}</text>
-                <text x={px(c.mw) + 13} y={axisY - 11} fontSize={7} fill="#9ca3af">MW {c.mw} Da</text>
+                <text x={px(c.sa_score ?? saMin) + 13} y={axisY - 23} fontSize={8} fill="#e5e7eb">
+                  {c.cid == null ? (c.smiles?.length > 28 ? c.smiles.slice(0, 28) + "…" : c.smiles) : c.name}
+                </text>
+                <text x={px(c.sa_score ?? saMin) + 13} y={axisY - 11} fontSize={7} fill="#9ca3af">SA {c.sa_score?.toFixed(2)}</text>
               </g>
             )}
           </g>
         ))}
 
-        {reference?.logS != null && reference?.mw != null && (
+        {reference?.logD != null && reference?.sa_score != null && (
           <g style={{ cursor: "pointer" }}
             onMouseEnter={() => setHovered("ref")}
             onMouseLeave={() => setHovered(null)}>
-            <circle cx={px(reference.mw)} cy={py(reference.logS)} r={7}
+            <circle cx={px(reference.sa_score)} cy={py(reference.logD)} r={7}
               fill="none" stroke="#fbbf24" strokeWidth={2} opacity={0.9} />
-            <circle cx={px(reference.mw)} cy={py(reference.logS)} r={3} fill="#fbbf24" opacity={0.9} />
+            <circle cx={px(reference.sa_score)} cy={py(reference.logD)} r={3} fill="#fbbf24" opacity={0.9} />
             {hovered === "ref" && (
               <g>
-                <rect x={px(reference.mw) + 9} y={py(reference.logS) - 26} width={160} height={38}
+                <rect x={px(reference.sa_score) + 9} y={py(reference.logD) - 26} width={165} height={38}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(reference.mw) + 13} y={py(reference.logS) - 13} fontSize={8} fill="#fbbf24">Vanillin (reference)</text>
-                <text x={px(reference.mw) + 13} y={py(reference.logS) - 1} fontSize={7} fill="#9ca3af">
-                  logS {reference.logS?.toFixed(3)} · MW {reference.mw} Da
+                <text x={px(reference.sa_score) + 13} y={py(reference.logD) - 13} fontSize={8} fill="#fbbf24">Vanillin (reference)</text>
+                <text x={px(reference.sa_score) + 13} y={py(reference.logD) - 1} fontSize={7} fill="#9ca3af">
+                  logD {reference.logD?.toFixed(3)} · SA {reference.sa_score?.toFixed(2)}
                 </text>
               </g>
             )}
           </g>
         )}
 
-        {mwTicks.map(v => (
+        {saTicks.map(v => (
           <text key={v} x={px(v)} y={axisY + 11} fontSize={7} fill="#6b7280" textAnchor="middle">{v}</text>
         ))}
         {ldTicks.map(v => (
@@ -247,11 +250,11 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         ))}
 
         <text x={pad.l + plotW / 2} y={axisY + 23} fontSize={8} fill="#6b7280" textAnchor="middle">
-          Molecular Weight (Da) — minimise ←
+          SA Score ↓
         </text>
         <text x={10} y={pad.t + plotH / 2} fontSize={8} fill="#6b7280" textAnchor="middle"
           transform={`rotate(-90,10,${pad.t + plotH / 2})`}>
-          logS (mol/L) — maximise →
+          logD (pH 7.4) — maximise →
         </text>
       </svg>
     </div>
@@ -276,6 +279,7 @@ const SolubilityDesign = () => {
   const [parentColorMap, setParentColorMap] = useState(new Map());
   const [smilesNames, setSmilesNames] = useState({});
   const [resultsFromCache, setResultsFromCache] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
 
   // Refs — never stale inside setTimeout callbacks
   const phaseTimers = useRef([]);
@@ -293,7 +297,7 @@ const SolubilityDesign = () => {
       fetch(`${BACKEND}/molecule-finder/saved-optimization/2obj`).then(r => r.status === 204 ? null : r.ok ? r.json() : null),
     ]).then(([meta, datasets, saved]) => {
       if (meta) setPoolMeta(meta.solubility);
-      const aqsol = datasets.find(d => d.id === "aqsoldb");
+      const aqsol = datasets.find(d => d.id === "lipophilicity");
       if (aqsol?.n_cached) setModelReady(true);
       if (saved?.generations?.length > 0) {
         const gens = saved.generations;
@@ -361,14 +365,17 @@ const SolubilityDesign = () => {
     phaseTimers.current.push(t1);
   };
 
-  // Fixed MW bounds derived from propRange + reference — stable across generations.
-  // Y-axis (P(sweet)) is always [0, 1] inside AnimatedScatter.
+  // Fixed bounds derived from propRange + reference — stable across generations.
+  // X-axis: SA Score (saMin/saMax), Y-axis: logD (ldMin/ldMax).
   const scatterBounds = useMemo(() => {
     if (!propRange) return null;
-    const refMW = reference?.mw ?? 302;
+    const allSA = [propRange.sa_min ?? 1.0, propRange.sa_max ?? 5.0, reference?.sa_score ?? 3.0].filter(v => v != null && isFinite(v));
+    const allLD = [propRange.logD_min ?? -2, propRange.logD_max ?? 4, reference?.logD ?? 2.0].filter(v => v != null && isFinite(v));
     return {
-      mwMin: Math.max(60, Math.min(propRange.mw_min ?? 100, refMW) - 18),
-      mwMax: Math.max(propRange.mw_max ?? 500, refMW) + 30,
+      saMin: Math.max(1, Math.min(...allSA) - 0.5),
+      saMax: Math.min(10, Math.max(...allSA) + 0.5),
+      ldMin: Math.min(...allLD) - 0.5,
+      ldMax: Math.max(...allLD) + 0.5,
     };
   }, [propRange, reference]);
 
@@ -523,14 +530,13 @@ const SolubilityDesign = () => {
 
   const exportCsv = () => {
     const rows = [
-      ["#", "Name/SMILES", "logS", "MW (Da)", "QED", "SA Score", "PAINS", "Origin"],
+      ["#", "Name/SMILES", "logD", "SA Score", "QED", "PAINS", "Origin"],
       ...finalPareto.map((c, i) => [
         i + 1,
         c.cid == null ? c.smiles : c.name,
-        (c.logS ?? -6).toFixed(3),
-        c.mw,
+        (c.logD ?? -2).toFixed(3),
+        c.sa_score?.toFixed(2) ?? "",
         c.qed != null ? c.qed.toFixed(3) : "",
-        c.sa_score != null ? c.sa_score.toFixed(2) : "",
         (c.pains?.length ?? 0) > 0 ? c.pains.join("; ") : "clean",
         c.cid == null ? "new" : "pool",
       ]),
@@ -611,13 +617,40 @@ const SolubilityDesign = () => {
   const finalPareto = animPhase === "done"
     ? [...(generations[generations.length - 1]?.candidates ?? [])]
       .filter(c => !c.dominated)
-      .sort((a, b) => (b.logS ?? -6) - (a.logS ?? -6))
+      .sort((a, b) => (b.logD ?? -2) - (a.logD ?? -2))
     : [];
 
   const s1 = activeStep === 1;
   const s2 = activeStep === 2;
   const s3 = activeStep === 3;
   const s4 = activeStep === 4 || animPhase === "done";
+
+  const handleSort = (key) => {
+    setSortConfig(prev => prev.key === key && prev.dir === 'asc' ? { key, dir: 'desc' } : { key, dir: 'asc' });
+  };
+
+  const COLUMN_DEFS = [
+    { label: "#", key: null },
+    { label: "Name", key: "name" },
+    { label: "logD ↑", key: "logD" },
+    { label: "SA Score ↓", key: "sa_score" },
+    { label: "QED", key: "qed" },
+    { label: "PAINS", key: null },
+    { label: "vs Vanillin", key: null },
+    { label: "Origin", key: "is_new" },
+  ];
+
+  const sortedPareto = useMemo(() => {
+    if (!sortConfig.key) return finalPareto;
+    return [...finalPareto].sort((a, b) => {
+      let av = a[sortConfig.key] ?? (typeof b[sortConfig.key] === 'number' ? -Infinity : '');
+      let bv = b[sortConfig.key] ?? (typeof a[sortConfig.key] === 'number' ? -Infinity : '');
+      if (sortConfig.key === 'is_new') { av = a.cid == null ? 1 : 0; bv = b.cid == null ? 1 : 0; }
+      if (sortConfig.key === 'name') { av = (a.cid == null ? a.smiles : a.name) ?? ''; bv = (b.cid == null ? b.smiles : b.name) ?? ''; }
+      if (typeof av === 'string') return sortConfig.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortConfig.dir === 'asc' ? av - bv : bv - av;
+    });
+  }, [finalPareto, sortConfig]);
 
   return (
     <div
@@ -648,8 +681,8 @@ const SolubilityDesign = () => {
               <div className="text-[10px] text-gray-500">
                 <span className="text-amber-300 font-semibold">Vanillin</span>
                 <span className="ml-1.5 text-gray-600">CAS 121-33-5 · 152.15 Da</span>
-                {reference?.logS != null && (
-                  <span className="ml-1.5 text-gray-600">· logS {reference.logS.toFixed(2)}</span>
+                {reference?.logD != null && (
+                  <span className="ml-1.5 text-gray-600">· logD {reference.logD.toFixed(2)}</span>
                 )}
               </div>
             </div>
@@ -707,12 +740,12 @@ const SolubilityDesign = () => {
                   Property Prediction
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>logS: <span className="text-gray-400">AqSolDB RF regressor</span></span>
+                  <span>logD: <span className="text-gray-400">ChEMBL Lipophilicity RF</span></span>
                   <span className={`text-[9px] leading-snug transition-colors duration-500 text-indigo-400`}>
                     Model trained in the Property Prediction tab
                     {modelMeta?.oob_r2 != null && <span className="ml-1 font-mono">· OOB R² {modelMeta.oob_r2}</span>}
                   </span>
-                  <span>MW: <span className="text-gray-400">RDKit ExactMolWt</span></span>
+                  <span>SA Score: <span className="text-gray-400">RDKit SA Score</span></span>
 
                 </div>
               </div>
@@ -729,7 +762,7 @@ const SolubilityDesign = () => {
                   NSGA-II Sort
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>Obj-1: logS ↑ &nbsp;·&nbsp; Obj-2: MW ↓</span>
+                  <span>Obj-1: logD ↑ &nbsp;·&nbsp; Obj-2: SA Score ↓</span>
                   <span className="text-[9px] text-gray-600">Non-dominated rank + crowding distance · selects top 100</span>
                 </div>
               </div>
@@ -762,7 +795,7 @@ const SolubilityDesign = () => {
 
             {!modelReady && (
               <div className="mb-3 px-3 py-2.5 rounded-lg bg-amber-900/25 border border-amber-700/40 text-[11px] text-amber-300 leading-snug">
-                ⚠ Train the <strong>AqSolDB</strong> model first in the <strong>Property Prediction</strong> tab.
+                ⚠ Train the <strong>ChEMBL Lipophilicity</strong> model first in the <strong>Property Prediction</strong> tab.
               </div>
             )}
 
@@ -878,7 +911,9 @@ const SolubilityDesign = () => {
                   Pareto-optimal candidates — Final generation
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-gray-600">sorted by logS ↓</span>
+                  <span className="text-[10px] text-gray-600">
+                    {sortConfig.key ? `sorted by ${sortConfig.key} ${sortConfig.dir === 'asc' ? '▲' : '▼'}` : 'click column to sort'}
+                  </span>
                   <button onClick={exportCsv}
                     className="px-2.5 py-1 rounded text-[10px] border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all"
                     title="Export CSV">⬇ CSV</button>
@@ -890,18 +925,30 @@ const SolubilityDesign = () => {
                 <table className="w-full text-[11px]">
                   <thead className="sticky top-0 bg-[#0e0e0e]">
                     <tr className="border-b border-gray-800">
-                      {["#", "Name", "logS ↑", "MW (Da) ↓", "QED", "SA", "PAINS", "vs Vanillin", "Origin"].map(h => (
-                        <th key={h} className="px-3 py-2 text-left text-gray-500 font-medium">{h}</th>
+                      {COLUMN_DEFS.map(({ label, key }) => (
+                        <th
+                          key={label}
+                          onClick={key ? () => handleSort(key) : undefined}
+                          className={`px-3 py-2 text-left font-medium text-[11px] select-none ${key ? 'cursor-pointer hover:text-gray-300' : ''} ${sortConfig.key === key && key ? 'text-gray-200' : 'text-gray-500'}`}
+                        >
+                          {label}
+                          {key && sortConfig.key === key && (
+                            <span className="ml-1 text-[9px]">{sortConfig.dir === 'asc' ? '▲' : '▼'}</span>
+                          )}
+                          {key && sortConfig.key !== key && (
+                            <span className="ml-1 text-[9px] text-gray-700">⇅</span>
+                          )}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {finalPareto.map((c, i) => {
+                    {sortedPareto.map((c, i) => {
                       const isNew = c.cid == null;
-                      const refLD = reference?.logS ?? -1.3;
-                      const refMW = reference?.mw ?? 152;
-                      const dominates = (c.logS ?? -6) > refLD && c.mw < refMW;
-                      const delta = (c.logS ?? -6) - refLD;
+                      const refLD = reference?.logD ?? 2.0;
+                      const refSA = reference?.sa_score ?? 3.0;
+                      const dominates = (c.logD ?? -2) > refLD && (c.sa_score ?? 10) < refSA;
+                      const delta = (c.logD ?? -2) - refLD;
                       const lookup = smilesNames[c.smiles];
                       return (
                         <tr key={i} className={`border-b border-gray-800/40 ${dominates ? "bg-rose-900/10" : ""}`}>
@@ -910,7 +957,7 @@ const SolubilityDesign = () => {
                             {isNew ? (
                               <div>
                                 <div className="flex items-center gap-1.5">
-                                  <span className="font-mono text-[9px] text-gray-400 truncate max-w-[150px] block">{c.smiles}</span>
+                                  <span className="font-mono text-[9px] text-gray-400 break-all block">{c.smiles}</span>
                                   {!lookup && (
                                     <button onClick={() => lookupSmiles(c.smiles)}
                                       className="flex-shrink-0 text-gray-500 hover:text-rose-400 transition-colors text-[13px]"
@@ -940,22 +987,21 @@ const SolubilityDesign = () => {
                             )}
                           </td>
                           <td className="px-3 py-2 font-mono">
-                            <span style={{ color: (c.logS ?? -6) > refLD ? "#22c55e" : "#9ca3af" }}>
-                              {(c.logS ?? -6).toFixed(2)}
+                            <span style={{ color: (c.logD ?? -2) > refLD ? "#22c55e" : "#9ca3af" }}>
+                              {(c.logD ?? -2).toFixed(2)}
                             </span>
-                          </td>
-                          <td className="px-3 py-2 font-mono text-gray-400">{c.mw}</td>
-                          <td className="px-3 py-2 font-mono">
-                            {c.qed != null ? (
-                              <span style={{ color: c.qed >= 0.5 ? "#22c55e" : c.qed >= 0.3 ? "#f59e0b" : "#9ca3af" }}>
-                                {c.qed.toFixed(3)}
-                              </span>
-                            ) : <span className="text-gray-700">—</span>}
                           </td>
                           <td className="px-3 py-2 font-mono">
                             {c.sa_score != null ? (
                               <span style={{ color: c.sa_score <= 4 ? "#22c55e" : c.sa_score <= 6 ? "#f59e0b" : "#ef4444" }}>
-                                {c.sa_score.toFixed(1)}
+                                {c.sa_score.toFixed(2)}
+                              </span>
+                            ) : <span className="text-gray-700">—</span>}
+                          </td>
+                          <td className="px-3 py-2 font-mono">
+                            {c.qed != null ? (
+                              <span style={{ color: c.qed >= 0.5 ? "#22c55e" : c.qed >= 0.3 ? "#f59e0b" : "#9ca3af" }}>
+                                {c.qed.toFixed(3)}
                               </span>
                             ) : <span className="text-gray-700">—</span>}
                           </td>
@@ -976,7 +1022,7 @@ const SolubilityDesign = () => {
                               </span>
                             ) : (
                               <span className="font-mono text-gray-500 text-[10px]">
-                                {delta > 0 ? "+" : ""}{delta.toFixed(2)} logS
+                                {delta > 0 ? "+" : ""}{delta.toFixed(2)} logD
                               </span>
                             )}
                           </td>
@@ -997,7 +1043,7 @@ const SolubilityDesign = () => {
                 Seed pool: {poolMeta?.n_candidates} PubChem compounds · SMARTS mutation generated{" "}
                 {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_candidates ?? 0))} analogs ·{" "}
                 {generations[generations.length - 1]?.n_evaluated ?? 0} total evaluated.
-                logS: AqSolDB RF regressor · OOB R² {modelMeta?.oob_r2 ?? "—"}.
+                logD: ChEMBL Lipophilicity RF · OOB R² {modelMeta?.oob_r2 ?? "—"}.
               </div>
             </div>
           </div>,

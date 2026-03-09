@@ -2,11 +2,11 @@
 
 Three distinct use cases, each with SSE streaming + batch endpoints:
 
-  /optimize-2obj  — logS (AqSolDB RF) + MW↓ — solubility-guided design
-                    Pool: aromatic_pool.json (607 compounds). Requires aqsoldb model.
+  /optimize-2obj  — logD (ChEMBL Lipophilicity RF) + SA Score↓ — lipophilicity-guided design
+                    Pool: aromatic_pool.json (607 compounds). Requires lipophilicity model.
 
-  /optimize-3obj  — P(sweet)↑ + MW↓ + P(safe AMES)↑ — sweetness enhancer discovery
-                    Pool: sweetness_pool.json (80 compounds). Requires flavor_sensory + ames_mutagenicity.
+  /optimize-3obj  — P(sweet)↑ + MW↓ + logS↑ (AqSolDB RF) — sweetness enhancer discovery
+                    Pool: sweetness_pool.json (325 compounds). Requires flavor_sensory + aqsoldb.
 
   /optimize-scaffold — conjugation_score↑ + MW↓ + regulatory_score↑ — colorant scaffold hopping
                     Pool: colorant_pool.json (63 compounds). No ML model required.
@@ -189,18 +189,18 @@ def _build_regulatory_lookup(colorant_pool: list[dict]) -> dict[str, float]:
 
 
 def _rename_2obj(candidates: list[dict]) -> list[dict]:
-    """Rename optimizer key 'logD' → 'logS' for the 2-obj solubility run."""
+    """Rename optimizer key 'mw' → 'sa_score' for the 2-obj logD+SA run."""
     for c in candidates:
-        if "logD" in c:
-            c["logS"] = c.pop("logD")
+        if "mw" in c:
+            c["sa_score"] = c.pop("mw")
     return candidates
 
 
 def _rename_3obj(candidates: list[dict]) -> list[dict]:
-    """Rename optimizer keys for 3-obj: 'psweet'→'psafe', 'logD'→'psweet'."""
+    """Rename optimizer keys for 3-obj: 'psweet'→'logS', 'logD'→'psweet'."""
     for c in candidates:
         if "psweet" in c:
-            c["psafe"] = c.pop("psweet")
+            c["logS"] = c.pop("psweet")
         if "logD" in c:
             c["psweet"] = c.pop("logD")
     return candidates
@@ -438,12 +438,12 @@ async def train_endpoint(request: TrainRequest):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-# ── Use case 1: Solubility-guided design (logS + MW) ─────────────────────────
+# ── Use case 1: Lipophilicity-guided design (logD + SA Score) ────────────────
 
 @router.post("/optimize-2obj/stream")
 async def optimize_2obj_stream():
-    """SSE: 2-obj NSGA-II — maximize logS (AqSolDB RF) + minimize MW.
-    Pool: aromatic_pool.json (607 compounds). Requires aqsoldb model.
+    """SSE: 2-obj NSGA-II — maximize logD (ChEMBL Lipophilicity RF) + minimize SA Score.
+    Pool: aromatic_pool.json (607 compounds). Requires lipophilicity model.
     """
     REF = REFERENCE_COMPOUNDS["solubility"]
     loop = asyncio.get_running_loop()
@@ -454,16 +454,16 @@ async def optimize_2obj_stream():
         try:
             if not training_service.RDKIT_OK:
                 raise RuntimeError("RDKit is not installed in this environment.")
-            if "aqsoldb" not in training_service._RF_MODEL_CACHE:
+            if "lipophilicity" not in training_service._RF_MODEL_CACHE:
                 raise ValueError(
-                    "AqSolDB Solubility model not trained yet. "
-                    "Go to the Property Prediction tab, select 'AqSolDB', "
+                    "ChEMBL Lipophilicity model not trained yet. "
+                    "Go to the Property Prediction tab, select 'ChEMBL Lipophilicity', "
                     "and click Train Model first."
                 )
 
-            aqsoldb_cfg = DATASETS["aqsoldb"]
-            rf_sol  = training_service._RF_MODEL_CACHE["aqsoldb"]
-            oob_r2  = round(float(rf_sol.oob_score_), 3)
+            lipo_cfg = DATASETS["lipophilicity"]
+            rf_lipo  = training_service._RF_MODEL_CACHE["lipophilicity"]
+            oob_r2   = round(float(rf_lipo.oob_score_), 3)
 
             candidates_raw = get_aromatic_pool()
             pool_meta_ = get_aromatic_pool_meta()
@@ -474,8 +474,8 @@ async def optimize_2obj_stream():
                 raise RuntimeError("Too few valid compounds in the aromatic pool.")
 
             name_lookup = _build_name_lookup(valid_pool)
-            ref_logs = training_service.predict_log_solubility(REF["smiles"])
-            ref_mw   = training_service.get_mw(REF["smiles"])
+            ref_logd = training_service.predict_logD(REF["smiles"])
+            ref_sa   = training_service.compute_sa_score(REF["smiles"])
 
             loop.call_soon_threadsafe(q.put_nowait, _sse("meta", {
                 "pool_meta": {
@@ -485,18 +485,18 @@ async def optimize_2obj_stream():
                     "threshold":    pool_meta_["threshold"],
                 },
                 "model_meta": {
-                    "dataset":    aqsoldb_cfg["name"],
-                    "oob_r2":     oob_r2,
-                    "n_train":    aqsoldb_cfg.get("n_molecules", 9982),
-                    "logS_method": "AqSolDB RF regressor",
-                    "mw_method":  "RDKit ExactMolWt",
+                    "dataset":      lipo_cfg["name"],
+                    "oob_r2":       oob_r2,
+                    "n_train":      lipo_cfg.get("n_molecules", 4200),
+                    "logD_method":  "ChEMBL Lipophilicity RF",
+                    "sa_method":    "RDKit SA Score",
                 },
                 "reference": {
-                    "name":   REF["name"],
-                    "smiles": REF["smiles"],
-                    "cas":    REF["cas"],
-                    "logS":   round(ref_logs, 3) if ref_logs is not None else None,
-                    "mw":     round(ref_mw, 1)   if ref_mw   is not None else None,
+                    "name":     REF["name"],
+                    "smiles":   REF["smiles"],
+                    "cas":      REF["cas"],
+                    "logD":     round(ref_logd, 3) if ref_logd is not None else None,
+                    "sa_score": round(ref_sa, 2)   if ref_sa   is not None else None,
                 },
                 "total_generations": 10,
             }))
@@ -504,8 +504,8 @@ async def optimize_2obj_stream():
             last_gen = None
             for gen_data in iter_nsga2_generative(
                 initial_pool=valid_pool,
-                logD_fn=training_service.predict_log_solubility,
-                mw_fn=training_service.get_mw,
+                logD_fn=training_service.predict_logD,
+                mw_fn=training_service.compute_sa_score,
                 name_lookup=name_lookup,
                 taste_fn=None,
                 n_generations=10,
@@ -516,13 +516,13 @@ async def optimize_2obj_stream():
 
                 if gen_data["gen"] == 0:
                     cands = gen_data["candidates"]
-                    all_ls = [c["logS"] for c in cands if c.get("logS") is not None]
-                    all_mw = [c["mw"]   for c in cands]
+                    all_ld = [c["logD"]     for c in cands if c.get("logD")     is not None]
+                    all_sa = [c["sa_score"] for c in cands if c.get("sa_score") is not None]
                     gen_data["property_range"] = {
-                        "logS_min": round(min(all_ls), 3) if all_ls else None,
-                        "logS_max": round(max(all_ls), 3) if all_ls else None,
-                        "mw_min":   round(min(all_mw), 1),
-                        "mw_max":   round(max(all_mw), 1),
+                        "logD_min": round(min(all_ld), 3) if all_ld else None,
+                        "logD_max": round(max(all_ld), 3) if all_ld else None,
+                        "sa_min":   round(min(all_sa), 2) if all_sa else None,
+                        "sa_max":   round(max(all_sa), 2) if all_sa else None,
                     }
 
                 last_gen = gen_data
@@ -530,7 +530,7 @@ async def optimize_2obj_stream():
 
             result["pareto"] = sorted(
                 [c for c in (last_gen or {}).get("candidates", []) if not c["dominated"]],
-                key=lambda c: -(c.get("logS") or -6),
+                key=lambda c: -(c.get("logD") or -2),
             )
 
         except ValueError as exc:
@@ -568,8 +568,8 @@ async def optimize_2obj_stream():
 
 @router.post("/optimize-3obj/stream")
 async def optimize_3obj_stream():
-    """SSE: 3-obj NSGA-II — P(sweet)↑ + MW↓ + P(safe AMES)↑ — sweetness enhancer.
-    Pool: sweetness_pool.json (80 compounds). Requires flavor_sensory + ames_mutagenicity.
+    """SSE: 3-obj NSGA-II — P(sweet)↑ + MW↓ + logS↑ (AqSolDB RF) — sweetness enhancer.
+    Pool: sweetness_pool.json (80 compounds). Requires flavor_sensory + aqsoldb.
     """
     REF = REFERENCE_COMPOUNDS["sweetness"]
     loop = asyncio.get_running_loop()
@@ -584,8 +584,8 @@ async def optimize_3obj_stream():
             missing = []
             if "flavor_sensory" not in training_service._RF_MODEL_CACHE:
                 missing.append("FartDB Taste")
-            if "ames_mutagenicity" not in training_service._RF_MODEL_CACHE:
-                missing.append("AMES Mutagenicity")
+            if "aqsoldb" not in training_service._RF_MODEL_CACHE:
+                missing.append("AqSolDB Solubility")
             if missing:
                 raise ValueError(
                     f"Missing trained models: {', '.join(missing)}. "
@@ -593,10 +593,10 @@ async def optimize_3obj_stream():
                 )
 
             rf_taste  = training_service._RF_MODEL_CACHE["flavor_sensory"]
-            rf_ames   = training_service._RF_MODEL_CACHE["ames_mutagenicity"]
+            rf_sol    = training_service._RF_MODEL_CACHE["aqsoldb"]
             taste_cfg = DATASETS["flavor_sensory"]
             oob_acc   = round(float(rf_taste.oob_score_), 3)
-            oob_ames  = round(float(rf_ames.oob_score_), 3)
+            oob_sol   = round(float(rf_sol.oob_score_), 3)
 
             candidates_raw = get_sweetness_pool()
             pool_meta_ = get_sweetness_pool_meta()
@@ -630,7 +630,7 @@ async def optimize_3obj_stream():
             name_lookup = _build_name_lookup(filtered)
             ref_psweet = training_service.predict_taste_sweet(REF["smiles"])
             ref_mw     = training_service.get_mw(REF["smiles"])
-            ref_psafe  = training_service.predict_ames_safety(REF["smiles"])
+            ref_logS   = training_service.predict_log_solubility(REF["smiles"])
 
             loop.call_soon_threadsafe(q.put_nowait, _sse("meta", {
                 "pool_meta": {
@@ -642,11 +642,11 @@ async def optimize_3obj_stream():
                     "threshold":      pool_meta_["threshold"],
                 },
                 "model_meta": {
-                    "oob_accuracy_taste": oob_acc,
-                    "oob_accuracy_ames":  oob_ames,
-                    "psweet_method":      "FartDB taste RF",
-                    "psafe_method":       "AMES Mutagenicity RF (1 − P(mutagenic))",
-                    "mw_method":          "RDKit ExactMolWt",
+                    "oob_accuracy_taste":  oob_acc,
+                    "oob_r2_solubility":   oob_sol,
+                    "psweet_method":       "FartDB taste RF",
+                    "logS_method":         "AqSolDB RF regressor",
+                    "mw_method":           "RDKit ExactMolWt",
                 },
                 "reference": {
                     "name":   REF["name"],
@@ -654,7 +654,7 @@ async def optimize_3obj_stream():
                     "cas":    REF["cas"],
                     "psweet": round(ref_psweet, 3) if ref_psweet is not None else None,
                     "mw":     round(ref_mw, 1)     if ref_mw     is not None else None,
-                    "psafe":  round(ref_psafe, 3)  if ref_psafe  is not None else None,
+                    "logS":   round(ref_logS, 3)   if ref_logS   is not None else None,
                 },
                 "total_generations": 10,
             }))
@@ -665,7 +665,7 @@ async def optimize_3obj_stream():
                 logD_fn=training_service.predict_taste_sweet,
                 mw_fn=training_service.get_mw,
                 name_lookup=name_lookup,
-                taste_fn=training_service.predict_ames_safety,
+                taste_fn=training_service.predict_log_solubility,
                 n_generations=10,
                 pop_size=100,
                 seed=42,
