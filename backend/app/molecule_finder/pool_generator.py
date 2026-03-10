@@ -4,7 +4,7 @@ Three pools, each auto-generated from PubChem 2D-similarity searches seeded on
 domain-specific reference compounds and validated with strict per-pool rules:
 
   druglike_pool.json  — Drug-like CNS compounds        (logD / SA-Score optimisation)
-  sweetness_pool.json — Phenolic / flavonoid compounds  (sweetness enhancer discovery)
+  sweetness_pool.json — Sweet compounds (sugars, synthetic, semi-natural sweeteners)
   colorant_pool.json  — Conjugated natural pigments     (colorant scaffold hopping)
 
 Called automatically from candidate_pool.py when a pool file is absent.
@@ -81,42 +81,34 @@ POOL_CONFIGS: dict[str, dict] = {
         ],
     },
 
-    # ── Sweetness enhancer discovery ────────────────────────────────────────────
+    # ── Sweetness discovery ──────────────────────────────────────────────────────
     "sweetness": {
         "file":        "sweetness_pool.json",
-        "source":      "PubChem 2D-similarity search — dihydrochalcone / isocoumarin / flavanone scaffolds",
-        "description": "Phenolic / flavonoid compounds for sweetness / logS / MW Pareto optimisation",
+        "source":      "PubChem 2D-similarity search — known sweeteners (sugars, synthetic, semi-natural)",
+        "description": "Sweet compounds for P(sweet) / logS / MW Pareto optimisation",
         "seeds": [
-            {"name": "Phloretin",       "cid": 4788},
-            {"name": "Phyllodulcin",    "cid": 442495},
-            {"name": "Dihydrocoumarin", "cid": 660},
-            {"name": "Hesperetin",      "cid": 72281},
-            {"name": "NHDC",            "cid": 30231},
+            {"name": "Glucose",    "cid": 5793},
+            {"name": "Sucrose",    "cid": 5988},
+            {"name": "Aspartame",  "cid": 134601},
+            {"name": "Saccharin",  "cid": 5143},
+            {"name": "Stevioside", "cid": 442089},
         ],
-        "threshold":         65,
+        "threshold":         60,   # lower threshold for diverse chemical classes
         "max_hits_per_seed": 150,
-        "mw_min":  120.0,
-        "mw_max":  500.0,
-        "target_n": 325,
+        "mw_min":  100.0,
+        "mw_max":  600.0,
+        "target_n": 300,
         "rules": [
-            {"type": "property", "key": "logp_max",  "value": 5.5,
-             "desc": "logP ≤ 5.5"},
-            {"type": "property", "key": "hbd_max",   "value": 6,
-             "desc": "H-bond donors ≤ 6"},
-            {"type": "property", "key": "hba_max",   "value": 12,
-             "desc": "H-bond acceptors ≤ 12"},
-            {"type": "require", "smarts": "c[OH1]",
-             "desc": "must have phenolic OH"},
-            {"type": "require", "smarts": "a",
-             "desc": "must contain an aromatic ring"},
-            {"type": "exclude", "smarts": "[F,Cl,Br,I]",
-             "desc": "no halogens (rare in natural sweet phenolics)"},
-            {"type": "exclude", "smarts": "[nX2H0;!$(n1cccc1)]",
-             "desc": "no pyridine-like aromatic N (unusual in flavonoids)"},
-            {"type": "exclude", "smarts": "[#16]",
-             "desc": "no sulfur (atypical in sweet phenolics)"},
-            {"type": "exclude", "smarts": "[#14,Se,Te]",
-             "desc": "no silicon / selenium / tellurium"},
+            # Sweet molecules are chemically diverse — rules are kept permissive.
+            # MW range is the primary filter; standard Lipinski limits clean out outliers.
+            {"type": "property", "key": "logp_max",  "value": 6.0,
+             "desc": "logP ≤ 6 (sweeteners tend to be water-soluble)"},
+            {"type": "property", "key": "hbd_max",   "value": 12,
+             "desc": "H-bond donors ≤ 12 (sugars have many OH)"},
+            {"type": "property", "key": "hba_max",   "value": 15,
+             "desc": "H-bond acceptors ≤ 15"},
+            {"type": "exclude", "smarts": "[#14,Se,Te,#33,#51]",
+             "desc": "no Si / Se / Te / As / Sb"},
         ],
     },
 
@@ -132,11 +124,11 @@ POOL_CONFIGS: dict[str, dict] = {
             {"name": "Aureusidin",        "cid": 5281680},
             {"name": "Curcumin",          "cid": 969516},
         ],
-        "threshold":         55,
-        "max_hits_per_seed": 50,
+        "threshold":         50,   # lowered from 55 — broader coverage of flavonoid space
+        "max_hits_per_seed": 100,  # raised from 50
         "mw_min":  150.0,
         "mw_max":  600.0,
-        "target_n": 70,
+        "target_n": 60,
         "rules": [
             {"type": "property", "key": "logp_max",  "value": 6.0,
              "desc": "logP ≤ 6 (natural pigments can be somewhat hydrophobic)"},
@@ -146,8 +138,9 @@ POOL_CONFIGS: dict[str, dict] = {
              "desc": "must have phenolic OH (natural polyphenol pigments)"},
             {"type": "require", "smarts": "a",
              "desc": "must contain an aromatic ring"},
-            {"type": "require", "smarts": "[#6]=[#6]",
-             "desc": "must have C=C double bond (chromophore conjugation)"},
+            # NOTE: [#6]=[#6] removed — RDKit represents aromatic C=C as aromatic bonds,
+            # not explicit double bonds, so the SMARTS would incorrectly reject flavones/flavonols.
+            # Conjugation is enforced via sp2_min instead.
             {"type": "sp2_min", "value": 0.35,
              "desc": "sp2-atom fraction ≥ 35 % (sufficient conjugation for colour)"},
             {"type": "exclude", "smarts": "[F,Cl,Br,I]",

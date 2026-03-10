@@ -689,14 +689,23 @@ const ColorantScaffold = () => {
                   Candidate Pool
                 </div>
                 {poolMeta ? (
-                  <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                    <span>
-                      <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>{poolMeta.n_candidates}</span> natural pigment compounds · PubChem
-                    </span>
-                    <span className="text-[9px] text-gray-600 leading-snug">
-                      Yellow/orange colorants — curcuminoids, carotenoids, flavonoids, anthocyanins. EU E-number status pre-computed.
-                    </span>
-                  </div>
+                  poolMeta.status === "pending" ? (
+                    <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
+                      <span className="text-amber-600/80 font-mono">generating pool…</span>
+                      <span className="text-[9px] text-gray-600 leading-snug">
+                        ~{poolMeta.target_n} natural pigment compounds · seeds: {poolMeta.seeds?.join(", ")}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
+                      <span>
+                        <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>{poolMeta.n_candidates}</span> natural pigment compounds · PubChem
+                      </span>
+                      <span className="text-[9px] text-gray-600 leading-snug">
+                        Yellow/orange colorants — curcuminoids, carotenoids, flavonoids, anthocyanins. EU E-number status pre-computed.
+                      </span>
+                    </div>
+                  )
                 ) : <span className="text-[10px] text-gray-600">Loading…</span>}
               </div>
             </div>
@@ -821,7 +830,7 @@ const ColorantScaffold = () => {
           {/* ── Right column — chart ── */}
           <div className="col-span-3 rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col">
             <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
-              {poolMeta ? `${poolMeta.n_candidates} natural pigment compounds + generated analogs` : "Pareto space"}
+              {poolMeta?.n_candidates ? `${poolMeta.n_candidates} natural pigment compounds + generated analogs` : "Pareto space"}
             </div>
             <div className="flex items-center">
               <StepBar activeStep={activeStep} pulseStep={animPhase === "wait_mutation" ? 2 : null} />
@@ -1021,7 +1030,7 @@ const ColorantScaffold = () => {
                 </table>
               </div>
               <div className="px-4 py-2 border-t border-gray-800/60 text-[10px] text-gray-600 flex-shrink-0">
-                Seed pool: {poolMeta?.n_candidates} natural pigments · SMARTS mutation generated{" "}
+                Seed pool: {poolMeta?.n_candidates ?? "—"} natural pigments · SMARTS mutation generated{" "}
                 {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_candidates ?? 0))} analogs ·{" "}
                 {generations[generations.length - 1]?.n_evaluated ?? 0} total evaluated ·
                 Conj. score = sp² count / 20 (RDKit) · Reg. score: 1.0 = EU E-number approved · 0.5 = not evaluated ·

@@ -200,7 +200,7 @@ export const workflows = {
       {
         id: 8,
         title: "case: sweetness enhancer discovery",
-        subtitle: "3-objective NSGA-II on a pool of <strong>dihydrochalcone and flavanone compounds</strong> seeded on Phloretin, Hesperetin, Phyllodulcin and NHDC — all known sweet or structurally sweet-adjacent phenolics. Simultaneously maximizing <strong>sweetness probability</strong> and <strong>logS</strong> while minimizing <strong>MW</strong>.",
+        subtitle: "3-objective NSGA-II on a pool of <strong>sweet compounds</strong> seeded on Glucose, Sucrose, Aspartame, Saccharin and Stevioside — spanning natural sugars, synthetic and semi-natural sweeteners. Simultaneously maximizing <strong>sweetness probability</strong> and <strong>logS</strong> while minimizing <strong>MW</strong>.",
         gradient: "from-violet-600 via-purple-600 to-fuchsia-600",
       },
       {

@@ -722,18 +722,27 @@ const SweetnessEnhancer = () => {
                   Candidate Pool
                 </div>
                 {poolMeta ? (
-                  <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                    <span>
-                      <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>
-                        {poolMeta.n_after_filter ?? poolMeta.n_candidates}
-                      </span> DHC / isocoumarin / flavanone compounds · PubChem
-                    </span>
-                    {(poolMeta.n_excluded ?? 0) > 0 && (
-                      <span className="text-[9px] text-gray-600">
-                        {poolMeta.n_excluded} excluded (halogens/metals)
+                  poolMeta.status === "pending" ? (
+                    <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
+                      <span className="text-amber-600/80 font-mono">generating pool…</span>
+                      <span className="text-[9px] text-gray-600 leading-snug">
+                        ~{poolMeta.target_n} sweet compounds · seeds: {poolMeta.seeds?.join(", ")}
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
+                      <span>
+                        <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>
+                          {poolMeta.n_after_filter ?? poolMeta.n_candidates}
+                        </span> sweet compounds · PubChem
+                      </span>
+                      {(poolMeta.n_excluded ?? 0) > 0 && (
+                        <span className="text-[9px] text-gray-600">
+                          {poolMeta.n_excluded} excluded (halogens/metals)
+                        </span>
+                      )}
+                    </div>
+                  )
                 ) : <span className="text-[10px] text-gray-600">Loading…</span>}
               </div>
             </div>
@@ -864,8 +873,8 @@ const SweetnessEnhancer = () => {
           {/* ── Right column — chart ── */}
           <div className="col-span-3 rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col">
             <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
-              {poolMeta
-                ? `${poolMeta.n_after_filter ?? poolMeta.n_candidates} compounds · colour = logS from AqSolDB RF`
+              {(poolMeta?.n_after_filter ?? poolMeta?.n_candidates)
+                ? `${poolMeta.n_after_filter ?? poolMeta.n_candidates} sweet compounds · colour = logS from AqSolDB RF`
                 : "3-objective Pareto space"}
             </div>
             <div className="flex items-center">
@@ -1074,7 +1083,7 @@ const SweetnessEnhancer = () => {
                 </table>
               </div>
               <div className="px-4 py-2 border-t border-gray-800/60 text-[10px] text-gray-600 flex-shrink-0">
-                Seed pool: {poolMeta?.n_after_filter ?? poolMeta?.n_candidates} PubChem compounds ·
+                Seed pool: {poolMeta?.n_after_filter ?? poolMeta?.n_candidates ?? "—"} sweet compounds ·
                 SMARTS mutation generated {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_after_filter ?? poolMeta?.n_candidates ?? 0))} analogs ·{" "}
                 {generations[generations.length - 1]?.n_evaluated ?? 0} total evaluated.
                 P(sweet): FartDB taste RF · OOB acc. {modelMeta?.oob_accuracy_taste ?? "—"}.

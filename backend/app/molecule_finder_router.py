@@ -5,8 +5,8 @@ Three distinct use cases, each with SSE streaming + batch endpoints:
   /optimize-2obj  — logD (ChEMBL Lipophilicity LightGBM) + SA Score↓ — CNS lipophilicity-guided lead discovery
                     Pool: druglike_pool.json (drug-like CNS compounds). Requires lipophilicity model.
 
-  /optimize-3obj  — P(sweet)↑ + MW↓ + logS↑ (AqSolDB RF) — sweetness enhancer discovery
-                    Pool: sweetness_pool.json (dihydrochalcone/flavanone compounds). Requires flavor_sensory + aqsoldb.
+  /optimize-3obj  — P(sweet)↑ + MW↓ + logS↑ (AqSolDB RF) — sweetness discovery
+                    Pool: sweetness_pool.json (sweet compounds seeded on Glucose/Sucrose/Aspartame/Saccharin/Stevioside). Requires flavor_sensory + aqsoldb.
 
   /optimize-scaffold — conjugation_score↑ + MW↓ + regulatory_score↑ — colorant scaffold hopping
                     Pool: colorant_pool.json (natural yellow/orange pigments). No ML model required.
@@ -27,6 +27,7 @@ from app.molecule_finder.candidate_pool import (
     get_druglike_pool, get_druglike_pool_meta,
     get_sweetness_pool, get_sweetness_pool_meta,
     get_colorant_pool, get_colorant_pool_meta,
+    ensure_pools_exist,
 )
 from app.molecule_finder.molecular_utils import compute_properties, validate_smiles, ecfp4_bits
 from app.molecule_finder               import training_service
@@ -39,6 +40,9 @@ router = APIRouter()
 
 # Load any previously persisted models into memory when this module is imported.
 training_service.load_saved_models()
+
+# Generate any missing pool JSON files in a background thread (non-blocking).
+ensure_pools_exist()
 
 # ── Optimization results cache ─────────────────────────────────────────────────
 _OPT_CACHE_FILE = training_service.CACHE_DIR / "optimization_results.json"
@@ -243,15 +247,33 @@ def health():
 
 @router.get("/candidates/meta")
 def candidates_meta():
-    """Return metadata about all three compound pools."""
-    try:
-        return {
-            "solubility": get_druglike_pool_meta(),
-            "sweetness":  get_sweetness_pool_meta(),
-            "colorant":   get_colorant_pool_meta(),
-        }
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+    """Return metadata about all three compound pools.
+
+    Each key is either a full meta dict (pool file present) or a
+    {status:"pending", seeds, threshold, target_n, mw_range} dict (file absent,
+    generation running in background).  Always returns 200.
+    """
+    from app.molecule_finder.pool_generator import POOL_CONFIGS
+
+    def _meta_or_pending(loader, pool_key: str) -> dict:
+        try:
+            return loader()
+        except FileNotFoundError:
+            cfg = POOL_CONFIGS.get(pool_key, {})
+            return {
+                "status":    "pending",
+                "seeds":     [s["name"] for s in cfg.get("seeds", [])],
+                "seed_cids": [s["cid"]  for s in cfg.get("seeds", [])],
+                "threshold": cfg.get("threshold"),
+                "target_n":  cfg.get("target_n"),
+                "mw_range":  [cfg.get("mw_min"), cfg.get("mw_max")],
+            }
+
+    return {
+        "solubility": _meta_or_pending(get_druglike_pool_meta, "aromatic"),
+        "sweetness":  _meta_or_pending(get_sweetness_pool_meta, "sweetness"),
+        "colorant":   _meta_or_pending(get_colorant_pool_meta,  "colorant"),
+    }
 
 
 @router.post("/regulatory-check")
@@ -381,9 +403,13 @@ async def get_structure_image(cid: int):
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             r = await client.get(url)
-        if r.status_code != 200:
+        if r.status_code == 200:
+            return Response(content=r.content, media_type="image/png")
+        if r.status_code == 404:
             raise HTTPException(status_code=404, detail="Structure not found on PubChem")
-        return Response(content=r.content, media_type="image/png")
+        # 503 ServerBusy or other transient errors — propagate faithfully
+        raise HTTPException(status_code=r.status_code,
+                            detail=f"PubChem returned {r.status_code}")
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="Could not reach PubChem")
 
@@ -569,8 +595,8 @@ async def optimize_2obj_stream():
 
 @router.post("/optimize-3obj/stream")
 async def optimize_3obj_stream():
-    """SSE: 3-obj NSGA-II — P(sweet)↑ + MW↓ + logS↑ (AqSolDB RF) — sweetness enhancer.
-    Pool: sweetness_pool.json (80 compounds). Requires flavor_sensory + aqsoldb.
+    """SSE: 3-obj NSGA-II — P(sweet)↑ + MW↓ + logS↑ (AqSolDB RF) — sweetness discovery.
+    Pool: sweetness_pool.json (sweet compounds). Requires flavor_sensory + aqsoldb.
     """
     REF = REFERENCE_COMPOUNDS["sweetness"]
     loop = asyncio.get_running_loop()
