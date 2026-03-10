@@ -10,10 +10,22 @@ set -e
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR"
 
-# Require Docker
+# Require Docker CLI
 if ! command -v docker &> /dev/null; then
     echo "ERROR: Docker is not installed. Download from https://docs.docker.com/get-docker/"
     exit 1
+fi
+
+# Start Docker Desktop if daemon is not running (macOS only)
+if ! docker info &> /dev/null; then
+    echo "[docker] Daemon not running — starting Docker Desktop..."
+    open -a Docker
+    echo -n "[docker] Waiting for Docker daemon"
+    until docker info &> /dev/null 2>&1; do
+        printf "."
+        sleep 2
+    done
+    echo " ready."
 fi
 
 case "${1:-}" in

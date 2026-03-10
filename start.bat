@@ -16,10 +16,25 @@ if %errorlevel% neq 0 (
 
 docker info >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ERROR: Docker daemon is not running.
-    echo Start Docker Desktop and try again.
+    echo Docker daemon not running - starting Docker Desktop...
+    start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+    echo Waiting for Docker daemon...
+    set _d=0
+    :wait_docker
+    timeout /t 3 /nobreak >nul
+    docker info >nul 2>&1
+    if %errorlevel% equ 0 goto docker_ready
+    set /a _d+=1
+    if %_d% lss 30 (
+        set /a _pct=!_d!*100/30
+        echo   !_pct!%%...
+        goto wait_docker
+    )
+    echo ERROR: Docker did not start after 90s. Open Docker Desktop manually.
     pause
     exit /b 1
+    :docker_ready
+    echo Docker ready.
 )
 
 set MODE=%1

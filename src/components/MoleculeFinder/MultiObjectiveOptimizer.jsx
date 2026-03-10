@@ -71,7 +71,7 @@ const STAGES = [
   },
   {
     gen: 70, pts: [
-      { x: 0.00, y: 0.69, d: false }, { x: 0.07, y: 0.79, d: false },
+      { x: 0.03, y: 0.69, d: false }, { x: 0.09, y: 0.79, d: false },
       { x: 0.17, y: 0.87, d: false }, { x: 0.30, y: 0.93, d: false },
       { x: 0.45, y: 0.96, d: false }, { x: 0.62, y: 0.98, d: false },
       { x: 0.14, y: 0.73, d: true }, { x: 0.25, y: 0.83, d: true },
@@ -81,9 +81,9 @@ const STAGES = [
       { x: 0.67, y: 0.91, d: true }, { x: 0.58, y: 0.85, d: true },
       { x: 0.33, y: 0.72, d: true }, { x: 0.75, y: 0.88, d: true },
       { x: 0.43, y: 0.82, d: true }, { x: 0.12, y: 0.65, d: true },
-      { x: 0.65, y: 0.80, d: true }, { x: 0.80, y: 0.93, d: true },
+      { x: 0.65, y: 0.80, d: true }, 
       { x: 0.20, y: 0.70, d: true }, { x: 0.55, y: 0.72, d: true },
-      { x: 0.71, y: 0.84, d: true }, { x: 0.87, y: 0.90, d: true },
+      { x: 0.71, y: 0.84, d: true },
     ]
   },
 ];

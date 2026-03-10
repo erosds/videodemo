@@ -20,7 +20,7 @@ const USE_CASES = [
     body: "Designing materials with specific properties (e.g. strength, flexibility, conductivity) requires finding molecules that are also cost-effective and environmentally friendly.",
   },
   {
-    sector: "...",
+    sector: "...and more",
     title: "",
     body: "",
   }

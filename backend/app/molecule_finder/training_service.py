@@ -191,10 +191,7 @@ DATASETS: dict[str, dict] = {
         "description": (
             "Compounds with binary AMES mutagenicity labels from the TDC benchmark "
             "(Therapeutics Data Commons, Harvard). "
-            "The AMES test is the primary genotoxicity screen required by EFSA for all novel "
-            "food flavouring substances (Reg. EC 2232/96). "
-            "Once trained, the model predicts P(mutagenic) for any generated compound — "
-            "an essential safety gate before any synthesis decision."
+            "The AMES test is the primary genotoxicity screen for all novel food flavouring substances. "
         ),
         "url": "https://dataverse.harvard.edu/api/access/datafile/4259564",
         "sep": "\t",
