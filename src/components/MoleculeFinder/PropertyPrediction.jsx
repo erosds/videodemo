@@ -2,6 +2,13 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 const BACKEND = "http://localhost:8000";
 
+// Module-level cache — survives unmount/remount cycles.
+// When training completes while the component is unmounted, React silently
+// drops the state update; writing directly to this cache ensures the next
+// mount picks up the results without waiting for a new /saved-models fetch.
+const _persistedResults  = {};
+const _persistedStatuses = {};
+
 // ── Learning curve (animated) ───────────────────────────────────────────────
 const OobCurvePanel = ({ data, targetLabel, taskType = "regression", modelName = "Random Forest" }) => {
   const [progress, setProgress] = useState(0);
@@ -201,9 +208,9 @@ const Placeholder = ({ label, loading, queued }) => (
 const PropertyPrediction = () => {
   const [datasets, setDatasets]     = useState([]);
   const [selectedId, setSelectedId] = useState(null);
-  const [allResults, setAllResults] = useState({});
+  const [allResults, setAllResults] = useState(() => ({ ..._persistedResults }));
   // Per-dataset: "idle" | "queued" | "loading" | "done" | "error"
-  const [statuses, setStatuses]     = useState({});
+  const [statuses, setStatuses]     = useState(() => ({ ..._persistedStatuses }));
   const [elapseds, setElapseds]     = useState({});
   const [errors, setErrors]         = useState({});
 
@@ -223,7 +230,9 @@ const PropertyPrediction = () => {
         if (datasetsData.length > 0) setSelectedId(datasetsData[0].id);
         const saved = savedData.models ?? {};
         if (Object.keys(saved).length > 0) {
-          setAllResults(saved);
+          Object.assign(_persistedResults, saved);
+          for (const id of Object.keys(saved)) _persistedStatuses[id] = "done";
+          setAllResults(prev => ({ ...prev, ...saved }));
           setStatuses(prev => {
             const next = { ...prev };
             for (const id of Object.keys(saved)) next[id] = "done";
@@ -236,6 +245,8 @@ const PropertyPrediction = () => {
 
   const handleClearModels = useCallback(async () => {
     await fetch(`${BACKEND}/molecule-finder/saved-models`, { method: "DELETE" }).catch(() => {});
+    Object.keys(_persistedResults).forEach(k => delete _persistedResults[k]);
+    Object.keys(_persistedStatuses).forEach(k => delete _persistedStatuses[k]);
     setAllResults({});
     setStatuses({});
     setElapseds({});
@@ -268,6 +279,10 @@ const PropertyPrediction = () => {
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
+      // Write to module cache first — persists even if component unmounts before
+      // the state update is processed (React 18 drops setState on unmounted components).
+      _persistedResults[id]  = data;
+      _persistedStatuses[id] = "done";
       setAllResults(prev => ({ ...prev, [id]: data }));
       setStatuses(prev => ({ ...prev, [id]: "done" }));
     } catch (e) {

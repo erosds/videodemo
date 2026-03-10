@@ -17,6 +17,7 @@ export default function App() {
   const [scrollIndex, setScrollIndex] = useState(0);
   const containerRef = useRef(null);
   const rafRef = useRef(null);
+  const initialSectionRef = useRef(0);
 
   const currentSections = workflows[currentWorkflow]?.sections || [];
 
@@ -101,14 +102,17 @@ export default function App() {
   };
 
   const handleSelectWorkflow = (workflowId, initialSection = 0) => {
+    initialSectionRef.current = initialSection;
     setCurrentWorkflow(workflowId);
     setActiveIndex(initialSection);
     setScrollIndex(initialSection);
-    if (containerRef.current) {
-      const w = containerRef.current.offsetWidth || window.innerWidth;
-      containerRef.current.scrollLeft = initialSection * w;
-    }
   };
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const w = containerRef.current.offsetWidth || window.innerWidth;
+    containerRef.current.scrollLeft = initialSectionRef.current * w;
+  }, [currentWorkflow]);
 
   const handleBackToHome = () => {
     setCurrentWorkflow("home");

@@ -313,6 +313,14 @@ def _hf_import():
     """
     import sys, importlib
 
+    # If the real HF datasets package is already imported (has load_dataset),
+    # return it directly without evicting from sys.modules.  Evicting and
+    # re-importing causes Arrow extension types (e.g. Array2DExtensionType) to
+    # be registered twice, raising "already defined" errors on the second call.
+    if "datasets" in sys.modules and hasattr(sys.modules["datasets"], "load_dataset"):
+        _hf = sys.modules["datasets"]
+        return _hf, _hf.load_dataset
+
     # The local datasets/ dir that causes the conflict
     _local_root = str(Path(__file__).parent.parent.parent)  # backend/
 
