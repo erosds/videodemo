@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 const BACKEND = "http://localhost:8000";
 
 // ── Learning curve (animated) ───────────────────────────────────────────────
-const OobCurvePanel = ({ data, targetLabel, taskType = "regression" }) => {
+const OobCurvePanel = ({ data, targetLabel, taskType = "regression", modelName = "Random Forest" }) => {
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
 
@@ -73,7 +73,7 @@ const OobCurvePanel = ({ data, targetLabel, taskType = "regression" }) => {
       </svg>
       <div className="flex gap-2 flex-wrap">
         <span className="px-2 py-0.5 rounded text-[9px] bg-purple-900/30 text-purple-300">
-          Final OOB {scoreLabel} {finalScore?.toFixed(3)}
+          Final {scoreLabel} {finalScore?.toFixed(3)}
         </span>
         {convergePt && (
           <span className="px-2 py-0.5 rounded text-[9px] bg-rose-900/30 text-rose-300">
@@ -82,11 +82,16 @@ const OobCurvePanel = ({ data, targetLabel, taskType = "regression" }) => {
         )}
       </div>
       <p className="text-[11px] text-gray-600 leading-snug border-t border-gray-800/50 pt-2">
-        Each point shows how well the model predicts on molecules it never trained on — as
-        more decision trees are added, the estimate stabilises. This is called an
-        <span className="text-gray-500"> OOB (Out-of-Bag) learning curve</span>: trees
-        vote only on samples not used to build them, giving a free validation signal
-        without a separate test set.
+        {modelName === "LightGBM"
+          ? <>Each point shows validation {scoreLabel} on the held-out scaffold-split test set
+              as more boosting iterations are added — computed without retraining via
+              <span className="text-gray-500"> LightGBM num_iteration</span>.</>
+          : <>Each point shows how well the model predicts on molecules it never trained on — as
+              more decision trees are added, the estimate stabilises. This is called an
+              <span className="text-gray-500"> OOB (Out-of-Bag) learning curve</span>: trees
+              vote only on samples not used to build them, giving a free validation signal
+              without a separate test set.</>
+        }
       </p>
     </div>
   );
@@ -147,13 +152,13 @@ const MetricsGrid = ({ metrics, n_train, n_test, n_valid, targetLabel, taskType 
         { label: "Accuracy",    value: metrics.accuracy?.toFixed(3)    ?? "—", sub: "test set",              color: "#f59e0b" },
         { label: "F1",          value: metrics.f1?.toFixed(3)          ?? "—", sub: "binary sweet/bitter",   color: "#a855f7" },
         { label: "AUC-ROC",     value: metrics.auc?.toFixed(3)         ?? "—", sub: "test set",              color: "#6366f1" },
-        { label: "OOB Acc.",    value: metrics.oob_accuracy?.toFixed(3)?? "—", sub: "training set",          color: "#ec4899" },
+        { label: "CV Acc.",     value: metrics.oob_accuracy?.toFixed(3)?? "—", sub: "5-fold CV",              color: "#ec4899" },
       ]
     : [
         { label: "R²",          value: metrics.r2?.toFixed(3)          ?? "—", sub: "test set",              color: "#f43f5e" },
         { label: "MAE",         value: metrics.mae?.toFixed(3)         ?? "—", sub: targetLabel,             color: "#a855f7" },
         { label: "RMSE",        value: metrics.rmse?.toFixed(3)        ?? "—", sub: "test set",              color: "#6366f1" },
-        { label: "OOB R²",      value: metrics.oob_r2?.toFixed(3)      ?? "—", sub: "training set",          color: "#ec4899" },
+        { label: "CV R²",       value: metrics.oob_r2?.toFixed(3)      ?? "—", sub: "5-fold CV",              color: "#ec4899" },
       ];
   return (
     <div className="rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col gap-3 h-full">
@@ -415,6 +420,7 @@ const PropertyPrediction = () => {
                   <span><span className="text-gray-500">{trainedMolCount?.toLocaleString()}</span> molecules</span>
                   <span>target: <span className="text-gray-500">{selected.target_label}</span></span>
                   <span>task: <span className="text-gray-500">{selected.task_type}</span></span>
+                  <span>model: <span className="text-gray-500">{selected.model_name ?? "Random Forest"}</span></span>
                 </div>
 
                 <button
@@ -443,7 +449,7 @@ const PropertyPrediction = () => {
                   </span>{" "}molecules…
                 </div>
                 <div className="text-[9px] text-gray-600 text-center">
-                  500 trees · ECFP4 + descriptors
+                  {selected?.model_name ?? "Random Forest"} on ECFP4 + descriptors
                 </div>
                 <div className="text-[10px] font-mono text-gray-500">{elapsed}s</div>
                 {queueRef.current.length > 0 && (
@@ -461,8 +467,9 @@ const PropertyPrediction = () => {
                 data={results.oob_curve}
                 targetLabel={results.target_label}
                 taskType={results.task_type}
+                modelName={results.model_name}
               />
-            : <Placeholder label="OOB learning curve" loading={isLoading} queued={isQueued} />
+            : <Placeholder label="Learning curve" loading={isLoading} queued={isQueued} />
           }
 
           {/* Col 3 — Feature importances */}

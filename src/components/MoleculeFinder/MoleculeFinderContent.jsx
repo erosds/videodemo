@@ -21,12 +21,12 @@ const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
     <PropertyPrediction />,
     <MultiObjectiveOptimizer />,
     <PipelinePilot />,
+    <Impact />,
+    <Industries />,
     <SolubilityDesign />,
     <SweetnessEnhancer />,
     <ColorantScaffold />,
     <Regulatory />,
-    <Impact />,
-    <Industries />,
   ];
 
   const content = sections[activeIndex] ?? null;

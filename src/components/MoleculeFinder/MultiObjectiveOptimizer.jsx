@@ -140,11 +140,11 @@ const AlgoStep = ({ step }) => (
           </span>
         )}
       </div>
-      <p className="text-[12px] text-gray-500 leading-snug mt-0.5">{step.desc}</p>
+      <p className="text-[12px] text-gray-400 leading-snug mt-0.5">{step.desc}</p>
       {step.details && (
         <ul className="mt-1.5 flex flex-col gap-1">
           {step.details.map((d, i) => (
-            <li key={i} className="flex items-start gap-1.5 text-[10px] text-gray-600 leading-snug">
+            <li key={i} className="flex items-start gap-1.5 text-[10px] text-gray-500 leading-snug">
               <span className="flex-shrink-0 mt-px" style={{ color: step.color + "99" }}>›</span>
               <span>{d}</span>
             </li>
@@ -271,14 +271,14 @@ const MultiObjectiveOptimizer = () => {
         <div className="grid grid-cols-7 gap-6 items-stretch">
 
           <div className="col-span-3 flex flex-col gap-3 h-full">
-            <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-1">
+            <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
               NSGA-II — how the algorithm works
             </div>
             {STEPS.map(step => <AlgoStep key={step.n} step={step} />)}
           </div>
 
           <div className="col-span-4 flex flex-col gap-3 h-full">
-            <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-1">
+            <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
               Evolving the Pareto front — watch the algorithm in action
             </div>
             <div className="flex-1 rounded-lg border border-gray-800 bg-[#111111] p-4 flex flex-col gap-3">
@@ -311,7 +311,7 @@ const MultiObjectiveOptimizer = () => {
                   </div>
                 </div>
                 <p className="text-[12px] text-gray-300 leading-snug">
-                  Only a small, already-promising subset moves forward to wet-lab validation — cutting synthesis costs and time-to-hit by orders of magnitude.
+                  Only a small, already-promising subset moves forward to validation and lab experiments — cutting synthesis costs and time-to-hit by orders of magnitude.
                 </p>
               </div>
 

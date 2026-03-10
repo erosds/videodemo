@@ -34,6 +34,66 @@ const UseCaseCard = ({ uc, isLast }) => (
   </div>
 );
 
+// ── 2-D scatter plot (left of right column) ────────────────────────────────────
+
+const ScatterPlot2D = () => {
+  const W = 320, H = 240;
+  const ml = 18, mr = 16, mt = 22, mb = 28;
+  const pw = W - ml - mr;
+  const ph = H - mt - mb;
+
+  const toSVG = (nx, ny) => ({
+    sx: ml + nx * pw,
+    sy: mt + (1 - ny) * ph,
+  });
+
+  const pts = [
+    { x: 0.15, y: 0.80, optimal: true },
+    { x: 0.40, y: 0.60 },
+    { x: 0.65, y: 0.72 },
+    { x: 0.75, y: 0.30 },
+    { x: 0.55, y: 0.20 },
+    { x: 0.30, y: 0.40 },
+    { x: 0.85, y: 0.55 },
+    { x: 0.70, y: 0.45 },
+    { x: 0.45, y: 0.78 },
+    { x: 0.20, y: 0.52 },
+    { x: 0.80, y: 0.82 },
+    { x: 0.58, y: 0.12 },
+  ];
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+      <rect width={W} height={H} fill="#0d0d0d" />
+
+      {/* Axes */}
+      <line x1={ml} y1={mt + ph} x2={ml + pw} y2={mt + ph} stroke="#374151" strokeWidth={0.7} />
+      <line x1={ml} y1={mt} x2={ml} y2={mt + ph} stroke="#374151" strokeWidth={0.7} />
+
+      {/* Axis labels */}
+      <text x={ml + pw} y={mt + ph + 14} fontSize={9} fill="#6b7280" textAnchor="end">property 1 ←</text>
+      <text x={ml} y={mt - 6} fontSize={9} fill="#6b7280">↑ property 2</text>
+
+      {/* Points */}
+      {pts.map((pt, i) => {
+        const { sx, sy } = toSVG(pt.x, pt.y);
+        if (pt.optimal) {
+          return (
+            <g key={i}>
+              <circle cx={sx} cy={sy} r={6.5} fill="none" stroke="#ffffff" strokeWidth={1.1} opacity={0.6} />
+              <circle cx={sx} cy={sy} r={2.5} fill="#ffffff" opacity={0.85} />
+              <line x1={sx} y1={sy - 8} x2={sx + 24} y2={sy - 22}
+                stroke="#ffffff" strokeWidth={0.6} strokeOpacity={0.95} />
+              <text x={sx + 27} y={sy - 24} fontSize={9} fill="#ffffff">optimal candidate</text>
+            </g>
+          );
+        }
+        return <circle key={i} cx={sx} cy={sy} r={1.8} fill="#ffffff" fillOpacity={0.8} />;
+      })}
+    </svg>
+  );
+};
+
 // ── 3-D optimization surface (right column) ────────────────────────────────────
 
 const SurfacePlot = () => {
@@ -133,9 +193,9 @@ const SurfacePlot = () => {
       <line x1={origin.sx} y1={origin.sy} x2={endZ.sx} y2={endZ.sy}
         stroke="#374151" strokeWidth={0.7} strokeDasharray="3 2" />
 
-      <text x={endX.sx + 5} y={endX.sy + 3} fontSize={9} fill="#6b7280">property 1 →</text>
-      <text x={endY.sx - 4} y={endY.sy + 3} fontSize={9} fill="#6b7280" textAnchor="end">← property 2</text>
-      <text x={endZ.sx - 4} y={endZ.sy + 2} fontSize={9} fill="#6b7280" textAnchor="end">property 3 ↑</text>
+      <text x={endX.sx - 35} y={endX.sy + 3} fontSize={12} fill="#6b7280">property 1 →</text>
+      <text x={endY.sx + 35} y={endY.sy + 3} fontSize={12} fill="#6b7280" textAnchor="end">⬋ property 2</text>
+      <text x={endZ.sx - 4} y={endZ.sy + 2} fontSize={12} fill="#6b7280" textAnchor="end">property 3 ↓</text>
 
       {/* Suboptimal candidates */}
       {suboptimalPoints.map((pt, i) => {
@@ -155,8 +215,8 @@ const SurfacePlot = () => {
       <circle cx={minPt.sx} cy={minPt.sy} r={6.5} fill="none" stroke="#ffffff" strokeWidth={1.1} opacity={0.6} />
       <circle cx={minPt.sx} cy={minPt.sy} r={2.5} fill="#ffffff" opacity={0.85} />
       <line x1={minPt.sx} y1={minPt.sy - 8} x2={minPt.sx + 26} y2={minPt.sy - 26}
-        stroke="#ffffff" strokeWidth={0.6} strokeOpacity={0.45} />
-      <text x={minPt.sx + 29} y={minPt.sy - 28} fontSize={9} fill="#ffffff">optimal candidate</text>
+        stroke="#ffffff" strokeWidth={0.6} strokeOpacity={0.95} />
+      <text x={minPt.sx + 29} y={minPt.sy - 28} fontSize={13} fill="#ffffff">optimal candidate</text>
     </svg>
   );
 };
@@ -191,17 +251,29 @@ const Overview = () => (
           </div>
 
           <div className="bg-[#0d0d0d] border border-gray-800 rounded-lg p-4 flex-1 flex flex-col gap-3">
-            {/* SVG fills available space */}
-            <div className="flex-1 min-h-0 relative" style={{ minHeight: 160 }}>
-              <div className="absolute inset-0">
-                <SurfacePlot />
+            {/* Two charts side by side */}
+            <div className="flex-1 min-h-0 flex" style={{ minHeight: 160 }}>
+              {/* Left: 2D scatter */}
+              <div className="flex-1 relative">
+                <div className="absolute inset-0">
+                  <ScatterPlot2D />
+                </div>
+              </div>
+
+              {/* Vertical divider */}
+              <div className="w-px bg-gray-800 self-stretch flex-shrink-0 mx-1" />
+
+              {/* Right: 3D surface (unchanged) */}
+              <div className="flex-1 relative">
+                <div className="absolute inset-0">
+                  <SurfacePlot />
+                </div>
               </div>
             </div>
 
             {/* Caption */}
             <p className="text-[12px] text-gray-400 leading-snug flex-shrink-0">
-              Each point on the surface is a molecule positioned by three properties. The valley marks where all three simultaneously
-              meet their design targets — the optimal candidate. Real problems involve many more dimensions:
+              Each point on the plots is a molecule positioned by two or three properties. Based on the optimization requested, the algorithm identifies the best candidates. Real problems involve many more dimensions:
               how can we efficiently navigate such high-dimensional spaces?
             </p>
           </div>
@@ -212,12 +284,12 @@ const Overview = () => (
       {/* State of the art */}
       <div className="border border-purple-900/30 rounded-lg px-3 py-3 bg-purple-950/10 flex flex-col gap-3">
         <p className="text-sm text-gray-400 leading-relaxed">
-          Domain experts narrow down candidates running thousands of miniaturised biochemical tests. The harder challenge is <strong className="text-gray-300">multi-objective design</strong>: finding a molecule that is simultaneously active, safe, stable, and economically viable.
+          Domain experts narrow down candidates running thousands of biochemical tests and long experimental campaigns. The harder challenge is <strong className="text-gray-300">multi-objective design</strong>: finding a molecule that is simultaneously active, safe, stable, and economically viable.
         </p>
         <div className="flex items-center gap-3 border-t border-purple-900/20 pt-3">
           <LuBrain className="w-4 h-4 text-purple-500/60 flex-shrink-0" />
           <p className="text-sm text-gray-200 leading-relaxed">
-            What if a model could predict a molecule's properties before it is ever synthesised — and learn, generation after generation, where the best candidates are hiding?
+            What if AI models could predict a molecule's properties before it is ever synthesised — and learn, generation after generation, where the best candidates are hiding?
           </p>
         </div>
       </div>

@@ -2,14 +2,14 @@
 
 Three distinct use cases, each with SSE streaming + batch endpoints:
 
-  /optimize-2obj  — logD (ChEMBL Lipophilicity RF) + SA Score↓ — lipophilicity-guided design
-                    Pool: aromatic_pool.json (607 compounds). Requires lipophilicity model.
+  /optimize-2obj  — logD (ChEMBL Lipophilicity LightGBM) + SA Score↓ — CNS lipophilicity-guided lead discovery
+                    Pool: aromatic_pool.json (drug-like CNS compounds). Requires lipophilicity model.
 
   /optimize-3obj  — P(sweet)↑ + MW↓ + logS↑ (AqSolDB RF) — sweetness enhancer discovery
-                    Pool: sweetness_pool.json (325 compounds). Requires flavor_sensory + aqsoldb.
+                    Pool: sweetness_pool.json (dihydrochalcone/flavanone compounds). Requires flavor_sensory + aqsoldb.
 
   /optimize-scaffold — conjugation_score↑ + MW↓ + regulatory_score↑ — colorant scaffold hopping
-                    Pool: colorant_pool.json (63 compounds). No ML model required.
+                    Pool: colorant_pool.json (natural yellow/orange pigments). No ML model required.
 """
 from __future__ import annotations
 
@@ -313,7 +313,7 @@ async def safety_screen_pareto(req: SafetyScreenRequest):
     def _run() -> dict:
         if not training_service.RDKIT_OK:
             raise RuntimeError("RDKit is not installed.")
-        if "ames_mutagenicity" not in training_service._RF_MODEL_CACHE:
+        if "ames_mutagenicity" not in training_service._MODEL_CACHE:
             raise ValueError("AMES Mutagenicity model not trained yet.")
 
         saved = _OPT_RESULTS.get(req.run_type)
@@ -325,7 +325,7 @@ async def safety_screen_pareto(req: SafetyScreenRequest):
         if not pareto:
             raise ValueError("No Pareto-optimal candidates found in saved run.")
 
-        rf = training_service._RF_MODEL_CACHE["ames_mutagenicity"]
+        rf = training_service._MODEL_CACHE["ames_mutagenicity"]
         results = []
         for c in pareto:
             smiles = c.get("smiles")
@@ -400,7 +400,8 @@ def validate_smiles_endpoint(request: ValidateSmilesRequest):
 @router.get("/available-datasets")
 def available_datasets():
     safe_keys = {"id", "name", "subtitle", "tag", "description", "task_type",
-                 "target_label", "n_molecules", "max_samples", "domain", "color", "model_role"}
+                 "target_label", "n_molecules", "max_samples", "domain", "color", "model_role",
+                 "model_name"}
     result = []
     for cfg in DATASETS.values():
         d = {k: v for k, v in cfg.items() if k in safe_keys}
@@ -442,8 +443,9 @@ async def train_endpoint(request: TrainRequest):
 
 @router.post("/optimize-2obj/stream")
 async def optimize_2obj_stream():
-    """SSE: 2-obj NSGA-II — maximize logD (ChEMBL Lipophilicity RF) + minimize SA Score.
-    Pool: aromatic_pool.json (607 compounds). Requires lipophilicity model.
+    """SSE: 2-obj NSGA-II — maximize logD (ChEMBL Lipophilicity LightGBM) + minimize SA Score.
+    Pool: aromatic_pool.json (93 drug-like CNS compounds, seeded on Diazepam / Lorazepam / Carbamazepine / Haloperidol / Phenytoin).
+    Reference: Diazepam (logD ~2.82, CNS-optimal window 1-3).
     """
     REF = REFERENCE_COMPOUNDS["solubility"]
     loop = asyncio.get_running_loop()
@@ -454,7 +456,7 @@ async def optimize_2obj_stream():
         try:
             if not training_service.RDKIT_OK:
                 raise RuntimeError("RDKit is not installed in this environment.")
-            if "lipophilicity" not in training_service._RF_MODEL_CACHE:
+            if "lipophilicity" not in training_service._MODEL_CACHE:
                 raise ValueError(
                     "ChEMBL Lipophilicity model not trained yet. "
                     "Go to the Property Prediction tab, select 'ChEMBL Lipophilicity', "
@@ -462,8 +464,7 @@ async def optimize_2obj_stream():
                 )
 
             lipo_cfg = DATASETS["lipophilicity"]
-            rf_lipo  = training_service._RF_MODEL_CACHE["lipophilicity"]
-            oob_r2   = round(float(rf_lipo.oob_score_), 3)
+            oob_r2   = training_service._RESULTS_CACHE.get("lipophilicity", {}).get("metrics", {}).get("oob_r2")
 
             candidates_raw = get_aromatic_pool()
             pool_meta_ = get_aromatic_pool_meta()
@@ -488,7 +489,7 @@ async def optimize_2obj_stream():
                     "dataset":      lipo_cfg["name"],
                     "oob_r2":       oob_r2,
                     "n_train":      lipo_cfg.get("n_molecules", 4200),
-                    "logD_method":  "ChEMBL Lipophilicity RF",
+                    "logD_method":  "ChEMBL Lipophilicity LightGBM",
                     "sa_method":    "RDKit SA Score",
                 },
                 "reference": {
@@ -582,9 +583,9 @@ async def optimize_3obj_stream():
                 raise RuntimeError("RDKit is not installed in this environment.")
 
             missing = []
-            if "flavor_sensory" not in training_service._RF_MODEL_CACHE:
+            if "flavor_sensory" not in training_service._MODEL_CACHE:
                 missing.append("FartDB Taste")
-            if "aqsoldb" not in training_service._RF_MODEL_CACHE:
+            if "aqsoldb" not in training_service._MODEL_CACHE:
                 missing.append("AqSolDB Solubility")
             if missing:
                 raise ValueError(
@@ -592,11 +593,9 @@ async def optimize_3obj_stream():
                     "Go to the Property Prediction tab and train them first."
                 )
 
-            rf_taste  = training_service._RF_MODEL_CACHE["flavor_sensory"]
-            rf_sol    = training_service._RF_MODEL_CACHE["aqsoldb"]
             taste_cfg = DATASETS["flavor_sensory"]
-            oob_acc   = round(float(rf_taste.oob_score_), 3)
-            oob_sol   = round(float(rf_sol.oob_score_), 3)
+            oob_acc   = training_service._RESULTS_CACHE.get("flavor_sensory", {}).get("metrics", {}).get("oob_accuracy")
+            oob_sol   = training_service._RESULTS_CACHE.get("aqsoldb", {}).get("metrics", {}).get("oob_r2")
 
             candidates_raw = get_sweetness_pool()
             pool_meta_ = get_sweetness_pool_meta()
@@ -889,12 +888,12 @@ async def safety_screen():
     def _run() -> dict:
         if not training_service.RDKIT_OK:
             raise RuntimeError("RDKit is not installed in this environment.")
-        if "ames_mutagenicity" not in training_service._RF_MODEL_CACHE:
+        if "ames_mutagenicity" not in training_service._MODEL_CACHE:
             raise ValueError(
                 "AMES Mutagenicity model not trained yet. "
                 "Go to the Property Prediction tab and train it first."
             )
-        rf = training_service._RF_MODEL_CACHE["ames_mutagenicity"]
+        rf = training_service._MODEL_CACHE["ames_mutagenicity"]
         candidates = get_aromatic_pool()
         results = []
         for c in candidates:

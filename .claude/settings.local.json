@@ -45,7 +45,10 @@
       "Bash(npm run:*)",
       "WebFetch(domain:tdcommons.ai)",
       "Bash(ffprobe:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(.venv/Scripts/pip install:*)",
+      "Bash(.venv/Scripts/python:*)",
+      "Bash(xargs cat:*)"
     ]
   }
 }

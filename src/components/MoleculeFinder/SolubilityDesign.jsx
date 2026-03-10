@@ -233,7 +233,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
               <g>
                 <rect x={px(reference.sa_score) + 9} y={py(reference.logD) - 26} width={165} height={38}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(reference.sa_score) + 13} y={py(reference.logD) - 13} fontSize={8} fill="#fbbf24">Vanillin (reference)</text>
+                <text x={px(reference.sa_score) + 13} y={py(reference.logD) - 13} fontSize={8} fill="#fbbf24">Diazepam (reference)</text>
                 <text x={px(reference.sa_score) + 13} y={py(reference.logD) - 1} fontSize={7} fill="#9ca3af">
                   logD {reference.logD?.toFixed(3)} · SA {reference.sa_score?.toFixed(2)}
                 </text>
@@ -636,7 +636,7 @@ const SolubilityDesign = () => {
     { label: "SA Score ↓", key: "sa_score" },
     { label: "QED", key: "qed" },
     { label: "PAINS", key: null },
-    { label: "vs Vanillin", key: null },
+    { label: "vs Diazepam", key: null },
     { label: "Origin", key: "is_new" },
   ];
 
@@ -679,8 +679,8 @@ const SolubilityDesign = () => {
                 <div className="w-3 h-3 rounded-full border-2 border-amber-400" />
               </div>
               <div className="text-[10px] text-gray-500">
-                <span className="text-amber-300 font-semibold">Vanillin</span>
-                <span className="ml-1.5 text-gray-600">CAS 121-33-5 · 152.15 Da</span>
+                <span className="text-amber-300 font-semibold">Diazepam</span>
+                <span className="ml-1.5 text-gray-600">CAS 439-14-5 · 284.74 Da</span>
                 {reference?.logD != null && (
                   <span className="ml-1.5 text-gray-600">· logD {reference.logD.toFixed(2)}</span>
                 )}
@@ -700,10 +700,10 @@ const SolubilityDesign = () => {
                 {poolMeta ? (
                   <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
                     <span>
-                      <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>{poolMeta.n_candidates}</span> aromatic compounds · PubChem
+                      <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>{poolMeta.n_candidates}</span> drug-like CNS compounds · PubChem
                     </span>
                     <span className="text-[9px] text-gray-600 leading-snug">
-                      Selected by ≥{poolMeta.threshold}% structural similarity to {poolMeta.seeds?.join(", ")} — known food flavourings used as seeds.
+                      Selected by ≥{poolMeta.threshold}% structural similarity to {poolMeta.seeds?.join(", ")} — CNS reference drugs used as seeds.
                     </span>
                   </div>
                 ) : <span className="text-[10px] text-gray-600">Loading…</span>}
@@ -724,7 +724,7 @@ const SolubilityDesign = () => {
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
                   <span>13 SMARTS reactions applied to selected parents</span>
                   <span className="text-[9px] text-gray-600">add-OH · OMe→OEt · Me→Et · CHO→CH2OH · …</span>
-                  <span className="text-[9px] text-gray-600">Novel analogs · MW 100–500 Da · phenolic scaffold required</span>
+                  <span className="text-[9px] text-gray-600">Novel analogs · MW 150–450 Da · Lipinski-compliant</span>
                 </div>
               </div>
             </div>
@@ -740,10 +740,10 @@ const SolubilityDesign = () => {
                   Property Prediction
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>logD: <span className="text-gray-400">ChEMBL Lipophilicity RF</span></span>
+                  <span>logD: <span className="text-gray-400">ChEMBL Lipophilicity LightGBM</span></span>
                   <span className={`text-[9px] leading-snug transition-colors duration-500 text-indigo-400`}>
                     Model trained in the Property Prediction tab
-                    {modelMeta?.oob_r2 != null && <span className="ml-1 font-mono">· OOB R² {modelMeta.oob_r2}</span>}
+                    {modelMeta?.oob_r2 != null && <span className="ml-1 font-mono">· CV R² {modelMeta.oob_r2}</span>}
                   </span>
                   <span>SA Score: <span className="text-gray-400">RDKit SA Score</span></span>
 
@@ -763,7 +763,7 @@ const SolubilityDesign = () => {
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
                   <span>Obj-1: logD ↑ &nbsp;·&nbsp; Obj-2: SA Score ↓</span>
-                  <span className="text-[9px] text-gray-600">Non-dominated rank + crowding distance · selects top 100</span>
+                  <span className="text-[9px] text-gray-600">Non-dominated rank + crowding distance · selects top candidates</span>
                 </div>
               </div>
             </div>
@@ -839,7 +839,7 @@ const SolubilityDesign = () => {
           {/* ── Right column — chart ── */}
           <div className="col-span-3 rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col">
             <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
-              {poolMeta ? `${poolMeta.n_candidates} PubChem aromatic compounds + generated analogs` : "Pareto space"}
+              {poolMeta ? `${poolMeta.n_candidates} drug-like CNS compounds + generated analogs` : "Pareto space"}
             </div>
             <div className="flex items-center">
               <StepBar activeStep={activeStep} pulseStep={animPhase === "wait_mutation" ? 2 : null} />
@@ -880,7 +880,7 @@ const SolubilityDesign = () => {
                     <div className="w-2.5 h-2.5 rounded-full bg-gray-600 opacity-60" />Dominated
                   </div>
                   <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Vanillin (ref)
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Diazepam (ref)
                   </div>
                 </div>
               </>
@@ -1040,10 +1040,10 @@ const SolubilityDesign = () => {
                 </table>
               </div>
               <div className="px-4 py-2 border-t border-gray-800/60 text-[10px] text-gray-600 flex-shrink-0">
-                Seed pool: {poolMeta?.n_candidates} PubChem compounds · SMARTS mutation generated{" "}
+                Seed pool: {poolMeta?.n_candidates} drug-like CNS compounds · SMARTS mutation generated{" "}
                 {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_candidates ?? 0))} analogs ·{" "}
                 {generations[generations.length - 1]?.n_evaluated ?? 0} total evaluated.
-                logD: ChEMBL Lipophilicity RF · OOB R² {modelMeta?.oob_r2 ?? "—"}.
+                logD: ChEMBL Lipophilicity LightGBM · CV R² {modelMeta?.oob_r2 ?? "—"}.
               </div>
             </div>
           </div>,

@@ -1,13 +1,13 @@
-"""Generative NSGA-II for food aromatic compound design.
+"""Generative NSGA-II for compound design.
 
-Objectives (all RF-predicted or RDKit-computed — no domain-shift issues):
+Objectives (all ML-predicted or RDKit-computed — no domain-shift issues):
   2-obj: maximise logD at pH 7.4 (ChEMBL Lipophilicity RF), minimise SA Score (RDKit)
   3-obj: maximise P(sweet) (FartDB RF), minimise MW (RDKit), maximise logS (AqSolDB RF)
   scaffold: maximise conjugation_score (RDKit sp2 count), minimise MW, maximise reg_score (EU E-number lookup)
 
 logD at pH 7.4 is predicted by the ChEMBL Lipophilicity RandomForest model
 (trained in the Property Prediction tab). Unlike Crippen logP, logD accounts
-for ionisation at the relevant food-matrix pH, making it the correct descriptor
+for ionisation at the relevant pH, making it the correct descriptor
 for oil-water partitioning of flavour compounds.
 
 P(sweet) is predicted by the FartDB taste classifier (trained on demand in

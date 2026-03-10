@@ -1,9 +1,9 @@
 """Multi-pool compound loader for MoleculeFinder use cases.
 
-Three curated pools are available:
-  - aromatic_pool.json  : 607 PubChem aromatic compounds (lipophilicity use case)
-  - sweetness_pool.json : 325 DHC/isocoumarin/flavanone compounds seeded on sweet phenolics (sweetness use case)
-  - colorant_pool.json  : 63 natural yellow/orange pigments (colorant scaffold hopping)
+Three curated pools are available (auto-generated on first use if the JSON file is absent):
+  - aromatic_pool.json  : PubChem CNS drug-like compounds (lipophilicity use case)
+  - sweetness_pool.json : DHC/isocoumarin/flavanone compounds seeded on sweet phenolics (sweetness use case)
+  - colorant_pool.json  : natural yellow/orange pigments (colorant scaffold hopping)
 """
 from __future__ import annotations
 
@@ -18,39 +18,43 @@ _SWEETNESS_FILE = _POOL_DIR / "sweetness_pool.json"
 _COLORANT_FILE  = _POOL_DIR / "colorant_pool.json"
 
 
+def _ensure_pool(key: str, path: Path) -> None:
+    """Generate the pool JSON on first use if it is absent."""
+    if not path.exists():
+        from app.molecule_finder.pool_generator import generate_pool
+        generate_pool(key)
+
+
 @lru_cache(maxsize=1)
 def _load_aromatic() -> dict:
-    if not _AROMATIC_FILE.exists():
-        raise FileNotFoundError(f"aromatic_pool.json not found at {_AROMATIC_FILE}.")
+    _ensure_pool("aromatic", _AROMATIC_FILE)
     return json.loads(_AROMATIC_FILE.read_text())
 
 
 @lru_cache(maxsize=1)
 def _load_sweetness() -> dict:
-    if not _SWEETNESS_FILE.exists():
-        raise FileNotFoundError(f"sweetness_pool.json not found at {_SWEETNESS_FILE}.")
+    _ensure_pool("sweetness", _SWEETNESS_FILE)
     return json.loads(_SWEETNESS_FILE.read_text())
 
 
 @lru_cache(maxsize=1)
 def _load_colorant() -> dict:
-    if not _COLORANT_FILE.exists():
-        raise FileNotFoundError(f"colorant_pool.json not found at {_COLORANT_FILE}.")
+    _ensure_pool("colorant", _COLORANT_FILE)
     return json.loads(_COLORANT_FILE.read_text())
 
 
 def get_aromatic_pool() -> list[dict]:
-    """607 PubChem aromatic compounds — solubility-guided design."""
+    """PubChem CNS drug-like compounds — lipophilicity-guided design."""
     return _load_aromatic()["compounds"]
 
 
 def get_sweetness_pool() -> list[dict]:
-    """325 DHC/isocoumarin/flavanone compounds seeded on sweet phenolics — sweetness enhancer discovery."""
+    """DHC/isocoumarin/flavanone compounds seeded on sweet phenolics — sweetness enhancer discovery."""
     return _load_sweetness()["compounds"]
 
 
 def get_colorant_pool() -> list[dict]:
-    """63 natural yellow/orange pigments — colorant scaffold hopping."""
+    """Natural yellow/orange pigments — colorant scaffold hopping."""
     return _load_colorant()["compounds"]
 
 

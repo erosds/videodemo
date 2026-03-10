@@ -5,7 +5,7 @@ export const workflows = {
     sections: [
       {
         id: 0,
-        title: "personal demo space",
+        title: "materials informatics demo space",
         subtitle: "Select a workflow to explore",
         gradient: "from-slate-200 via-gray-300 to-gray-400",
       }
@@ -164,7 +164,7 @@ export const workflows = {
       {
         id: 2,
         title: "property prediction models",
-        subtitle: "After encoding molecules, we train <strong>property prediction models</strong> on the feature space to estimate their physicochemical properties. Searching for curated datasets is a critical step: the model's accuracy and generalizability depend on the quality and relevance of the training data.",
+        subtitle: "After encoding molecules, we train <strong>property prediction models</strong> on the feature space to estimate their physicochemical properties. Searching for <strong>curated datasets</strong> is a critical step: the model's accuracy and generalizability depend on the quality and relevance of the training data.",
         gradient: "from-violet-700 via-indigo-600 to-purple-600",
       },
       {
@@ -181,39 +181,39 @@ export const workflows = {
       },
       {
         id: 5,
-        title: "case: lipophilicity-guided design",
-        subtitle: "2-objective NSGA-II starting from <strong>607 PubChem aromatic compounds</strong> seeded on food-relevant phenolics. Maximizing <strong>logD at pH 7.4</strong> while minimizing <strong>SA Score</strong> (synthetic accessibility). Pareto front reveals the trade-off between predicted lipophilicity and ease of synthesis.",
-        gradient: "from-orange-600 via-rose-600 to-pink-600",
-      },
-      {
-        id: 5,
-        title: "case: sweetness enhancer discovery",
-        subtitle: "3-objective NSGA-II on <strong>325 dihydrochalcone and flavanone compounds</strong> seeded on Phloretin, Hesperetin, Phyllodulcin and NHDC — all known sweet or structurally sweet-adjacent phenolics. Simultaneously maximizing <strong>sweetness probability</strong> and <strong>logS</strong> while minimizing <strong>MW</strong>.",
-        gradient: "from-violet-600 via-purple-600 to-fuchsia-600",
-      },
-      {
-        id: 6,
-        title: "case: colorant scaffold hopping",
-        subtitle: "3-objective NSGA-II starting from <strong>63 natural yellow/orange pigments</strong> seeded on Curcumin (E100). Maximizing <strong>conjugation score</strong> (proxy for colour intensity) and <strong>regulatory score</strong> (EU E-number status) while minimizing <strong>MW</strong>. Discovers novel bio-based colorant scaffolds.",
-        gradient: "from-teal-600 via-emerald-600 to-green-600",
-      },
-      {
-        id: 7,
-        title: "regulatory compliance",
-        subtitle: "Cross-reference discovered candidates against <strong>FEMA GRAS</strong> (US) and <strong>EU Regulation EC 1334/2008</strong> — the Union List of approved flavouring substances. Known compounds are matched by PubChem CID; in silico candidates have no regulatory record yet.",
-        gradient: "from-emerald-600 via-teal-600 to-green-600",
-      },
-      {
-        id: 8,
         title: "impact",
         subtitle: "AI-guided design compresses <strong>hit identification from 18–36 months to 4–8 weeks</strong> and cuts screening costs. From candidate pool generation to multi-objective Pareto optimisation, safety filtering, and regulatory compliance — the entire pipeline runs <strong>end-to-end</strong>.",
         gradient: "from-indigo-600 via-purple-600 to-pink-600",
       },
       {
-        id: 9,
+        id: 6,
         title: "industries",
         subtitle: "The generative pipeline is <strong>domain-agnostic</strong>. Swap the candidate pool and training datasets and the same workflow addresses any multi-objective molecular design challenge — from oral drug candidates to crop-protection actives to next-generation UV filters.",
         gradient: "from-sky-600 via-indigo-600 to-violet-600",
+      },
+      {
+        id: 7,
+        title: "case: CNS lead optimization",
+        subtitle: "2-objective NSGA-II starting from a pool of <strong>drug-like CNS (Central Nervous System) compounds</strong> seeded on known molecules. Maximizing <strong>lipophilicity (logD) at pH 7.4</strong> while minimizing <strong>SA Score</strong> (synthetic accessibility). Pareto front reveals the trade-off between penetration potential and ease of synthesis.",
+        gradient: "from-orange-600 via-rose-600 to-pink-600",
+      },
+      {
+        id: 8,
+        title: "case: sweetness enhancer discovery",
+        subtitle: "3-objective NSGA-II on a pool of <strong>dihydrochalcone and flavanone compounds</strong> seeded on Phloretin, Hesperetin, Phyllodulcin and NHDC — all known sweet or structurally sweet-adjacent phenolics. Simultaneously maximizing <strong>sweetness probability</strong> and <strong>logS</strong> while minimizing <strong>MW</strong>.",
+        gradient: "from-violet-600 via-purple-600 to-fuchsia-600",
+      },
+      {
+        id: 9,
+        title: "case: colorant scaffold hopping",
+        subtitle: "3-objective NSGA-II starting from a pool of <strong>natural yellow/orange pigments</strong> seeded on Curcumin (E100). Maximizing <strong>conjugation score</strong> (proxy for colour intensity) and <strong>regulatory score</strong> (EU E-number status) while minimizing <strong>MW</strong>. Discovers novel bio-based colorant scaffolds.",
+        gradient: "from-teal-600 via-emerald-600 to-green-600",
+      },
+      {
+        id: 10,
+        title: "regulatory compliance",
+        subtitle: "Cross-reference discovered candidates against <strong>FEMA GRAS</strong> (US) and <strong>EU Regulation EC 1334/2008</strong> — the Union List of approved flavouring substances. Known compounds are matched by PubChem CID; in silico candidates have no regulatory record yet.",
+        gradient: "from-emerald-600 via-teal-600 to-green-600",
       },
     ]
   },

@@ -3,16 +3,17 @@ from __future__ import annotations
 
 REFERENCE_COMPOUNDS: dict[str, dict] = {
     "solubility": {
-        "name": "Vanillin",
-        "smiles": "COc1cc(C=O)ccc1O",
-        "cid": 1183,
-        "cas": "121-33-5",
+        "name": "Diazepam",
+        "smiles": "CN1C(=O)CN=C(c2ccccc2)c2cc(Cl)ccc21",
+        "cid": 3016,
+        "cas": "439-14-5",
         "description": (
-            "Food-grade phenolic aldehyde (vanilla bean, Vanilla planifolia). "
-            "FEMA GRAS 3107 · EU FL 04.002. logD at pH 7.4 ≈ 1.1 "
-            "(moderately lipophilic), SA Score ≈ 1.0 (trivially synthesisable), "
-            "MW 152.15 Da. Used as reference for the lipophilicity-guided NSGA-II "
-            "run: candidates competing on logD ↑ + SA Score ↓."
+            "Benzodiazepine anxiolytic (Valium, Roche 1963). "
+            "MW 284.74 Da. Neutral compound: logD at pH 7.4 ≈ logP ≈ 2.82 "
+            "(within the CNS-optimal window 1-3 for blood-brain barrier penetration), "
+            "SA Score ≈ 2.1 (moderate synthetic complexity). "
+            "Used as reference for the CNS lipophilicity-guided NSGA-II run: "
+            "candidates compete on logD ↑ + SA Score ↓."
         ),
     },
     "sweetness": {
