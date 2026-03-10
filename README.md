@@ -1,108 +1,25 @@
 # Demo Platform
 
-Interactive demo platform showcasing four AI/ML workflows for scientific data analysis. Built with React + Tailwind CSS, Python backend, horizontal scroll navigation, animated transitions.
+Interactive platform showcasing AI/ML workflows for scientific data analysis. Built with React + Tailwind CSS and a Python/FastAPI backend, with horizontal snap-scroll navigation and animated section transitions.
+
+---
 
 ## Workflows
 
-### 1. Materials Informatics — *AI-accelerated material discovery*
+### 1. MaterialsFlow — *materials informatics*
+Conceptual walkthrough of an AI-accelerated material discovery pipeline: generate molecular candidates, predict properties with ML/DL models, select top compounds against target criteria, and validate through computational methods. Interactive molecule grid renders real pharmaceutical structures from SMILES.
 
-End-to-end pipeline: generate molecular candidates → predict properties with ML/DL models → select top candidates by target criteria (conductivity, stability, toxicity) → validate through computational chemistry.
+### 2. PredictLab — *real-time ML training*
+Live classification pipeline on tabular datasets. Select one or more algorithms, trigger training, and compare accuracy, F1, AUC-ROC and overfit metrics across models in real time over WebSocket. Feature importance is ranked post-training to highlight which variables drive predictions most.
 
-The interactive grid renders real pharmaceutical SMILES (aspirin, ibuprofen, antibiotics, steroids, alkaloids) via `smiles-drawer`. Property scores are assigned and persisted in localStorage across the session.
+### 3. DeepSpectrum — *LC-MS/MS compound identification*
+Compound identification from mass spectrometry data. Three algorithms are compared side by side: classical fragment-matching against a public reference library (MassBank Europe), focused spectral matching against a curated domain-specific collection, and AI similarity search based on learned spectrum embeddings (Spec2Vec). Includes anomaly detection and 3-D PCA visualisation of the embedding space.
 
-> The generation, prediction and validation steps are UX-simulated (client-side with deliberate delays) — this tab is a conceptual walkthrough, not a live ML pipeline.
+### 4. MoleculeFinder — *AI-driven molecular design*
+Multi-objective generative pipeline for molecular design. Molecules are encoded as fingerprints and physicochemical descriptors; property prediction models (LightGBM, Random Forest) are trained on curated datasets; NSGA-II evolves a population of novel candidates optimising two or three conflicting objectives simultaneously, producing a Pareto-optimal frontier. Three domain use cases: CNS lipophilicity-guided lead optimisation, sweetness enhancer discovery, and natural colorant scaffold hopping.
 
----
-
-### 2. DeepSpectrum — *LC-MS/MS compound identification*
-
-AI-powered compound identification from mass spectrometry data. Three algorithms are compared side by side.
-
-#### Data sources
-
-| File | Content |
-|------|---------|
-| `ECRFS_library_final.mgf` | 102 PMT compounds — MS/MS peaks + chemical metadata |
-| `ECRFS_metadata_final.csv` | Toxicology enrichment (EFSA Tox Score, CAS, endpoint), joined by compound name |
-| `GNPS_collection_pesticides.mgf` | 653 pesticide spectra from the GNPS public collection |
-| MassBank Europe (remote) | ~20 000+ reference spectra, queried via REST |
-
-The MGF file provides spectral data (m/z, intensity pairs) and analytical metadata (formula, SMILES, ion mode, retention time, instrument). The CSV enriches each compound with regulatory fields. The join is performed by compound name — case-insensitive, adduct notation stripped (e.g. `[M+H]+`).
-
-#### Algorithms
-
-**CosineGreedy** — used for global screening against MassBank Europe.
-
-Compares spectra fragment-by-fragment within a fixed m/z tolerance window. Fast and reliable when spectra are clean and instruments are consistent. Degrades when fragmentation patterns vary across instruments or collision energies.
-
-```
-query:   [107.05, 145.06, 181.09]
-library: [107.05, 145.06, 200.10]
-          ✓ match  ✓ match  ✗ no match  →  score ∝ 2/3
-```
-
-**ModifiedCosine** — used for local library matching (via `matchms`).
-
-Extends CosineGreedy by accounting for the precursor mass difference between query and reference. Useful when the same compound appears with different adducts or charge states. Still relies on direct peak overlap.
-
-**Spec2Vec** — used for AI similarity search.
-
-Word2Vec-style model trained on hundreds of thousands of GNPS spectra (Huber et al. 2021, Zenodo 4173596). Each peak becomes a token (`"peak@107.05"`). The spectrum embedding is computed as an intensity-weighted average of token vectors, then L2-normalised to a 300-dimensional unit vector:
-
-```python
-embedding = Σ (intensity^0.5 × word_vector["peak@mz"]) / Σ weights
-embedding /= ||embedding||   # unit vector → dot product == cosine similarity
-```
-
-Similarity at query time:
-```python
-similarity = np.dot(query_vec, lib_vec)       # local library
-similarities = broad_matrix @ query_vec       # MassBank broad index (matrix multiply)
-```
-
-**Why Spec2Vec over cosine methods?**
-
-Cosine methods ask *"do you share the same fragments?"*. Spec2Vec asks *"does your spectrum look like spectra of structurally similar molecules?"* — the same distinction as lexical vs semantic search.
-
-| Scenario | ModifiedCosine | Spec2Vec |
-|----------|---------------|---------|
-| Few peaks in common, similar structure | low score | high score |
-| Same compound, different instrument | fragile | robust |
-| Structural analogues / isomers | not detected | clustered in embedding space |
-| Noisy or incomplete spectrum | penalised | more tolerant |
-
-ModifiedCosine remains preferable for exact identity confirmation on high-quality, instrument-matched spectra. Spec2Vec is stronger for unknown or analogue discovery.
-
-**Anomaly detection** — Local Outlier Factor (`sklearn`, `metric="cosine"`) fitted on the 102 ECRFS Spec2Vec embeddings. A query spectrum is scored by distance from the inlier distribution; novelty is normalised to [0, 1].
-
-**3D visualisation** — PCA reduces the 300-D embeddings to 3 components (fitted once per library). Query spectra are projected into the same space, making structural proximity visually interpretable.
-
----
-
-### 3. Digital Twin — *real-time ML training*
-
-Real ML training pipeline on tabular datasets, with live progress streamed over WebSocket.
-
-**Models:** Random Forest, Gradient Boosting, AdaBoost, Decision Tree, SVM, KNN, Naive Bayes, SGD.
-
-**Flow:**
-1. Select dataset → backend returns metadata (rows, features, class distribution, NaN counts)
-2. Select models → `ws://localhost:8000/ws/train` opened; backend streams per-model progress events
-3. Train/test split: 80/20. Metrics: Accuracy, Precision, Recall, F1, AUC-ROC, R², overfit gap (train − test accuracy), training time.
-
-Feature importance is computed post-training and displayed as a ranked bar chart for column-level sensitivity analysis.
-
----
-
-### 4. Data Fusion — *multi-source CSV harmonisation*
-
-Data engineering pipeline to merge heterogeneous CSV files into a unified dataset ready for ML ingestion.
-
-**Steps:**
-1. **Import** — upload multiple CSVs, preview headers and row counts
-2. **Align** — map heterogeneous column names to a canonical schema (e.g. `"SMILES_str"`, `"smiles"`, `"Smiles"` → `"SMILES"`)
-3. **Resolve** — configure conflict strategies: case normalisation, duplicate handling (keep first / last / merge), key conflict policy
-4. **Export** — download merged CSV
+### 5. ChemAssistant — *local RAG for chemical QA/QC*
+Local conversational assistant for QA/QC laboratories. Upload SOPs, safety data sheets, regulatory documents, and certificates of analysis; ask compliance questions in natural language and receive answers grounded in your own document corpus. Additional tools: batch CoA comparison with deviation flagging, ingredient check against EU Cosmetics Regulation 1223/2009, and a full audit trail exportable as JSON. All processing runs locally via Ollama (LLaMA 3) and a Qdrant vector database.
 
 ---
 
@@ -111,26 +28,64 @@ Data engineering pipeline to merge heterogeneous CSV files into a unified datase
 | Frontend | Backend |
 |---|---|
 | React 19, Tailwind CSS | FastAPI, uvicorn |
-| smiles-drawer | scikit-learn (classifiers, PCA, LOF) |
-| SVG charts | matchms (CosineGreedy, ModifiedCosine) |
-| | gensim (Spec2Vec KeyedVectors) |
-| | WebSocket (live training stream) |
+| smiles-drawer | scikit-learn, LightGBM, RDKit |
+| SVG charts | matchms, gensim (Spec2Vec) |
+| WebSocket client | Ollama (LLaMA 3), Qdrant |
 
 ---
 
-## Quick Start
+## Installation
+
+### Prerequisites
+
+| Tool | Version | Notes |
+|---|---|---|
+| Node.js | 20+ | `npm` included |
+| Python | 3.12 | 3.11 also works |
+| Ollama | latest | [ollama.com](https://ollama.com) |
+| Docker | latest | for Qdrant |
+
+### 1 — Clone the repository
 
 ```bash
-# Frontend
-npm install && npm start
+git clone https://github.com/erosds/demoplatform.git
+cd demoplatform
+```
 
-# Backend
+### 2 — Frontend
+
+```bash
+npm install
+npm start
+```
+
+Runs at `http://localhost:3000`.
+
+### 3 — Backend
+
+```bash
 cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-Frontend: `http://localhost:3000` · Backend: `http://localhost:8000`
+Runs at `http://localhost:8000`.
+
+### 4 — Qdrant (required for ChemAssistant)
+
+```bash
+docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
+```
+
+### 5 — Ollama (required for ChemAssistant)
+
+```bash
+# Install from https://ollama.com, then pull the required models:
+ollama pull llama3
+ollama pull nomic-embed-text
+```
+
+> **Note:** Qdrant and Ollama are only needed for the ChemAssistant workflow. All other workflows run with the frontend + FastAPI backend alone.
 
 ---
 
