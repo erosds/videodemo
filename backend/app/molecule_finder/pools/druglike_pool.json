@@ -23,14 +23,6 @@
   "n_candidates": 100,
   "compounds": [
     {
-      "cid": 3559,
-      "name": "Haloperidol",
-      "smiles": "O=C(CCCN1CCC(O)(c2ccc(Cl)cc2)CC1)c1ccc(F)cc1",
-      "mw": 375.9,
-      "iupac": "4-[4-(4-chlorophenyl)-4-hydroxypiperidin-1-yl]-1-(4-fluorophenyl)butan-1-one",
-      "title": "Haloperidol"
-    },
-    {
       "cid": 2554,
       "name": "Carbamazepine",
       "smiles": "NC(=O)N1c2ccccc2C=Cc2ccccc21",
@@ -45,38 +37,6 @@
       "mw": 252.27,
       "iupac": "5,5-diphenylimidazolidine-2,4-dione",
       "title": "Phenytoin"
-    },
-    {
-      "cid": 3958,
-      "name": "Lorazepam",
-      "smiles": "O=C1Nc2ccc(Cl)cc2C(c2ccccc2Cl)=NC1O",
-      "mw": 321.2,
-      "iupac": "7-chloro-5-(2-chlorophenyl)-3-hydroxy-1,3-dihydro-1,4-benzodiazepin-2-one",
-      "title": "Lorazepam"
-    },
-    {
-      "cid": 3016,
-      "name": "Diazepam",
-      "smiles": "CN1C(=O)CN=C(c2ccccc2)c2cc(Cl)ccc21",
-      "mw": 284.74,
-      "iupac": "7-chloro-1-methyl-5-phenyl-3H-1,4-benzodiazepin-2-one",
-      "title": "Diazepam"
-    },
-    {
-      "cid": 1002,
-      "name": "Phenylhydantoin",
-      "smiles": "O=C1NC(=O)C(c2ccccc2)N1",
-      "mw": 176.17,
-      "iupac": "5-phenylimidazolidine-2,4-dione",
-      "title": "Phenylhydantoin"
-    },
-    {
-      "cid": 1688,
-      "name": "Ro 5-4864",
-      "smiles": "CN1C(=O)CN=C(c2ccc(Cl)cc2)c2cc(Cl)ccc21",
-      "mw": 319.2,
-      "iupac": "7-chloro-5-(4-chlorophenyl)-1-methyl-3H-1,4-benzodiazepin-2-one",
-      "title": "Ro 5-4864"
     },
     {
       "cid": 1734,
@@ -103,14 +63,6 @@
       "title": "Alprazolam"
     },
     {
-      "cid": 2145,
-      "name": "Aminoglutethimide",
-      "smiles": "CCC1(c2ccc(N)cc2)CCC(=O)NC1=O",
-      "mw": 232.28,
-      "iupac": "3-(4-aminophenyl)-3-ethylpiperidine-2,6-dione",
-      "title": "Aminoglutethimide"
-    },
-    {
       "cid": 2200,
       "name": "Antazoline",
       "smiles": "c1ccc(CN(CC2=NCCN2)c2ccccc2)cc1",
@@ -135,14 +87,6 @@
       "title": "Bromperidol"
     },
     {
-      "cid": 2474,
-      "name": "Bupivacaine (USAN:INN:BAN)",
-      "smiles": "CCCCN1CCCCC1C(=O)Nc1c(C)cccc1C",
-      "mw": 288.4,
-      "iupac": "1-butyl-N-(2,6-dimethylphenyl)piperidine-2-carboxamide",
-      "title": "Bupivacaine (USAN:INN:BAN)"
-    },
-    {
       "cid": 2688,
       "name": "Cgp 37157",
       "smiles": "O=C1CSC(c2ccccc2Cl)c2cc(Cl)ccc2N1",
@@ -159,44 +103,12 @@
       "title": "Clobazam"
     },
     {
-      "cid": 2795,
-      "name": "Chlophedianol",
-      "smiles": "CN(C)CCC(O)(c1ccccc1)c1ccccc1Cl",
-      "mw": 289.8,
-      "iupac": "1-(2-chlorophenyl)-3-(dimethylamino)-1-phenylpropan-1-ol",
-      "title": "Chlophedianol"
-    },
-    {
-      "cid": 2801,
-      "name": "Clomipramine",
-      "smiles": "CN(C)CCCN1c2ccccc2CCc2ccc(Cl)cc21",
-      "mw": 314.9,
-      "iupac": "3-(2-chloro-5,6-dihydrobenzo[b][1]benzazepin-11-yl)-N,N-dimethylpropan-1-amine",
-      "title": "Clomipramine"
-    },
-    {
-      "cid": 2802,
-      "name": "Clonazepam",
-      "smiles": "O=C1CN=C(c2ccccc2Cl)c2cc([N+](=O)[O-])ccc2N1",
-      "mw": 315.71,
-      "iupac": "5-(2-chlorophenyl)-7-nitro-1,3-dihydro-1,4-benzodiazepin-2-one",
-      "title": "Clonazepam"
-    },
-    {
       "cid": 2805,
       "name": "Cloperastine",
       "smiles": "Clc1ccc(C(OCCN2CCCCC2)c2ccccc2)cc1",
       "mw": 329.9,
       "iupac": "1-[2-[(4-chlorophenyl)-phenylmethoxy]ethyl]piperidine",
       "title": "Cloperastine"
-    },
-    {
-      "cid": 2809,
-      "name": "Clorazepate",
-      "smiles": "O=C(O)C1N=C(c2ccccc2)c2cc(Cl)ccc2NC1=O",
-      "mw": 314.72,
-      "iupac": "7-chloro-2-oxo-5-phenyl-1,3-dihydro-1,4-benzodiazepine-3-carboxylic acid",
-      "title": "Clorazepate"
     },
     {
       "cid": 2811,
@@ -223,22 +135,6 @@
       "title": "Cycrimine"
     },
     {
-      "cid": 2995,
-      "name": "Desipramine",
-      "smiles": "CNCCCN1c2ccccc2CCc2ccccc21",
-      "mw": 266.4,
-      "iupac": "3-(5,6-dihydrobenzo[b][1]benzazepin-11-yl)-N-methylpropan-1-amine",
-      "title": "Desipramine"
-    },
-    {
-      "cid": 2997,
-      "name": "Nordiazepam",
-      "smiles": "O=C1CN=C(c2ccccc2)c2cc(Cl)ccc2N1",
-      "mw": 270.71,
-      "iupac": "7-chloro-5-phenyl-1,3-dihydro-1,4-benzodiazepin-2-one",
-      "title": "Nordiazepam"
-    },
-    {
       "cid": 3055,
       "name": "Diphenidol",
       "smiles": "OC(CCCN1CCCCC1)(c1ccccc1)c1ccccc1",
@@ -263,28 +159,12 @@
       "title": "Epinastine"
     },
     {
-      "cid": 3245,
-      "name": "Eprazinone",
-      "smiles": "CCOC(CN1CCN(CC(C)C(=O)c2ccccc2)CC1)c1ccccc1",
-      "mw": 380.5,
-      "iupac": "3-[4-(2-ethoxy-2-phenylethyl)piperazin-1-yl]-2-methyl-1-phenylpropan-1-one",
-      "title": "Eprazinone"
-    },
-    {
       "cid": 3292,
       "name": "Ethotoin",
       "smiles": "CCN1C(=O)NC(c2ccccc2)C1=O",
       "mw": 204.22,
       "iupac": "3-ethyl-5-phenylimidazolidine-2,4-dione",
       "title": "Ethotoin"
-    },
-    {
-      "cid": 3299,
-      "name": "Ethyl Loflazepate",
-      "smiles": "CCOC(=O)C1N=C(c2ccccc2F)c2cc(Cl)ccc2NC1=O",
-      "mw": 360.8,
-      "iupac": "ethyl 7-chloro-5-(2-fluorophenyl)-2-oxo-1,3-dihydro-1,4-benzodiazepine-3-carboxylate",
-      "title": "Ethyl Loflazepate"
     },
     {
       "cid": 3326,
@@ -301,30 +181,6 @@
       "mw": 336.5,
       "iupac": "N-phenyl-N-[1-(2-phenylethyl)piperidin-4-yl]propanamide",
       "title": "Fentanyl"
-    },
-    {
-      "cid": 3369,
-      "name": "Fludiazepam",
-      "smiles": "CN1C(=O)CN=C(c2ccccc2F)c2cc(Cl)ccc21",
-      "mw": 302.73,
-      "iupac": "7-chloro-5-(2-fluorophenyl)-1-methyl-3H-1,4-benzodiazepin-2-one",
-      "title": "Fludiazepam"
-    },
-    {
-      "cid": 3380,
-      "name": "Flunitrazepam",
-      "smiles": "CN1C(=O)CN=C(c2ccccc2F)c2cc([N+](=O)[O-])ccc21",
-      "mw": 313.28,
-      "iupac": "5-(2-fluorophenyl)-1-methyl-7-nitro-3H-1,4-benzodiazepin-2-one",
-      "title": "Flunitrazepam"
-    },
-    {
-      "cid": 3393,
-      "name": "Flurazepam",
-      "smiles": "CCN(CC)CCN1C(=O)CN=C(c2ccccc2F)c2cc(Cl)ccc21",
-      "mw": 387.9,
-      "iupac": "7-chloro-1-[2-(diethylamino)ethyl]-5-(2-fluorophenyl)-3H-1,4-benzodiazepin-2-one",
-      "title": "Flurazepam"
     },
     {
       "cid": 3407,
@@ -351,22 +207,6 @@
       "title": "Glutethimide"
     },
     {
-      "cid": 3696,
-      "name": "Imipramine",
-      "smiles": "CN(C)CCCN1c2ccccc2CCc2ccccc21",
-      "mw": 280.4,
-      "iupac": "3-(5,6-dihydrobenzo[b][1]benzazepin-11-yl)-N,N-dimethylpropan-1-amine",
-      "title": "Imipramine"
-    },
-    {
-      "cid": 3775,
-      "name": "Isopropamide",
-      "smiles": "CC(C)[N+](C)(CCC(C(N)=O)(c1ccccc1)c1ccccc1)C(C)C",
-      "mw": 353.5,
-      "iupac": "(4-amino-4-oxo-3,3-diphenylbutyl)-methyl-di(propan-2-yl)azanium",
-      "title": "Isopropamide"
-    },
-    {
       "cid": 3821,
       "name": "Ketamine",
       "smiles": "CNC1(c2ccccc2Cl)CCCCC1=O",
@@ -381,30 +221,6 @@
       "mw": 270.75,
       "iupac": "7-chloro-1-methyl-5-phenyl-2,3-dihydro-1,4-benzodiazepine",
       "title": "Medazepam"
-    },
-    {
-      "cid": 4057,
-      "name": "Mepenzolate",
-      "smiles": "C[N+]1(C)CCCC(OC(=O)C(O)(c2ccccc2)c2ccccc2)C1",
-      "mw": 340.4,
-      "iupac": "(1,1-dimethylpiperidin-1-ium-3-yl) 2-hydroxy-2,2-diphenylacetate",
-      "title": "Mepenzolate"
-    },
-    {
-      "cid": 4060,
-      "name": "Mephenytoin",
-      "smiles": "CCC1(c2ccccc2)NC(=O)N(C)C1=O",
-      "mw": 218.25,
-      "iupac": "5-ethyl-3-methyl-5-phenylimidazolidine-2,4-dione",
-      "title": "Mephenytoin"
-    },
-    {
-      "cid": 4062,
-      "name": "Mepivacaine",
-      "smiles": "Cc1cccc(C)c1NC(=O)C1CCCCN1C",
-      "mw": 246.35,
-      "iupac": "N-(2,6-dimethylphenyl)-1-methylpiperidine-2-carboxamide",
-      "title": "Mepivacaine"
     },
     {
       "cid": 4177,
@@ -431,38 +247,6 @@
       "title": "Moperone"
     },
     {
-      "cid": 4496,
-      "name": "Nimetazepam",
-      "smiles": "CN1C(=O)CN=C(c2ccccc2)c2cc([N+](=O)[O-])ccc21",
-      "mw": 295.29,
-      "iupac": "1-methyl-7-nitro-5-phenyl-3H-1,4-benzodiazepin-2-one",
-      "title": "Nimetazepam"
-    },
-    {
-      "cid": 4506,
-      "name": "Nitrazepam",
-      "smiles": "O=C1CN=C(c2ccccc2)c2cc([N+](=O)[O-])ccc2N1",
-      "mw": 281.27,
-      "iupac": "7-nitro-5-phenyl-1,3-dihydro-1,4-benzodiazepin-2-one",
-      "title": "Nitrazepam"
-    },
-    {
-      "cid": 4528,
-      "name": "Nomifensine",
-      "smiles": "CN1Cc2c(N)cccc2C(c2ccccc2)C1",
-      "mw": 238.33,
-      "iupac": "2-methyl-4-phenyl-3,4-dihydro-1H-isoquinolin-8-amine",
-      "title": "Nomifensine"
-    },
-    {
-      "cid": 4540,
-      "name": "Desalkylflurazepam",
-      "smiles": "O=C1CN=C(c2ccccc2F)c2cc(Cl)ccc2N1",
-      "mw": 288.7,
-      "iupac": "7-chloro-5-(2-fluorophenyl)-1,3-dihydro-1,4-benzodiazepin-2-one",
-      "title": "Desalkylflurazepam"
-    },
-    {
       "cid": 4615,
       "name": "Oxatomide",
       "smiles": "O=c1[nH]c2ccccc2n1CCCN1CCN(C(c2ccccc2)c2ccccc2)CC1",
@@ -471,28 +255,12 @@
       "title": "Oxatomide"
     },
     {
-      "cid": 4616,
-      "name": "Oxazepam",
-      "smiles": "O=C1Nc2ccc(Cl)cc2C(c2ccccc2)=NC1O",
-      "mw": 286.71,
-      "iupac": "7-chloro-3-hydroxy-5-phenyl-1,3-dihydro-1,4-benzodiazepin-2-one",
-      "title": "Oxazepam"
-    },
-    {
       "cid": 4617,
       "name": "Oxazolam",
       "smiles": "CC1CN2CC(=O)Nc3ccc(Cl)cc3C2(c2ccccc2)O1",
       "mw": 328.8,
       "iupac": "10-chloro-2-methyl-11b-phenyl-2,3,5,7-tetrahydro-[1,3]oxazolo[3,2-d][1,4]benzodiazepin-6-one",
       "title": "Oxazolam"
-    },
-    {
-      "cid": 4763,
-      "name": "Phenobarbital",
-      "smiles": "CCC1(c2ccccc2)C(=O)NC(=O)NC1=O",
-      "mw": 232.23,
-      "iupac": "5-ethyl-5-phenyl-1,3-diazinane-2,4,6-trione",
-      "title": "Phenobarbital"
     },
     {
       "cid": 4832,
@@ -557,14 +325,6 @@
       "mw": 395.5,
       "iupac": "8-[4-(4-fluorophenyl)-4-oxobutyl]-1-phenyl-1,3,8-triazaspiro[4.5]decan-4-one",
       "title": "Spiperone"
-    },
-    {
-      "cid": 5391,
-      "name": "Temazepam",
-      "smiles": "CN1C(=O)C(O)N=C(c2ccccc2)c2cc(Cl)ccc21",
-      "mw": 300.74,
-      "iupac": "7-chloro-3-hydroxy-1-methyl-5-phenyl-3H-1,4-benzodiazepin-2-one",
-      "title": "Temazepam"
     },
     {
       "cid": 5426,
@@ -647,30 +407,6 @@
       "title": "Phensuximide"
     },
     {
-      "cid": 7013,
-      "name": "Phenyl-1-naphthylamine",
-      "smiles": "c1ccc(Nc2cccc3ccccc23)cc1",
-      "mw": 219.28,
-      "iupac": "N-phenylnaphthalen-1-amine",
-      "title": "Phenyl-1-naphthylamine"
-    },
-    {
-      "cid": 7102,
-      "name": "4-Aminobiphenyl",
-      "smiles": "Nc1ccc(-c2ccccc2)cc1",
-      "mw": 169.22,
-      "iupac": "4-phenylaniline",
-      "title": "4-Aminobiphenyl"
-    },
-    {
-      "cid": 7111,
-      "name": "Benzidine",
-      "smiles": "Nc1ccc(-c2ccc(N)cc2)cc1",
-      "mw": 184.24,
-      "iupac": "4-(4-aminophenyl)aniline",
-      "title": "Benzidine"
-    },
-    {
       "cid": 7333,
       "name": "Di-o-tolylguanidine",
       "smiles": "Cc1ccccc1N=C(N)Nc1ccccc1C",
@@ -679,36 +415,12 @@
       "title": "Di-o-tolylguanidine"
     },
     {
-      "cid": 7564,
-      "name": "N-Phenyl-p-phenylenediamine",
-      "smiles": "Nc1ccc(Nc2ccccc2)cc1",
-      "mw": 184.24,
-      "iupac": "4-N-phenylbenzene-1,4-diamine",
-      "title": "N-Phenyl-p-phenylenediamine"
-    },
-    {
       "cid": 7570,
       "name": "Diphenylmethane diisocyanate",
       "smiles": "O=C=Nc1ccc(Cc2ccc(N=C=O)cc2)cc1",
       "mw": 250.25,
       "iupac": "1-isocyanato-4-[(4-isocyanatophenyl)methyl]benzene",
       "title": "Diphenylmethane diisocyanate"
-    },
-    {
-      "cid": 7573,
-      "name": "N-isopropyl-N'-phenyl-p-phenylenediamine",
-      "smiles": "CC(C)Nc1ccc(Nc2ccccc2)cc1",
-      "mw": 226.32,
-      "iupac": "1-N-phenyl-4-N-propan-2-ylbenzene-1,4-diamine",
-      "title": "N-isopropyl-N'-phenyl-p-phenylenediamine"
-    },
-    {
-      "cid": 7577,
-      "name": "4,4-Diaminodiphenylmethane",
-      "smiles": "Nc1ccc(Cc2ccc(N)cc2)cc1",
-      "mw": 198.26,
-      "iupac": "4-[(4-aminophenyl)methyl]aniline",
-      "title": "4,4-Diaminodiphenylmethane"
     },
     {
       "cid": 7594,
@@ -741,22 +453,6 @@
       "mw": 246.26,
       "iupac": "5-ethyl-1-methyl-5-phenyl-1,3-diazinane-2,4,6-trione",
       "title": "Mephobarbital"
-    },
-    {
-      "cid": 8413,
-      "name": "o-Tolidine",
-      "smiles": "Cc1cc(-c2ccc(N)c(C)c2)ccc1N",
-      "mw": 212.29,
-      "iupac": "4-(4-amino-3-methylphenyl)-2-methylaniline",
-      "title": "o-Tolidine"
-    },
-    {
-      "cid": 8679,
-      "name": "N-phenyl-2-naphthylamine",
-      "smiles": "c1ccc(Nc2ccc3ccccc3c2)cc1",
-      "mw": 219.28,
-      "iupac": "N-phenylnaphthalen-2-amine",
-      "title": "N-phenyl-2-naphthylamine"
     },
     {
       "cid": 9417,
@@ -799,14 +495,6 @@
       "title": "Malachite Green"
     },
     {
-      "cid": 11487,
-      "name": "Diphenylamine",
-      "smiles": "c1ccc(Nc2ccccc2)cc1",
-      "mw": 169.22,
-      "iupac": "N-phenylaniline",
-      "title": "Diphenylamine"
-    },
-    {
       "cid": 11942,
       "name": "N,N'-Diacetylbenzidine",
       "smiles": "CC(=O)Nc1ccc(-c2ccc(NC(C)=O)cc2)cc1",
@@ -821,6 +509,318 @@
       "mw": 336.3,
       "iupac": "1-benzoyl-5-ethyl-5-phenyl-1,3-diazinane-2,4,6-trione",
       "title": "Benzonal"
+    },
+    {
+      "cid": 13314,
+      "name": "Lormetazepam",
+      "smiles": "CN1C(=O)C(O)N=C(c2ccccc2Cl)c2cc(Cl)ccc21",
+      "mw": 335.2,
+      "iupac": "7-chloro-5-(2-chlorophenyl)-3-hydroxy-1-methyl-3H-1,4-benzodiazepin-2-one",
+      "title": "Lormetazepam"
+    },
+    {
+      "cid": 13728,
+      "name": "Diphenamid",
+      "smiles": "CN(C)C(=O)C(c1ccccc1)c1ccccc1",
+      "mw": 239.31,
+      "iupac": "N,N-dimethyl-2,2-diphenylacetamide",
+      "title": "Diphenamid"
+    },
+    {
+      "cid": 15387,
+      "name": "Melperone",
+      "smiles": "CC1CCN(CCCC(=O)c2ccc(F)cc2)CC1",
+      "mw": 263.35,
+      "iupac": "1-(4-fluorophenyl)-4-(4-methylpiperidin-1-yl)butan-1-one",
+      "title": "Melperone"
+    },
+    {
+      "cid": 15723,
+      "name": "Azacyclonol",
+      "smiles": "OC(c1ccccc1)(c1ccccc1)C1CCNCC1",
+      "mw": 267.4,
+      "iupac": "diphenyl(piperidin-4-yl)methanol",
+      "title": "Azacyclonol"
+    },
+    {
+      "cid": 15851,
+      "name": "Ketamine Hydrochloride",
+      "smiles": "CNC1(c2ccccc2Cl)CCCCC1=O.Cl",
+      "mw": 274.18,
+      "iupac": "2-(2-chlorophenyl)-2-(methylamino)cyclohexan-1-one;hydrochloride",
+      "title": "Ketamine Hydrochloride"
+    },
+    {
+      "cid": 16106,
+      "name": "Perlapine",
+      "smiles": "CN1CCN(C2=Nc3ccccc3Cc3ccccc32)CC1",
+      "mw": 291.4,
+      "iupac": "6-(4-methylpiperazin-1-yl)-11H-benzo[c][1]benzazepine",
+      "title": "Perlapine"
+    },
+    {
+      "cid": 16116,
+      "name": "Siduron",
+      "smiles": "CC1CCCCC1NC(=O)Nc1ccccc1",
+      "mw": 232.32,
+      "iupac": "1-(2-methylcyclohexyl)-3-phenylurea",
+      "title": "Siduron"
+    },
+    {
+      "cid": 17170,
+      "name": "C.I. Basic Yellow 2",
+      "smiles": "CN(C)c1ccc(C(=N)c2ccc(N(C)C)cc2)cc1.Cl",
+      "mw": 303.8,
+      "iupac": "4-[4-(dimethylamino)benzenecarboximidoyl]-N,N-dimethylaniline;hydrochloride",
+      "title": "C.I. Basic Yellow 2"
+    },
+    {
+      "cid": 17732,
+      "name": "5-(4-Hydroxyphenyl)-5-phenylhydantoin",
+      "smiles": "O=C1NC(=O)C(c2ccccc2)(c2ccc(O)cc2)N1",
+      "mw": 268.27,
+      "iupac": "5-(4-hydroxyphenyl)-5-phenylimidazolidine-2,4-dione",
+      "title": "5-(4-Hydroxyphenyl)-5-phenylhydantoin"
+    },
+    {
+      "cid": 17931,
+      "name": "Sulazepam",
+      "smiles": "CN1C(=S)CN=C(c2ccccc2)c2cc(Cl)ccc21",
+      "mw": 300.8,
+      "iupac": "7-chloro-1-methyl-5-phenyl-3H-1,4-benzodiazepine-2-thione",
+      "title": "Sulazepam"
+    },
+    {
+      "cid": 18996,
+      "name": "Piperalin",
+      "smiles": "CC1CCCCN1CCCOC(=O)c1ccc(Cl)c(Cl)c1",
+      "mw": 330.2,
+      "iupac": "3-(2-methylpiperidin-1-yl)propyl 3,4-dichlorobenzoate",
+      "title": "Piperalin"
+    },
+    {
+      "cid": 21846,
+      "name": "Benzetimide Hydrochloride",
+      "smiles": "Cl.O=C1CCC(c2ccccc2)(C2CCN(Cc3ccccc3)CC2)C(=O)N1",
+      "mw": 398.9,
+      "iupac": "3-(1-benzylpiperidin-4-yl)-3-phenylpiperidine-2,6-dione;hydrochloride",
+      "title": "Benzetimide Hydrochloride"
+    },
+    {
+      "cid": 21847,
+      "name": "Benzetimide",
+      "smiles": "O=C1CCC(c2ccccc2)(C2CCN(Cc3ccccc3)CC2)C(=O)N1",
+      "mw": 362.5,
+      "iupac": "3-(1-benzylpiperidin-4-yl)-3-phenylpiperidine-2,6-dione",
+      "title": "Benzetimide"
+    },
+    {
+      "cid": 23603,
+      "name": "Cyheptamide",
+      "smiles": "NC(=O)C1c2ccccc2CCc2ccccc21",
+      "mw": 237.3,
+      "iupac": "tricyclo[9.4.0.03,8]pentadeca-1(15),3,5,7,11,13-hexaene-2-carboxamide",
+      "title": "Cyheptamide"
+    },
+    {
+      "cid": 24107,
+      "name": "Clazolam",
+      "smiles": "CN1C(=O)CN2CCc3ccccc3C2c2cc(Cl)ccc21",
+      "mw": 312.8,
+      "iupac": "2-chloro-5-methyl-7,9,10,14b-tetrahydroisoquinolino[2,1-d][1,4]benzodiazepin-6-one",
+      "title": "Clazolam"
+    },
+    {
+      "cid": 25215,
+      "name": "Tetrazepam",
+      "smiles": "CN1C(=O)CN=C(C2=CCCCC2)c2cc(Cl)ccc21",
+      "mw": 288.77,
+      "iupac": "7-chloro-5-(cyclohexen-1-yl)-1-methyl-3H-1,4-benzodiazepin-2-one",
+      "title": "Tetrazepam"
+    },
+    {
+      "cid": 28777,
+      "name": "2-(Cyclohexylthio)-1H-isoindole-1,3(2H)-dione",
+      "smiles": "O=C1c2ccccc2C(=O)N1SC1CCCCC1",
+      "mw": 261.34,
+      "iupac": "2-cyclohexylsulfanylisoindole-1,3-dione",
+      "title": "2-(Cyclohexylthio)-1H-isoindole-1,3(2H)-dione"
+    },
+    {
+      "cid": 30843,
+      "name": "Dexetimide",
+      "smiles": "O=C1CC[C@@](c2ccccc2)(C2CCN(Cc3ccccc3)CC2)C(=O)N1",
+      "mw": 362.5,
+      "iupac": "(3S)-3-(1-benzylpiperidin-4-yl)-3-phenylpiperidine-2,6-dione",
+      "title": "Dexetimide"
+    },
+    {
+      "cid": 31508,
+      "name": "Proquazone",
+      "smiles": "Cc1ccc2c(-c3ccccc3)nc(=O)n(C(C)C)c2c1",
+      "mw": 278.3,
+      "iupac": "7-methyl-4-phenyl-1-propan-2-ylquinazolin-2-one",
+      "title": "Proquazone"
+    },
+    {
+      "cid": 32593,
+      "name": "Lenperone",
+      "smiles": "O=C(CCCN1CCC(C(=O)c2ccc(F)cc2)CC1)c1ccc(F)cc1",
+      "mw": 371.4,
+      "iupac": "4-[4-(4-fluorobenzoyl)piperidin-1-yl]-1-(4-fluorophenyl)butan-1-one",
+      "title": "Lenperone"
+    },
+    {
+      "cid": 33746,
+      "name": "Ketazolam",
+      "smiles": "CC1=CC(=O)N2CC(=O)N(C)c3ccc(Cl)cc3C2(c2ccccc2)O1",
+      "mw": 368.8,
+      "iupac": "11-chloro-2,8-dimethyl-12b-phenyl-6H-[1,3]oxazino[3,2-d][1,4]benzodiazepine-4,7-dione",
+      "title": "Ketazolam"
+    },
+    {
+      "cid": 33925,
+      "name": "Eterobarb",
+      "smiles": "CCC1(c2ccccc2)C(=O)N(COC)C(=O)N(COC)C1=O",
+      "mw": 320.34,
+      "iupac": "5-ethyl-1,3-bis(methoxymethyl)-5-phenyl-1,3-diazinane-2,4,6-trione",
+      "title": "Eterobarb"
+    },
+    {
+      "cid": 34312,
+      "name": "Oxcarbazepine",
+      "smiles": "NC(=O)N1c2ccccc2CC(=O)c2ccccc21",
+      "mw": 252.27,
+      "iupac": "5-oxo-6H-benzo[b][1]benzazepine-11-carboxamide",
+      "title": "Oxcarbazepine"
+    },
+    {
+      "cid": 38282,
+      "name": "4-(4-Chlorophenyl)-4-hydroxypiperidine",
+      "smiles": "OC1(c2ccc(Cl)cc2)CCNCC1",
+      "mw": 211.69,
+      "iupac": "4-(4-chlorophenyl)piperidin-4-ol",
+      "title": "4-(4-Chlorophenyl)-4-hydroxypiperidine"
+    },
+    {
+      "cid": 40065,
+      "name": "Iodogen",
+      "smiles": "O=C1N(Cl)C2(c3ccccc3)N(Cl)C(=O)N(Cl)C2(c2ccccc2)N1Cl",
+      "mw": 432.1,
+      "iupac": "1,3,4,6-tetrachloro-3a,6a-diphenylimidazo[4,5-d]imidazole-2,5-dione",
+      "title": "Iodogen"
+    },
+    {
+      "cid": 40113,
+      "name": "Phenazepam",
+      "smiles": "O=C1CN=C(c2ccccc2Cl)c2cc(Br)ccc2N1",
+      "mw": 349.61,
+      "iupac": "7-bromo-5-(2-chlorophenyl)-1,3-dihydro-1,4-benzodiazepin-2-one",
+      "title": "Phenazepam"
+    },
+    {
+      "cid": 40632,
+      "name": "Pirfenidone",
+      "smiles": "Cc1ccc(=O)n(-c2ccccc2)c1",
+      "mw": 185.22,
+      "iupac": "5-methyl-1-phenylpyridin-2-one",
+      "title": "Pirfenidone"
+    },
+    {
+      "cid": 42884,
+      "name": "Lorcainide",
+      "smiles": "CC(C)N1CCC(N(C(=O)Cc2ccccc2)c2ccc(Cl)cc2)CC1",
+      "mw": 370.9,
+      "iupac": "N-(4-chlorophenyl)-2-phenyl-N-(1-propan-2-ylpiperidin-4-yl)acetamide",
+      "title": "Lorcainide"
+    },
+    {
+      "cid": 56260,
+      "name": "Antineoplaston A10",
+      "smiles": "O=C1CC[C@H](NC(=O)Cc2ccccc2)C(=O)N1",
+      "mw": 246.26,
+      "iupac": "N-[(3S)-2,6-dioxopiperidin-3-yl]-2-phenylacetamide",
+      "title": "Antineoplaston A10"
+    },
+    {
+      "cid": 60510,
+      "name": "Remacemide Hydrochloride",
+      "smiles": "CC(Cc1ccccc1)(NC(=O)CN)c1ccccc1.Cl",
+      "mw": 304.8,
+      "iupac": "2-amino-N-(1,2-diphenylpropan-2-yl)acetamide;hydrochloride",
+      "title": "Remacemide Hydrochloride"
+    },
+    {
+      "cid": 60511,
+      "name": "Remacemide",
+      "smiles": "CC(Cc1ccccc1)(NC(=O)CN)c1ccccc1",
+      "mw": 268.35,
+      "iupac": "2-amino-N-(1,2-diphenylpropan-2-yl)acetamide",
+      "title": "Remacemide"
+    },
+    {
+      "cid": 60703,
+      "name": "Eliprodil",
+      "smiles": "OC(CN1CCC(Cc2ccc(F)cc2)CC1)c1ccc(Cl)cc1",
+      "mw": 347.9,
+      "iupac": "1-(4-chlorophenyl)-2-[4-[(4-fluorophenyl)methyl]piperidin-1-yl]ethanol",
+      "title": "Eliprodil"
+    },
+    {
+      "cid": 61996,
+      "name": "3-Methylfentanyl",
+      "smiles": "CCC(=O)N(c1ccccc1)C1CCN(CCc2ccccc2)CC1C",
+      "mw": 350.5,
+      "iupac": "N-[3-methyl-1-(2-phenylethyl)piperidin-4-yl]-N-phenylpropanamide",
+      "title": "3-Methylfentanyl"
+    },
+    {
+      "cid": 62495,
+      "name": "Benzeneacetic acid, alpha-hydroxy-alpha-phenyl-, 1-methyl-3-piperidinyl ester",
+      "smiles": "CN1CCCC(OC(=O)C(O)(c2ccccc2)c2ccccc2)C1",
+      "mw": 325.4,
+      "iupac": "(1-methylpiperidin-3-yl) 2-hydroxy-2,2-diphenylacetate",
+      "title": "Benzeneacetic acid, alpha-hydroxy-alpha-phenyl-, 1-methyl-3-piperidinyl ester"
+    },
+    {
+      "cid": 62504,
+      "name": "1-Ethyl-3-piperidinyl alpha-hydroxy-alpha-phenylbenzeneacetate",
+      "smiles": "CCN1CCCC(OC(=O)C(O)(c2ccccc2)c2ccccc2)C1",
+      "mw": 339.4,
+      "iupac": "(1-ethylpiperidin-3-yl) 2-hydroxy-2,2-diphenylacetate",
+      "title": "1-Ethyl-3-piperidinyl alpha-hydroxy-alpha-phenylbenzeneacetate"
+    },
+    {
+      "cid": 63430,
+      "name": "2(1H)-Quinazolinone, 4-phenyl-",
+      "smiles": "O=c1nc(-c2ccccc2)c2ccccc2[nH]1",
+      "mw": 222.24,
+      "iupac": "4-phenyl-1H-quinazolin-2-one",
+      "title": "2(1H)-Quinazolinone, 4-phenyl-"
+    },
+    {
+      "cid": 64048,
+      "name": "Quinazolinedione",
+      "smiles": "O=c1[nH]c(=O)c2ccccc2[nH]1",
+      "mw": 162.15,
+      "iupac": "1H-quinazoline-2,4-dione",
+      "title": "Quinazolinedione"
+    },
+    {
+      "cid": 64737,
+      "name": "Bupivacaine Hydrochloride",
+      "smiles": "CCCCN1CCCCC1C(=O)Nc1c(C)cccc1C.Cl",
+      "mw": 324.9,
+      "iupac": "1-butyl-N-(2,6-dimethylphenyl)piperidine-2-carboxamide;hydrochloride",
+      "title": "Bupivacaine Hydrochloride"
+    },
+    {
+      "cid": 65013,
+      "name": "Emivirine",
+      "smiles": "CCOCn1c(Cc2ccccc2)c(C(C)C)c(=O)[nH]c1=O",
+      "mw": 302.37,
+      "iupac": "6-benzyl-1-(ethoxymethyl)-5-propan-2-ylpyrimidine-2,4-dione",
+      "title": "Emivirine"
     }
   ]
 }

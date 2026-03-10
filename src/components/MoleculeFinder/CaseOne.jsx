@@ -20,12 +20,12 @@ const StepBar = ({ activeStep, pulseStep }) => (
     {STEPS.map((s, i) => (
       <div key={s.n} className="flex items-center">
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-500
-          ${pulseStep === s.n ? "animate-pulse" : ""}
           ${activeStep === s.n
-            ? "bg-violet-900/40 border border-violet-700/50 text-violet-300"
-            : "bg-gray-900/40 border border-gray-800 text-gray-600"}`}>
+            ? "bg-rose-900/40 border border-rose-700/50 text-rose-300"
+            : "bg-gray-900/40 border border-gray-800 text-gray-600"}
+          ${pulseStep === s.n ? "animate-pulse" : ""}`}>
           <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold transition-all duration-500
-            ${activeStep === s.n ? "bg-violet-600 text-white" : "bg-gray-700 text-gray-500"}`}>
+            ${activeStep === s.n ? "bg-rose-600 text-white" : "bg-gray-700 text-gray-500"}`}>
             {s.n}
           </span>
           {s.label}
@@ -38,26 +38,9 @@ const StepBar = ({ activeStep, pulseStep }) => (
   </div>
 );
 
-// ── Color helpers ──────────────────────────────────────────────────────────────
-function lerpColor(hex1, hex2, t) {
-  const r1 = parseInt(hex1.slice(1, 3), 16), g1 = parseInt(hex1.slice(3, 5), 16), b1 = parseInt(hex1.slice(5, 7), 16);
-  const r2 = parseInt(hex2.slice(1, 3), 16), g2 = parseInt(hex2.slice(3, 5), 16), b2 = parseInt(hex2.slice(5, 7), 16);
-  return `rgb(${Math.round(r1 + (r2 - r1) * t)},${Math.round(g1 + (g2 - g1) * t)},${Math.round(b1 + (b2 - b1) * t)})`;
-}
-function psweetColor(p) {
-  if (p < 0.5) return lerpColor("#3b82f6", "#14b8a6", p / 0.5);
-  return lerpColor("#14b8a6", "#f43f5e", (p - 0.5) / 0.5);
-}
-function logSColor(v) {
-  // v = logS, range roughly -6 to 2. Higher is better (more soluble).
-  // green ≥ -1, amber ≥ -3, red < -3
-  if (v == null) return "#6b7280";
-  if (v >= -1) return "#22c55e";
-  if (v >= -3) return "#f59e0b";
-  return "#ef4444";
-}
-
-// ── Animated scatter (3-objective: P(sweet), MW, logS) ────────────────────────
+// ── Animated scatter ───────────────────────────────────────────────────────────
+// bounds: { saMin, saMax, ldMin, ldMax } — fixed scale passed from parent to
+// prevent scale reflows when new generations arrive during streaming.
 const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, prevAllDots, prevPareto, bounds, parentColorMap }) => {
   const W = 380, H = 240;
   const pad = { l: 44, r: 16, t: 28, b: 30 };
@@ -67,39 +50,40 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
   const currentGen = generations[currentGenIdx] ?? generations[0];
   const dots = currentGen?.candidates ?? [];
-  const inNsga2 = animPhase === "nsga2" || animPhase === "done" || animPhase === "wait_mutation";
+  const inNsga2 = animPhase === "nsga2" || animPhase === "done"
+    || animPhase === "wait_mutation";
   const inPred = animPhase === "prediction";
 
-  // P(sweet) ∈ [0, 1] — fix Y-axis to full probability range.
-  let mwMin, mwMax;
+  // X-axis: SA Score (lower is better — minimise), Y-axis: logD (higher is better — maximise)
+  let saMin, saMax;
   if (bounds) {
-    mwMin = bounds.mwMin;
-    mwMax = bounds.mwMax;
+    saMin = bounds.saMin;
+    saMax = bounds.saMax;
   } else {
     const allCands = generations.flatMap(g => g.candidates ?? []);
-    const allMW = [...allCands.map(c => c.mw), reference?.mw ?? 302].filter(Boolean);
-    mwMin = Math.max(60, Math.min(...allMW) - 12);
-    mwMax = Math.max(...allMW) + 20;
+    const allSA = [...allCands.map(c => c.sa_score), reference?.sa_score ?? 3.0].filter(v => v != null && isFinite(v));
+    saMin = Math.max(1, Math.min(...allSA) - 0.5);
+    saMax = Math.min(10, Math.max(...allSA) + 0.5);
   }
-  const ldMin = 0;
-  const ldMax = 1;
+  const ldMin = bounds?.ldMin ?? -2;
+  const ldMax = bounds?.ldMax ?? 4;
 
-  const px = mw => pad.l + ((mw - mwMin) / (mwMax - mwMin)) * plotW;
+  const px = sa => pad.l + ((sa - saMin) / (saMax - saMin)) * plotW;
   const py = ld => pad.t + (1 - (ld - ldMin) / (ldMax - ldMin)) * plotH;
 
   const [hovered, setHovered] = useState(null);
 
   const inMutation = animPhase === "mutation";
-  const getDotCy = c => (animPhase === "pool" || (inMutation && c.is_new)) ? axisY : py(c.psweet);
+  const getDotCy = c => (animPhase === "pool" || (inMutation && c.is_new)) ? axisY : py(c.logD ?? ldMin);
 
   const getDotFill = c => {
     if (inMutation || inPred) {
       if (c.is_new) return "#818cf8";                               // this gen's offspring
       const prev = parentColorMap?.get(c.smiles);
-      if (prev) return prev.dominated ? "#374151" : logSColor(prev.logS ?? -4);
+      if (prev) return prev.dominated ? "#374151" : "#f43f5e";      // parent: colour by prev sort result
       return "#6b7280";
     }
-    if (inNsga2) return c.dominated ? "#374151" : logSColor(c.logS ?? -4);
+    if (inNsga2) return c.dominated ? "#374151" : "#f43f5e";        // sort result: dominated vs Pareto
     return "#6b7280";
   };
   const getDotR = c => inNsga2 ? (c.dominated ? 3.5 : (c.is_new ? 5 : 5.5)) : 4;
@@ -122,7 +106,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     return "fill 0.65s ease 0.25s, opacity 0.55s ease 0.25s, r 0.4s ease 0.2s";
   };
 
-  const getLabelY = c => (animPhase === "pool") ? axisY - 9 : py(c.psweet) - 9;
+  const getLabelY = c => (animPhase === "pool") ? axisY - 9 : py(c.logD ?? ldMin) - 9;
   const getLabelOp = () => inPred ? 0.72 : 0;
   const getLabelTransition = i => {
     if (animPhase === "pool") return "none";
@@ -131,47 +115,52 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     return "opacity 0.3s ease";
   };
 
-  const ghostDots = animPhase === "pool" ? (prevAllDots ?? []) : (prevPareto ?? []);
+  const ghostDots = animPhase === "pool"
+    ? (prevAllDots ?? [])
+    : (prevPareto ?? []);
 
   const front = inNsga2
-    ? [...dots].filter(c => !c.dominated).sort((a, b) => a.mw - b.mw)
+    ? [...dots].filter(c => !c.dominated).sort((a, b) => (a.sa_score ?? 10) - (b.sa_score ?? 10))
     : [];
   const frontPath = front.length > 1
-    ? front.map((c, j) => `${j === 0 ? "M" : "L"}${px(c.mw).toFixed(1)},${py(c.psweet).toFixed(1)}`).join(" ")
+    ? front.map((c, j) => `${j === 0 ? "M" : "L"}${px(c.sa_score ?? saMin).toFixed(1)},${py(c.logD ?? ldMin).toFixed(1)}`).join(" ")
     : "";
 
-  const mwTicks = [80, 100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360, 380, 400, 450, 500].filter(v => v >= mwMin && v <= mwMax + 4);
-  const ldTicks = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0].filter(v => v >= ldMin - 0.01 && v <= ldMax + 0.01);
+  const saTicks = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10].filter(v => v >= saMin - 0.1 && v <= saMax + 0.1);
+  const ldTicks = [-3, -2, -1, 0, 1, 2, 3, 4, 5].filter(v => v >= ldMin - 0.01 && v <= ldMax + 0.01);
 
   return (
     <div className="relative">
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
 
-        {mwTicks.map(v => (
+        {saTicks.map(v => (
           <line key={v} x1={px(v)} y1={pad.t} x2={px(v)} y2={axisY} stroke="#1f2937" strokeWidth={0.5} />
         ))}
         {ldTicks.map(v => (
           <line key={v} x1={pad.l} y1={py(v)} x2={pad.l + plotW} y2={py(v)} stroke="#1f2937" strokeWidth={0.5} />
         ))}
 
+        <rect x={pad.l} y={pad.t} width={plotW * 0.22} height={plotH * 0.22} fill="#22c55e" opacity={0.06} rx={3} />
+        <text x={pad.l + 5} y={pad.t + 12} fontSize={7} fill="#22c55e" opacity={0.45}>ideal</text>
+
         <line x1={pad.l} y1={pad.t} x2={pad.l} y2={axisY} stroke="#374151" strokeWidth={1} />
         <line x1={pad.l} y1={axisY} x2={pad.l + plotW} y2={axisY} stroke="#374151" strokeWidth={1} />
 
         {frontPath && (
-          <path d={frontPath} fill="none" stroke="#a855f7" strokeWidth={1.5}
+          <path d={frontPath} fill="none" stroke="#f43f5e" strokeWidth={1.5}
             strokeDasharray="5 3" opacity={0.6} />
         )}
 
         {ghostDots.map((c, i) => {
-          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : logSColor(c.logS ?? -4));
+          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : "#f43f5e");
           const op = animPhase === "pool"
             ? (c.dominated ? 0.12 : 0.22)
             : (c.dominated ? 0.18 : 0.32);
           return (
             <circle
               key={`ghost-${c.smiles ?? i}`}
-              cx={px(c.mw)}
-              cy={py(c.psweet)}
+              cx={px(c.sa_score ?? saMin)}
+              cy={py(c.logD ?? ldMin)}
               r={c.dominated ? 3 : 4}
               fill={fill}
               opacity={op}
@@ -187,7 +176,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
             onMouseLeave={() => setHovered(null)}>
 
             <text
-              x={px(c.mw)}
+              x={px(c.sa_score ?? saMin)}
               y={getLabelY(c)}
               textAnchor="middle"
               fontSize={6}
@@ -196,11 +185,11 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
               style={{ transition: getLabelTransition(i) }}
               pointerEvents="none"
             >
-              {c.psweet?.toFixed(3)}
+              {(c.logD ?? ldMin).toFixed(2)}
             </text>
 
             <circle
-              cx={px(c.mw)}
+              cx={px(c.sa_score ?? saMin)}
               cy={getDotCy(c)}
               r={getDotR(c)}
               fill={getDotFill(c)}
@@ -210,71 +199,62 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
             {hovered === i && animPhase !== "pool" && (
               <g>
-                <rect x={px(c.mw) + 9} y={py(c.psweet) - 34} width={165} height={48}
+                <rect x={px(c.sa_score ?? saMin) + 9} y={py(c.logD ?? ldMin) - 26} width={165} height={38}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(c.mw) + 13} y={py(c.psweet) - 21} fontSize={8} fill="#e5e7eb">
+                <text x={px(c.sa_score ?? saMin) + 13} y={py(c.logD ?? ldMin) - 13} fontSize={8} fill="#e5e7eb">
                   {c.cid == null ? (c.smiles?.length > 28 ? c.smiles.slice(0, 28) + "…" : c.smiles) : c.name}
                 </text>
-                <text x={px(c.mw) + 13} y={py(c.psweet) - 10} fontSize={7} fill="#9ca3af">
-                  P(sweet) {c.psweet?.toFixed(3)} · MW {c.mw} Da
-                </text>
-                <text x={px(c.mw) + 13} y={py(c.psweet) + 1} fontSize={7}
-                  fill={logSColor(c.logS ?? -4)}>
-                  logS {(c.logS ?? -4).toFixed(3)}{c.is_new ? " · new" : ""}
+                <text x={px(c.sa_score ?? saMin) + 13} y={py(c.logD ?? ldMin) - 1} fontSize={7} fill="#9ca3af">
+                  logD {(c.logD ?? -2).toFixed(3)} · SA {c.sa_score?.toFixed(2)}{c.is_new ? " · new" : ""}
                 </text>
               </g>
             )}
             {hovered === i && animPhase === "pool" && (
               <g>
-                <rect x={px(c.mw) + 9} y={axisY - 36} width={120} height={26}
+                <rect x={px(c.sa_score ?? saMin) + 9} y={axisY - 36} width={120} height={26}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(c.mw) + 13} y={axisY - 23} fontSize={8} fill="#e5e7eb">
+                <text x={px(c.sa_score ?? saMin) + 13} y={axisY - 23} fontSize={8} fill="#e5e7eb">
                   {c.cid == null ? (c.smiles?.length > 28 ? c.smiles.slice(0, 28) + "…" : c.smiles) : c.name}
                 </text>
-                <text x={px(c.mw) + 13} y={axisY - 11} fontSize={7} fill="#9ca3af">MW {c.mw} Da</text>
+                <text x={px(c.sa_score ?? saMin) + 13} y={axisY - 11} fontSize={7} fill="#9ca3af">SA {c.sa_score?.toFixed(2)}</text>
               </g>
             )}
           </g>
         ))}
 
-        {reference?.psweet != null && reference?.mw != null && (
+        {reference?.logD != null && reference?.sa_score != null && (
           <g style={{ cursor: "pointer" }}
             onMouseEnter={() => setHovered("ref")}
             onMouseLeave={() => setHovered(null)}>
-            <circle cx={px(reference.mw)} cy={py(reference.psweet)} r={7}
+            <circle cx={px(reference.sa_score)} cy={py(reference.logD)} r={7}
               fill="none" stroke="#fbbf24" strokeWidth={2} opacity={0.9} />
-            <circle cx={px(reference.mw)} cy={py(reference.psweet)} r={3} fill="#fbbf24" opacity={0.9} />
+            <circle cx={px(reference.sa_score)} cy={py(reference.logD)} r={3} fill="#fbbf24" opacity={0.9} />
             {hovered === "ref" && (
               <g>
-                <rect x={px(reference.mw) + 9} y={py(reference.psweet) - 34} width={175} height={48}
+                <rect x={px(reference.sa_score) + 9} y={py(reference.logD) - 26} width={165} height={38}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(reference.mw) + 13} y={py(reference.psweet) - 21} fontSize={8} fill="#fbbf24">Sucrose (reference)</text>
-                <text x={px(reference.mw) + 13} y={py(reference.psweet) - 10} fontSize={7} fill="#9ca3af">
-                  P(sweet) {reference.psweet?.toFixed(3)} · MW {reference.mw} Da
+                <text x={px(reference.sa_score) + 13} y={py(reference.logD) - 13} fontSize={8} fill="#fbbf24">Diazepam (reference)</text>
+                <text x={px(reference.sa_score) + 13} y={py(reference.logD) - 1} fontSize={7} fill="#9ca3af">
+                  logD {reference.logD?.toFixed(3)} · SA {reference.sa_score?.toFixed(2)}
                 </text>
-                {reference.logS != null && (
-                  <text x={px(reference.mw) + 13} y={py(reference.psweet) + 1} fontSize={7} fill="#fbbf24">
-                    logS {reference.logS?.toFixed(3)}
-                  </text>
-                )}
               </g>
             )}
           </g>
         )}
 
-        {mwTicks.map(v => (
+        {saTicks.map(v => (
           <text key={v} x={px(v)} y={axisY + 11} fontSize={7} fill="#6b7280" textAnchor="middle">{v}</text>
         ))}
         {ldTicks.map(v => (
-          <text key={v} x={pad.l - 4} y={py(v) + 3} fontSize={7} fill="#6b7280" textAnchor="end">{v.toFixed(1)}</text>
+          <text key={v} x={pad.l - 4} y={py(v) + 3} fontSize={7} fill="#6b7280" textAnchor="end">{v}</text>
         ))}
 
         <text x={pad.l + plotW / 2} y={axisY + 23} fontSize={8} fill="#6b7280" textAnchor="middle">
-          Molecular Weight (Da) — minimise →
+          SA Score ↓
         </text>
         <text x={10} y={pad.t + plotH / 2} fontSize={8} fill="#6b7280" textAnchor="middle"
           transform={`rotate(-90,10,${pad.t + plotH / 2})`}>
-          P(sweet) — maximise →
+          logD (pH 7.4) — maximise →
         </text>
       </svg>
     </div>
@@ -282,7 +262,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
-const SweetnessEnhancer = () => {
+const CaseOne = () => {
   const [animPhase, setAnimPhase] = useState("idle");
   const [poolMeta, setPoolMeta] = useState(null);
   const [modelMeta, setModelMeta] = useState(null);
@@ -292,7 +272,7 @@ const SweetnessEnhancer = () => {
   const [currentGenIdx, setCurrentGenIdx] = useState(0);
   const [nGensTotal, setNGensTotal] = useState(0);
   const [error, setError] = useState(null);
-  const [modelsReady, setModelsReady] = useState({ aqsol: false, taste: false });
+  const [modelReady, setModelReady] = useState(false);
   const [prevAllDots, setPrevAllDots] = useState([]);
   const [prevPareto, setPrevPareto] = useState([]);
   const [showResults, setShowResults] = useState(false);
@@ -301,24 +281,24 @@ const SweetnessEnhancer = () => {
   const [resultsFromCache, setResultsFromCache] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
 
+  // Refs — never stale inside setTimeout callbacks
   const phaseTimers = useRef([]);
-  const gensRef = useRef([]);
-  const animQueueRef = useRef([]);
-  const isAnimatingRef = useRef(false);
-  const streamDoneRef = useRef(false);
-  const pendingNextRef = useRef(false);
+  const gensRef = useRef([]);        // accumulates gens as SSE arrives
+  const animQueueRef = useRef([]);        // queue of { genIdx, prevCands, prevFront }
+  const isAnimatingRef = useRef(false);     // true while a gen's 3-step cycle is running
+  const streamDoneRef = useRef(false);     // true after SSE stream ends
+  const pendingNextRef = useRef(false);     // true when queue was empty but animation wants next
   const abortRef = useRef(null);
 
   useEffect(() => {
     Promise.all([
       fetch(`${BACKEND}/molecule-finder/candidates/meta`).then(r => r.ok ? r.json() : null),
       fetch(`${BACKEND}/molecule-finder/available-datasets`).then(r => r.ok ? r.json() : []),
-      fetch(`${BACKEND}/molecule-finder/saved-optimization/3obj`).then(r => r.status === 204 ? null : r.ok ? r.json() : null),
+      fetch(`${BACKEND}/molecule-finder/saved-optimization/2obj`).then(r => r.status === 204 ? null : r.ok ? r.json() : null),
     ]).then(([meta, datasets, saved]) => {
-      if (meta) setPoolMeta(meta.sweetness);
-      const aqsol = datasets.find(d => d.id === "aqsoldb");
-      const taste = datasets.find(d => d.id === "flavor_sensory");
-      setModelsReady({ aqsol: !!aqsol?.n_cached, taste: !!taste?.n_cached });
+      if (meta) setPoolMeta(meta.solubility);
+      const aqsol = datasets.find(d => d.id === "lipophilicity");
+      if (aqsol?.n_cached) setModelReady(true);
       if (saved?.generations?.length > 0) {
         const gens = saved.generations;
         gensRef.current = gens;
@@ -334,21 +314,46 @@ const SweetnessEnhancer = () => {
     }).catch(() => { });
   }, []);
 
+  // Poll every 3 s while pool is being generated
+  useEffect(() => {
+    if (poolMeta?.status !== "generating") return;
+    const id = setInterval(async () => {
+      try {
+        const r = await fetch(`${BACKEND}/molecule-finder/candidates/meta`);
+        if (!r.ok) return;
+        const meta = await r.json();
+        setPoolMeta(meta.solubility);
+      } catch { }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [poolMeta?.status]);
+
+  const handleGeneratePool = async () => {
+    await fetch(`${BACKEND}/molecule-finder/candidates/generate/aromatic`, { method: "POST" }).catch(() => { });
+    setPoolMeta(prev => ({ ...prev, status: "generating" }));
+  };
+
   const clearAll = () => {
     phaseTimers.current.forEach(clearTimeout);
     phaseTimers.current = [];
   };
 
+  // ── Event-driven animation ─────────────────────────────────────────────────
+  // Called when the next queued gen should start its pool→prediction→nsga2 cycle.
+  // All data reads use refs so stale closures inside setTimeout are safe.
   const processNextGen = () => {
     if (animQueueRef.current.length === 0) {
-      isAnimatingRef.current = false;
       if (streamDoneRef.current) {
+        isAnimatingRef.current = false;
         setGenerations([...gensRef.current]);
         setNGensTotal(gensRef.current.length);
         setAnimPhase("done");
       } else {
-        setAnimPhase("wait_mutation");
+        // Animation caught up with stream — park on step 2 (pulsing) until
+        // the next generation arrives from the backend.
+        isAnimatingRef.current = false;
         pendingNextRef.current = true;
+        setAnimPhase("wait_mutation");
       }
       return;
     }
@@ -356,6 +361,7 @@ const SweetnessEnhancer = () => {
     isAnimatingRef.current = true;
     const { genIdx, prevCands, prevFront } = animQueueRef.current.shift();
 
+    // Pool phase: new gen's dots appear at the bottom axis
     setGenerations([...gensRef.current]);
     setCurrentGenIdx(genIdx);
     setAnimPhase(genIdx === 0 ? "pool" : "mutation");
@@ -378,13 +384,17 @@ const SweetnessEnhancer = () => {
     phaseTimers.current.push(t1);
   };
 
-  // Y-axis (P(sweet)) always [0, 1] inside AnimatedScatter.
+  // Fixed bounds derived from propRange + reference — stable across generations.
+  // X-axis: SA Score (saMin/saMax), Y-axis: logD (ldMin/ldMax).
   const scatterBounds = useMemo(() => {
     if (!propRange) return null;
-    const refMW = reference?.mw ?? 302;
+    const allSA = [propRange.sa_min ?? 1.0, propRange.sa_max ?? 5.0, reference?.sa_score ?? 3.0].filter(v => v != null && isFinite(v));
+    const allLD = [propRange.logD_min ?? -2, propRange.logD_max ?? 4, reference?.logD ?? 2.0].filter(v => v != null && isFinite(v));
     return {
-      mwMin: Math.max(60, Math.min(propRange.mw_min ?? 100, refMW) - 18),
-      mwMax: Math.max(propRange.mw_max ?? 500, refMW) + 30,
+      saMin: Math.max(1, Math.min(...allSA) - 0.5),
+      saMax: Math.min(10, Math.max(...allSA) + 0.5),
+      ldMin: Math.min(...allLD) - 0.5,
+      ldMax: Math.max(...allLD) + 1.5,
     };
   }, [propRange, reference]);
 
@@ -408,17 +418,12 @@ const SweetnessEnhancer = () => {
     setParentColorMap(new Map());
 
     try {
-      const res = await fetch(`${BACKEND}/molecule-finder/optimize-3obj/stream`, {
+      const res = await fetch(`${BACKEND}/molecule-finder/optimize-2obj/stream`, {
         method: "POST",
         signal: abortRef.current.signal,
       });
 
-      if (res.status === 409) {
-        setError("Models not ready.");
-        setAnimPhase("idle");
-        setModelsReady({ aqsol: false, taste: false });
-        return;
-      }
+      if (res.status === 409) { setAnimPhase("idle"); setModelReady(false); return; }
       if (!res.ok) throw new Error(await res.text());
 
       const reader = res.body.getReader();
@@ -448,7 +453,7 @@ const SweetnessEnhancer = () => {
           try { data = JSON.parse(dataStr); } catch { continue; }
 
           if (eventType === "meta") {
-            setModelsReady({ aqsol: true, taste: true });
+            setModelReady(true);
             setPoolMeta(data.pool_meta);
             setModelMeta(data.model_meta);
             setReference(data.reference);
@@ -457,6 +462,7 @@ const SweetnessEnhancer = () => {
           } else if (eventType === "generation") {
             if (data.property_range) setPropRange(data.property_range);
 
+            // prevCands = last gen's candidates (become ghost dots in pool phase)
             const prevCands = gensRef.current.length > 0
               ? (gensRef.current[gensRef.current.length - 1].candidates ?? [])
               : [];
@@ -466,13 +472,17 @@ const SweetnessEnhancer = () => {
             animQueueRef.current.push({ genIdx: data.gen, prevCands, prevFront });
 
             if (pendingNextRef.current) {
+              // Animation was waiting for this gen — start immediately
               pendingNextRef.current = false;
               processNextGen();
             } else if (!isAnimatingRef.current) {
+              // Very first gen: kick off the animation
               processNextGen();
             }
 
           } else if (eventType === "pareto_final") {
+            // Merge enriched properties (QED, SA, PAINS, scaffold, pubchem_verified)
+            // back into the last generation's candidates so finalPareto gets them.
             const bySmiles = new Map(data.map(c => [c.smiles, c]));
             if (gensRef.current.length > 0) {
               const lastIdx = gensRef.current.length - 1;
@@ -497,19 +507,14 @@ const SweetnessEnhancer = () => {
             }
 
           } else if (eventType === "error") {
-            if (data.status === 409) {
-              setError(data.detail ?? "Models not ready.");
-              setAnimPhase("idle");
-              setModelsReady({ aqsol: false, taste: false });
-            } else {
-              setError(data.detail);
-              setAnimPhase("idle");
-            }
+            if (data.status === 409) { setAnimPhase("idle"); setModelReady(false); }
+            else { setError(data.detail); setAnimPhase("idle"); }
             return;
           }
         }
       }
 
+      // Reader ended (stream closed by server after pareto_final + done events)
       streamDoneRef.current = true;
       if (!isAnimatingRef.current && animQueueRef.current.length === 0) {
         setGenerations([...gensRef.current]);
@@ -529,9 +534,10 @@ const SweetnessEnhancer = () => {
     clearAll();
     animQueueRef.current = [];
     isAnimatingRef.current = false;
-    streamDoneRef.current = true;
+    streamDoneRef.current = true;  // all gens already in ref
     pendingNextRef.current = false;
 
+    // Re-queue every gen for replay
     const gens = gensRef.current;
     for (let i = 0; i < gens.length; i++) {
       const prevCands = i > 0 ? (gens[i - 1].candidates ?? []) : [];
@@ -543,22 +549,20 @@ const SweetnessEnhancer = () => {
 
   const exportCsv = () => {
     const rows = [
-      ["#", "Name/SMILES", "P(sweet)", "MW (Da)", "logS", "QED", "SA Score", "PAINS", "Origin"],
+      ["#", "Name/SMILES", "logD", "SA Score", "QED", "PAINS", "Origin"],
       ...finalPareto.map((c, i) => [
         i + 1,
         c.cid == null ? c.smiles : c.name,
-        (c.psweet ?? 0).toFixed(3),
-        c.mw,
-        (c.logS ?? -4).toFixed(3),
+        (c.logD ?? -2).toFixed(3),
+        c.sa_score?.toFixed(2) ?? "",
         c.qed != null ? c.qed.toFixed(3) : "",
-        c.sa_score != null ? c.sa_score.toFixed(2) : "",
         (c.pains?.length ?? 0) > 0 ? c.pains.join("; ") : "clean",
         c.cid == null ? "new" : "pool",
       ]),
     ];
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a = document.createElement("a"); a.href = url; a.download = "pareto_3obj.csv"; a.click();
+    const a = document.createElement("a"); a.href = url; a.download = "pareto_2obj.csv"; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -580,7 +584,7 @@ const SweetnessEnhancer = () => {
   // Persist results whenever a live run completes
   useEffect(() => {
     if (animPhase !== "done" || generations.length === 0 || resultsFromCache) return;
-    fetch(`${BACKEND}/molecule-finder/save-optimization/3obj`, {
+    fetch(`${BACKEND}/molecule-finder/save-optimization/2obj`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ generations, reference, poolMeta, modelMeta, propRange }),
@@ -588,7 +592,7 @@ const SweetnessEnhancer = () => {
   }, [animPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClear = () => {
-    fetch(`${BACKEND}/molecule-finder/saved-optimization/3obj`, { method: "DELETE" }).catch(() => { });
+    fetch(`${BACKEND}/molecule-finder/saved-optimization/2obj`, { method: "DELETE" }).catch(() => { });
     clearAll();
     abortRef.current?.abort();
     gensRef.current = [];
@@ -612,9 +616,9 @@ const SweetnessEnhancer = () => {
     abortRef.current?.abort();
   }, []);
 
-  const isRunning = ["pool", "mutation", "wait_mutation", "prediction", "nsga2"].includes(animPhase);
+  const isRunning = ["pool", "mutation", "prediction", "nsga2",
+    "wait_mutation"].includes(animPhase);
   const isActive = isRunning || animPhase === "done";
-  const bothReady = modelsReady.aqsol && modelsReady.taste;
 
   const activeStep =
     animPhase === "pool" ? 1
@@ -625,25 +629,20 @@ const SweetnessEnhancer = () => {
 
   const currentGen = generations[currentGenIdx];
   const totalGens = nGensTotal || 1;
-  const progress = nGensTotal > 1 && currentGenIdx > 0
+  const progress = totalGens > 1 && currentGenIdx > 0
     ? (currentGenIdx / (totalGens - 1)) * 100
     : 0;
 
   const finalPareto = animPhase === "done"
     ? [...(generations[generations.length - 1]?.candidates ?? [])]
       .filter(c => !c.dominated)
-      .sort((a, b) => (b.psweet ?? 0.5) - (a.psweet ?? 0.5))
+      .sort((a, b) => (b.logD ?? -2) - (a.logD ?? -2))
     : [];
 
   const s1 = activeStep === 1;
   const s2 = activeStep === 2;
   const s3 = activeStep === 3;
   const s4 = activeStep === 4 || animPhase === "done";
-
-  const missingModels = [
-    !modelsReady.aqsol && "AqSolDB Solubility",
-    !modelsReady.taste && "FartDB Taste",
-  ].filter(Boolean);
 
   const handleSort = (key) => {
     setSortConfig(prev => prev.key === key && prev.dir === 'asc' ? { key, dir: 'desc' } : { key, dir: 'asc' });
@@ -652,12 +651,11 @@ const SweetnessEnhancer = () => {
   const COLUMN_DEFS = [
     { label: "#", key: null },
     { label: "Name", key: "name" },
-    { label: "P(sweet) ↑", key: "psweet" },
-    { label: "MW (Da) ↓", key: "mw" },
-    { label: "logS ↑", key: "logS" },
+    { label: "logD ↑", key: "logD" },
+    { label: "SA Score ↓", key: "sa_score" },
     { label: "QED", key: "qed" },
-    { label: "SA", key: "sa_score" },
     { label: "PAINS", key: null },
+    { label: "vs Diazepam", key: null },
     { label: "Origin", key: "is_new" },
   ];
 
@@ -701,13 +699,10 @@ const SweetnessEnhancer = () => {
                 <div className="w-3 h-3 rounded-full border-2 border-amber-400" />
               </div>
               <div className="text-[10px] text-gray-500">
-                <span className="text-amber-300 font-semibold">Sucrose</span>
-                <span className="ml-1.5 text-gray-600">CAS 57-50-1 · 342.30 Da</span>
-                {reference?.psweet != null && (
-                  <span className="ml-1.5 text-gray-600">· P(sweet) {reference.psweet.toFixed(2)}</span>
-                )}
-                {reference?.logS != null && (
-                  <span className="ml-1.5 text-gray-600">· logS {reference.logS?.toFixed(2)}</span>
+                <span className="text-amber-300 font-semibold">Diazepam</span>
+                <span className="ml-1.5 text-gray-600">CAS 439-14-5 · 284.74 Da</span>
+                {reference?.logD != null && (
+                  <span className="ml-1.5 text-gray-600">· logD {reference.logD.toFixed(2)}</span>
                 )}
               </div>
             </div>
@@ -717,34 +712,45 @@ const SweetnessEnhancer = () => {
             {/* Step 1 — Candidate Pool */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s1 ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-500"}`}>1</span>
+                ${s1 ? "bg-rose-600 text-white" : "bg-gray-800 text-gray-500"}`}>1</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s1 ? "text-gray-200" : "text-gray-500"}`}>
                   Candidate Pool
                 </div>
-                {poolMeta ? (
-                  poolMeta.status === "pending" ? (
-                    <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                      <span className="text-amber-600/80 font-mono">generating pool…</span>
-                      <span className="text-[9px] text-gray-600 leading-snug">
-                        ~{poolMeta.target_n} sweet compounds · seeds: {poolMeta.seeds?.join(", ")}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                      <span>
-                        <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>
-                          {poolMeta.n_after_filter ?? poolMeta.n_candidates}
-                        </span> sweet compounds · PubChem
-                      </span>
-                      {(poolMeta.n_excluded ?? 0) > 0 && (
-                        <span className="text-[9px] text-gray-600">
-                          {poolMeta.n_excluded} excluded (halogens/metals)
-                        </span>
-                      )}
-                    </div>
-                  )
-                ) : <span className="text-[10px] text-gray-600">Loading…</span>}
+                {!poolMeta ? (
+                  <span className="text-[10px] text-gray-600">Loading…</span>
+                ) : poolMeta.status === "missing" ? (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[9px] text-gray-600 leading-snug">
+                      The pool is assembled from PubChem compounds structurally similar to CNS reference drugs. Seed molecules and filters are pre-defined based on the optimization target (logD / SA Score).
+                    </p>
+                    <button
+                      onClick={handleGeneratePool}
+                      className="self-start px-2.5 py-1 rounded border border-rose-700/50 bg-rose-900/20 text-rose-400 text-[9px] font-bold uppercase tracking-wide hover:bg-rose-800/30 transition-colors"
+                    >
+                      Generate pool
+                    </button>
+                  </div>
+                ) : poolMeta.status === "generating" ? (
+                  <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
+                    <span className="text-amber-500/80 font-mono flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full border border-amber-500 border-t-transparent animate-spin" />
+                      generating pool…
+                    </span>
+                    <span className="text-[9px] text-gray-600 leading-snug">
+                      ~{poolMeta.target_n} drug-like CNS compounds · seeds: {poolMeta.seeds?.join(", ")}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
+                    <span>
+                      <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>{poolMeta.n_candidates}</span> drug-like CNS compounds · PubChem
+                    </span>
+                    <span className="text-[9px] text-gray-600 leading-snug">
+                      Selected by ≥{poolMeta.threshold}% structural similarity to {poolMeta.seeds?.join(", ")} — CNS reference drugs used as seeds.
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -753,7 +759,8 @@ const SweetnessEnhancer = () => {
             {/* Step 2 — NSGA-II Mutation */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s2 ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-500"}`}>2</span>
+                ${s2 ? "bg-rose-600 text-white" : "bg-gray-800 text-gray-500"}
+                ${animPhase === "wait_mutation" ? "animate-pulse" : ""}`}>2</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s2 ? "text-gray-200" : "text-gray-500"}`}>
                   NSGA-II Mutation
@@ -761,7 +768,7 @@ const SweetnessEnhancer = () => {
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
                   <span>13 SMARTS reactions applied to selected parents</span>
                   <span className="text-[9px] text-gray-600">add-OH · OMe→OEt · Me→Et · CHO→CH2OH · …</span>
-                  <span className="text-[9px] text-gray-600">Novel analogs · offspring MW 60–350 Da · phenolic scaffold required</span>
+                  <span className="text-[9px] text-gray-600">Novel analogs · MW 150–450 Da · Lipinski-compliant</span>
                 </div>
               </div>
             </div>
@@ -771,19 +778,19 @@ const SweetnessEnhancer = () => {
             {/* Step 3 — Property Prediction */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s3 ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-500"}`}>3</span>
+                ${s3 ? "bg-rose-600 text-white" : "bg-gray-800 text-gray-500"}`}>3</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s3 ? "text-gray-200" : "text-gray-500"}`}>
                   Property Prediction
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>P(sweet) and logS (AqSolDB): <span className={`text-[9px] leading-snug transition-colors duration-500 text-indigo-400`}>Models trained in the Property Prediction Tab</span></span>
-                  <span>MW: <span className="text-gray-400">RDKit ExactMolWt</span></span>
-                  {propRange && (
-                    <span className="text-[9px] text-gray-600">
-                      P(sweet) {propRange.psweet_min}…{propRange.psweet_max} · MW {propRange.mw_min}–{propRange.mw_max} Da
-                    </span>
-                  )}
+                  <span>logD: <span className="text-gray-400">ChEMBL Lipophilicity LightGBM</span></span>
+                  <span className={`text-[9px] leading-snug transition-colors duration-500 text-indigo-400`}>
+                    Model trained in the Property Prediction tab
+                    {modelMeta?.oob_r2 != null && <span className="ml-1 font-mono">· CV R² {modelMeta.oob_r2}</span>}
+                  </span>
+                  <span>SA Score: <span className="text-gray-400">RDKit SA Score</span></span>
+
                 </div>
               </div>
             </div>
@@ -793,17 +800,18 @@ const SweetnessEnhancer = () => {
             {/* Step 4 — NSGA-II Sort */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s4 ? "bg-violet-600 text-white" : "bg-gray-800 text-gray-500"}`}>4</span>
+                ${s4 ? "bg-rose-600 text-white" : "bg-gray-800 text-gray-500"}`}>4</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s4 ? "text-gray-200" : "text-gray-500"}`}>
                   NSGA-II Sort
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>Obj-1: P(sweet) ↑ &nbsp;·&nbsp; Obj-2: MW ↓ &nbsp;·&nbsp; Obj-3: logS ↑</span>
-                  <span className="text-[9px] text-gray-600">Non-dominated rank + crowding distance · selects top 100</span>
+                  <span>Obj-1: logD ↑ &nbsp;·&nbsp; Obj-2: SA Score ↓</span>
+                  <span className="text-[9px] text-gray-600">Non-dominated rank + crowding distance · selects top candidates</span>
                 </div>
               </div>
             </div>
+
 
             <div className="flex-1 min-h-3" />
             <div className="h-px bg-gray-800/60 mb-3" />
@@ -820,7 +828,7 @@ const SweetnessEnhancer = () => {
                 </div>
                 <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-full transition-all duration-1000"
+                    className="h-full bg-gradient-to-r from-rose-600 to-fuchsia-600 rounded-full transition-all duration-1000"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -829,18 +837,18 @@ const SweetnessEnhancer = () => {
             <div className="flex-1 min-h-3" />
             <div className="h-px bg-gray-800/60 mb-3" />
 
-            {missingModels.length > 0 && (
+            {!modelReady && (
               <div className="mb-3 px-3 py-2.5 rounded-lg bg-amber-900/25 border border-amber-700/40 text-[11px] text-amber-300 leading-snug">
-                ⚠ Train first in <strong>Property Prediction</strong>: {missingModels.join(" · ")}.
+                ⚠ Train the <strong>ChEMBL Lipophilicity</strong> model first in the <strong>Property Prediction</strong> tab.
               </div>
             )}
 
             <div className="flex gap-2">
               <button
                 onClick={handleOptimize}
-                disabled={!bothReady || isRunning || animPhase === "loading"}
+                disabled={!modelReady || isRunning || animPhase === "loading"}
                 className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all
-                  bg-violet-700/80 border border-violet-600/60 text-white hover:bg-violet-600/80
+                  bg-rose-700/80 border border-rose-600/60 text-white hover:bg-rose-600/80
                   disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {animPhase === "loading" ? "Loading…"
@@ -849,8 +857,8 @@ const SweetnessEnhancer = () => {
                       : "▶ Run pipeline"}
               </button>
               {resultsFromCache && (
-                <div className="px-3 py-1.5 rounded-lg bg-indigo-900/20 border border-indigo-800/40 text-[10px] text-indigo-400 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />
+                <div className="px-3 py-2 rounded-lg bg-rose-900/20 border border-rose-800/40 text-[10px] text-rose-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 flex-shrink-0" />
                   Results loaded from previous run
                 </div>
               )}
@@ -869,14 +877,13 @@ const SweetnessEnhancer = () => {
                 >×</button>
               )}
             </div>
+
           </div>
 
           {/* ── Right column — chart ── */}
           <div className="col-span-3 rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col">
             <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
-              {(poolMeta?.n_after_filter ?? poolMeta?.n_candidates)
-                ? `${poolMeta.n_after_filter ?? poolMeta.n_candidates} sweet compounds · colour = logS from AqSolDB RF`
-                : "3-objective Pareto space"}
+              {poolMeta?.n_candidates ? `${poolMeta.n_candidates} drug-like CNS compounds + generated analogs` : "Pareto space"}
             </div>
             <div className="flex items-center">
               <StepBar activeStep={activeStep} pulseStep={animPhase === "wait_mutation" ? 2 : null} />
@@ -885,9 +892,9 @@ const SweetnessEnhancer = () => {
                   <div className="h-px w-6 mx-1 bg-gray-800" />
                   <button
                     onClick={() => setShowResults(true)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-violet-900/40 border border-violet-700/50 text-violet-300 hover:bg-violet-800/40 transition-all whitespace-nowrap"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-rose-900/40 border border-rose-700/50 text-rose-300 hover:bg-rose-800/40 transition-all whitespace-nowrap"
                   >
-                    <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-violet-600 text-white">↗</span>
+                    <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-rose-600 text-white">↗</span>
                     Show results
                   </button>
                 </>
@@ -906,32 +913,18 @@ const SweetnessEnhancer = () => {
                   bounds={scatterBounds}
                   parentColorMap={parentColorMap}
                 />
-
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-[9px] text-gray-600">logS (solubility):</span>
-                  <svg width={90} height={10} viewBox="0 0 90 10">
-                    <defs>
-                      <linearGradient id="logSGrad" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#ef4444" />
-                        <stop offset="50%" stopColor="#f59e0b" />
-                        <stop offset="100%" stopColor="#22c55e" />
-                      </linearGradient>
-                    </defs>
-                    <rect x={0} y={2} width={90} height={6} rx={3} fill="url(#logSGrad)" opacity={0.8} />
-                  </svg>
-                  <span className="text-[9px] text-red-400">low (−6)</span>
-                  <span className="text-[9px] text-emerald-400 ml-1">high (−1+)</span>
-
-                  <div className="ml-3 flex flex-wrap gap-3">
-                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                      <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 opacity-85" />New offspring
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                      <div className="w-2.5 h-2.5 rounded-full bg-gray-600 opacity-60" />Dominated
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Sucrose (ref)
-                    </div>
+                <div className="flex flex-wrap gap-4 mt-3">
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                    <div className="w-2.5 h-2.5 rounded-full bg-rose-500 opacity-85" />Pareto-optimal
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 opacity-85" />New offspring
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                    <div className="w-2.5 h-2.5 rounded-full bg-gray-600 opacity-60" />Dominated
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Diazepam (ref)
                   </div>
                 </div>
               </>
@@ -939,7 +932,7 @@ const SweetnessEnhancer = () => {
               <div className="flex-1 flex items-center justify-center min-h-48">
                 {animPhase === "loading" ? (
                   <div className="flex flex-col items-center gap-3">
-                    <div className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-6 h-6 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
                     <span className="text-gray-600 text-sm">Evaluating pool & running NSGA-II…</span>
                   </div>
                 ) : (
@@ -996,10 +989,13 @@ const SweetnessEnhancer = () => {
                   <tbody>
                     {sortedPareto.map((c, i) => {
                       const isNew = c.cid == null;
-                      const logSval = c.logS ?? -4;
+                      const refLD = reference?.logD ?? 2.0;
+                      const refSA = reference?.sa_score ?? 3.0;
+                      const dominates = (c.logD ?? -2) > refLD && (c.sa_score ?? 10) < refSA;
+                      const delta = (c.logD ?? -2) - refLD;
                       const lookup = smilesNames[c.smiles];
                       return (
-                        <tr key={i} className={`border-b border-gray-800/40 ${logSval >= -1 ? "bg-emerald-900/10" : ""}`}>
+                        <tr key={i} className={`border-b border-gray-800/40 ${dominates ? "bg-rose-900/10" : ""}`}>
                           <td className="px-3 py-2 text-gray-600">{i + 1}</td>
                           <td className="px-3 py-2 max-w-[220px]">
                             {isNew ? (
@@ -1008,14 +1004,14 @@ const SweetnessEnhancer = () => {
                                   <span className="font-mono text-[9px] text-gray-400 break-all block">{c.smiles}</span>
                                   {!lookup && (
                                     <button onClick={() => lookupSmiles(c.smiles)}
-                                      className="flex-shrink-0 text-gray-500 hover:text-violet-400 transition-colors text-[13px]"
+                                      className="flex-shrink-0 text-gray-500 hover:text-rose-400 transition-colors text-[13px]"
                                       title="Search in PubChem">
                                       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                                         <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                                       </svg>
                                     </button>
                                   )}
-                                  <MolImageButton smiles={c.smiles} hoverColor="hover:text-violet-400" />
+                                  <MolImageButton smiles={c.smiles} hoverColor="hover:text-rose-400" />
                                   {lookup?.status === "loading" && (
                                     <span className="text-[9px] text-gray-600">…</span>
                                   )}
@@ -1030,33 +1026,26 @@ const SweetnessEnhancer = () => {
                             ) : (
                               <div className="flex items-center gap-1.5">
                                 <span className="font-medium text-gray-200">{c.name}</span>
-                                <MolImageButton cid={c.cid} smiles={c.smiles} hoverColor="hover:text-violet-400" />
+                                <MolImageButton cid={c.cid} smiles={c.smiles} hoverColor="hover:text-rose-400" />
                               </div>
                             )}
                           </td>
                           <td className="px-3 py-2 font-mono">
-                            <span style={{ color: (c.psweet ?? 0) > (reference?.psweet ?? 0.7) ? "#22c55e" : "#9ca3af" }}>
-                              {(c.psweet ?? 0).toFixed(3)}
+                            <span style={{ color: (c.logD ?? -2) > refLD ? "#22c55e" : "#9ca3af" }}>
+                              {(c.logD ?? -2).toFixed(2)}
                             </span>
                           </td>
-                          <td className="px-3 py-2 font-mono text-gray-400">{c.mw}</td>
                           <td className="px-3 py-2 font-mono">
-                            <span style={{ color: logSColor(logSval) }}>{logSval.toFixed(3)}</span>
-                            {logSval >= -1 && (
-                              <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-emerald-900/30 text-emerald-400">soluble</span>
-                            )}
+                            {c.sa_score != null ? (
+                              <span style={{ color: c.sa_score <= 4 ? "#22c55e" : c.sa_score <= 6 ? "#f59e0b" : "#ef4444" }}>
+                                {c.sa_score.toFixed(2)}
+                              </span>
+                            ) : <span className="text-gray-700">—</span>}
                           </td>
                           <td className="px-3 py-2 font-mono">
                             {c.qed != null ? (
                               <span style={{ color: c.qed >= 0.5 ? "#22c55e" : c.qed >= 0.3 ? "#f59e0b" : "#9ca3af" }}>
                                 {c.qed.toFixed(3)}
-                              </span>
-                            ) : <span className="text-gray-700">—</span>}
-                          </td>
-                          <td className="px-3 py-2 font-mono">
-                            {c.sa_score != null ? (
-                              <span style={{ color: c.sa_score <= 4 ? "#22c55e" : c.sa_score <= 6 ? "#f59e0b" : "#ef4444" }}>
-                                {c.sa_score.toFixed(1)}
                               </span>
                             ) : <span className="text-gray-700">—</span>}
                           </td>
@@ -1068,6 +1057,17 @@ const SweetnessEnhancer = () => {
                               </span>
                             ) : (
                               <span className="text-[9px] text-emerald-600">clean</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {dominates ? (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-900/30 text-green-400 font-semibold">
+                                dominates ✓
+                              </span>
+                            ) : (
+                              <span className="font-mono text-gray-500 text-[10px]">
+                                {delta > 0 ? "+" : ""}{delta.toFixed(2)} logD
+                              </span>
                             )}
                           </td>
                           <td className="px-3 py-2">
@@ -1084,11 +1084,10 @@ const SweetnessEnhancer = () => {
                 </table>
               </div>
               <div className="px-4 py-2 border-t border-gray-800/60 text-[10px] text-gray-600 flex-shrink-0">
-                Seed pool: {poolMeta?.n_after_filter ?? poolMeta?.n_candidates ?? "—"} sweet compounds ·
-                SMARTS mutation generated {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_after_filter ?? poolMeta?.n_candidates ?? 0))} analogs ·{" "}
+                Seed pool: {poolMeta?.n_candidates ?? "—"} drug-like CNS compounds · SMARTS mutation generated{" "}
+                {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_candidates ?? 0))} analogs ·{" "}
                 {generations[generations.length - 1]?.n_evaluated ?? 0} total evaluated.
-                P(sweet): FartDB taste RF · OOB acc. {modelMeta?.oob_accuracy_taste ?? "—"}.
-                logS: AqSolDB solubility RF · OOB R² {modelMeta?.oob_r2_solubility ?? "—"}.
+                logD: ChEMBL Lipophilicity LightGBM · CV R² {modelMeta?.oob_r2 ?? "—"}.
               </div>
             </div>
           </div>,
@@ -1101,4 +1100,4 @@ const SweetnessEnhancer = () => {
   );
 };
 
-export default SweetnessEnhancer;
+export default CaseOne;

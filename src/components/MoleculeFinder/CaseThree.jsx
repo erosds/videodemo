@@ -274,7 +274,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
-const ColorantScaffold = () => {
+const CaseThree = () => {
   const [animPhase, setAnimPhase] = useState("idle");
   const [poolMeta, setPoolMeta] = useState(null);
   const [modelMeta, setModelMeta] = useState(null);
@@ -305,7 +305,7 @@ const ColorantScaffold = () => {
       fetch(`${BACKEND}/molecule-finder/candidates/meta`).then(r => r.ok ? r.json() : null),
       fetch(`${BACKEND}/molecule-finder/saved-optimization/scaffold`).then(r => r.status === 204 ? null : r.ok ? r.json() : null),
     ]).then(([meta, saved]) => {
-      if (meta) setPoolMeta(meta.colorant);
+      if (meta) setPoolMeta(meta.colorant ?? null);
       if (saved?.generations?.length > 0) {
         const gens = saved.generations;
         gensRef.current = gens;
@@ -320,6 +320,25 @@ const ColorantScaffold = () => {
       }
     }).catch(() => { });
   }, []);
+
+  // Poll every 3 s while pool is being generated
+  useEffect(() => {
+    if (poolMeta?.status !== "generating") return;
+    const id = setInterval(async () => {
+      try {
+        const r = await fetch(`${BACKEND}/molecule-finder/candidates/meta`);
+        if (!r.ok) return;
+        const meta = await r.json();
+        setPoolMeta(meta.colorant ?? null);
+      } catch { }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [poolMeta?.status]);
+
+  const handleGeneratePool = async () => {
+    await fetch(`${BACKEND}/molecule-finder/candidates/generate/colorant`, { method: "POST" }).catch(() => { });
+    setPoolMeta(prev => ({ ...prev, status: "generating" }));
+  };
 
   const clearAll = () => {
     phaseTimers.current.forEach(clearTimeout);
@@ -689,25 +708,40 @@ const ColorantScaffold = () => {
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s1 ? "text-gray-200" : "text-gray-500"}`}>
                   Candidate Pool
                 </div>
-                {poolMeta ? (
-                  poolMeta.status === "pending" ? (
-                    <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                      <span className="text-amber-600/80 font-mono">generating pool…</span>
-                      <span className="text-[9px] text-gray-600 leading-snug">
-                        ~{poolMeta.target_n} natural pigment compounds · seeds: {poolMeta.seeds?.join(", ")}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                      <span>
-                        <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>{poolMeta.n_candidates}</span> natural pigment compounds · PubChem
-                      </span>
-                      <span className="text-[9px] text-gray-600 leading-snug">
-                        Yellow/orange colorants — curcuminoids, carotenoids, flavonoids, anthocyanins. EU E-number status pre-computed.
-                      </span>
-                    </div>
-                  )
-                ) : <span className="text-[10px] text-gray-600">Loading…</span>}
+                {!poolMeta ? (
+                  <span className="text-[10px] text-gray-600">Loading…</span>
+                ) : poolMeta.status === "missing" ? (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[9px] text-gray-600 leading-snug">
+                      The pool is assembled from natural yellow/orange pigments on PubChem. Seed molecules and filters are pre-defined based on the optimization target (conjugation score / MW / regulatory status).
+                    </p>
+                    <button
+                      onClick={handleGeneratePool}
+                      className="self-start px-2.5 py-1 rounded border border-teal-700/50 bg-teal-900/20 text-teal-400 text-[9px] font-bold uppercase tracking-wide hover:bg-teal-800/30 transition-colors"
+                    >
+                      Generate pool
+                    </button>
+                  </div>
+                ) : poolMeta.status === "generating" ? (
+                  <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
+                    <span className="text-amber-500/80 font-mono flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full border border-amber-500 border-t-transparent animate-spin" />
+                      generating pool…
+                    </span>
+                    <span className="text-[9px] text-gray-600 leading-snug">
+                      ~{poolMeta.target_n} natural pigment compounds · seeds: {poolMeta.seeds?.join(", ")}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
+                    <span>
+                      <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>{poolMeta.n_candidates}</span> natural pigment compounds · PubChem
+                    </span>
+                    <span className="text-[9px] text-gray-600 leading-snug">
+                      Yellow/orange colorants — curcuminoids, carotenoids, flavonoids, anthocyanins. EU E-number status pre-computed.
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1048,4 +1082,4 @@ const ColorantScaffold = () => {
   );
 };
 
-export default ColorantScaffold;
+export default CaseThree;

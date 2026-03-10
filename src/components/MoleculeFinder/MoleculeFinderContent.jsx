@@ -5,9 +5,9 @@ import MolecularRepresentation from "./MolecularRepresentation";
 import PropertyPrediction from "./PropertyPrediction";
 import MultiObjectiveOptimizer from "./MultiObjectiveOptimizer";
 import PipelinePilot from "./PipelinePilot";
-import SolubilityDesign from "./SolubilityDesign";
-import SweetnessEnhancer from "./SweetnessEnhancer";
-import ColorantScaffold from "./ColorantScaffold";
+import CaseOne from "./CaseOne";
+import CaseTwo from "./CaseTwo";
+import CaseThree from "./CaseThree";
 import Regulatory from "./Regulatory";
 import Impact from "./Impact";
 import Industries from "./Industries";
@@ -23,9 +23,9 @@ const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
     <PipelinePilot />,
     <Impact />,
     <Industries />,
-    <SolubilityDesign />,
-    <SweetnessEnhancer />,
-    <ColorantScaffold />,
+    <CaseOne />,
+    <CaseTwo />,
+    <CaseThree />,
     <Regulatory />,
   ];
 

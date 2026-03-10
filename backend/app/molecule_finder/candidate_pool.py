@@ -1,14 +1,14 @@
 """Multi-pool compound loader for MoleculeFinder use cases.
 
-Three curated pools, each stored as a JSON file next to this module:
-  - druglike_pool.json  : PubChem CNS drug-like compounds (lipophilicity use case)
-  - sweetness_pool.json : Sweet compounds (sugars, synthetic, semi-natural sweeteners) for P(sweet)/logS/MW optimisation
-  - colorant_pool.json  : natural yellow/orange pigments (colorant scaffold hopping)
+Three curated pools, each stored as a JSON file in the pools/ subdirectory:
+  - pools/druglike_pool.json  : PubChem CNS drug-like compounds (logD/SA optimisation)
+  - pools/sweetness_pool.json : Sweet compounds for P(sweet)/logS/MW optimisation
+  - pools/colorant_pool.json  : Natural yellow/orange pigments (scaffold hopping)
 
-Missing pools are generated once in a background thread at server startup via
-ensure_pools_exist().  The _load_* functions are pure readers — they never
-trigger generation themselves, so lru_cache works correctly and no request
-ever blocks on a PubChem query.
+Pools are NOT auto-generated at startup.  The frontend checks pool status via
+GET /candidates/meta and triggers generation explicitly via
+POST /candidates/generate/{key}.  Generation is tracked in-process so the UI
+can show a spinner while it runs.
 """
 from __future__ import annotations
 
@@ -20,94 +20,119 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_POOL_DIR = Path(__file__).parent
+_POOL_DIR = Path(__file__).parent / "pools"
+_POOL_DIR.mkdir(parents=True, exist_ok=True)
 
 _DRUGLIKE_FILE  = _POOL_DIR / "druglike_pool.json"
 _SWEETNESS_FILE = _POOL_DIR / "sweetness_pool.json"
 _COLORANT_FILE  = _POOL_DIR / "colorant_pool.json"
 
-_POOL_FILES = {
+_POOL_FILES: dict[str, Path] = {
     "aromatic":  _DRUGLIKE_FILE,
     "sweetness": _SWEETNESS_FILE,
     "colorant":  _COLORANT_FILE,
 }
 
+# In-process tracking of which pools are currently being generated
+_generating: set[str] = set()
+_generating_lock = threading.Lock()
+
+
+# ── Loaders (lru_cache — never trigger generation) ───────────────────────────
 
 @lru_cache(maxsize=1)
 def _load_druglike() -> dict:
     if not _DRUGLIKE_FILE.exists():
-        raise FileNotFoundError(
-            "druglike_pool.json not found. "
-            "Pool generation runs at startup — check server logs or wait a few minutes."
-        )
+        raise FileNotFoundError("druglike_pool.json not found.")
     return json.loads(_DRUGLIKE_FILE.read_text())
 
 
 @lru_cache(maxsize=1)
 def _load_sweetness() -> dict:
     if not _SWEETNESS_FILE.exists():
-        raise FileNotFoundError(
-            "sweetness_pool.json not found. "
-            "Pool generation runs at startup — check server logs or wait a few minutes."
-        )
+        raise FileNotFoundError("sweetness_pool.json not found.")
     return json.loads(_SWEETNESS_FILE.read_text())
 
 
 @lru_cache(maxsize=1)
 def _load_colorant() -> dict:
     if not _COLORANT_FILE.exists():
-        raise FileNotFoundError(
-            "colorant_pool.json not found. "
-            "Pool generation runs at startup — check server logs or wait a few minutes."
-        )
+        raise FileNotFoundError("colorant_pool.json not found.")
     return json.loads(_COLORANT_FILE.read_text())
 
 
-def ensure_pools_exist() -> None:
-    """Spawn a daemon thread that generates any missing pool JSON files.
+_LOADERS = {
+    "aromatic":  _load_druglike,
+    "sweetness": _load_sweetness,
+    "colorant":  _load_colorant,
+}
 
-    Call once at server startup (e.g. from the FastAPI router module level).
-    Returns immediately — generation happens in the background so startup is
-    not blocked.  If a pool file already exists it is never overwritten.
+_CACHE_CLEARS = {
+    "aromatic":  _load_druglike.cache_clear,
+    "sweetness": _load_sweetness.cache_clear,
+    "colorant":  _load_colorant.cache_clear,
+}
+
+
+# ── Pool status ───────────────────────────────────────────────────────────────
+
+def get_pool_status(key: str) -> str:
+    """Return "ready" | "generating" | "missing"."""
+    with _generating_lock:
+        if key in _generating:
+            return "generating"
+    if _POOL_FILES[key].exists():
+        return "ready"
+    return "missing"
+
+
+# ── On-demand generation ──────────────────────────────────────────────────────
+
+def generate_pool_on_demand(key: str) -> str:
+    """Start background generation for *key* if not already running.
+
+    Returns one of: "started" | "already_generating" | "already_exists".
     """
-    missing = [key for key, path in _POOL_FILES.items() if not path.exists()]
-    if not missing:
-        return
+    if key not in _POOL_FILES:
+        raise ValueError(f"Unknown pool key: {key!r}")
 
-    def _generate_missing() -> None:
+    if _POOL_FILES[key].exists():
+        return "already_exists"
+
+    with _generating_lock:
+        if key in _generating:
+            return "already_generating"
+        _generating.add(key)
+
+    def _run() -> None:
         from app.molecule_finder.pool_generator import generate_pool
-        for key in missing:
-            try:
-                logger.info("Auto-generating pool '%s' (file absent)…", key)
-                generate_pool(key)
-                logger.info("Pool '%s' generated successfully.", key)
-                # Invalidate the lru_cache for the just-created file so the
-                # next load call reads the real data instead of a cached miss.
-                if key == "aromatic":
-                    _load_druglike.cache_clear()
-                elif key == "sweetness":
-                    _load_sweetness.cache_clear()
-                elif key == "colorant":
-                    _load_colorant.cache_clear()
-            except Exception:
-                logger.exception("Auto-generation of pool '%s' failed.", key)
+        try:
+            logger.info("Generating pool '%s'…", key)
+            generate_pool(key)
+            logger.info("Pool '%s' generated successfully.", key)
+            _CACHE_CLEARS[key]()
+        except Exception:
+            logger.exception("Pool '%s' generation failed.", key)
+        finally:
+            with _generating_lock:
+                _generating.discard(key)
 
-    t = threading.Thread(target=_generate_missing, name="pool-generator", daemon=True)
+    t = threading.Thread(target=_run, name=f"pool-gen-{key}", daemon=True)
     t.start()
+    return "started"
 
+
+# ── Public getters ────────────────────────────────────────────────────────────
 
 def get_druglike_pool() -> list[dict]:
-    """PubChem CNS drug-like compounds — lipophilicity-guided design."""
     return _load_druglike()["compounds"]
 
 
 def get_sweetness_pool() -> list[dict]:
-    """Sweet compounds (sugars, synthetic, semi-natural sweeteners) — P(sweet)/logS/MW Pareto optimisation."""
     return _load_sweetness()["compounds"]
 
 
 def get_colorant_pool() -> list[dict]:
-    """Natural yellow/orange pigments — colorant scaffold hopping."""
     return _load_colorant()["compounds"]
 
 
@@ -136,10 +161,13 @@ def get_colorant_pool_meta() -> dict:
 
 # ── Backwards-compatibility aliases ───────────────────────────────────────────
 def get_candidates() -> list[dict]:
-    """Alias → get_sweetness_pool() (backwards compat)."""
     return get_sweetness_pool()
 
 
 def get_pool_meta() -> dict:
-    """Alias → get_sweetness_pool_meta() (backwards compat)."""
     return get_sweetness_pool_meta()
+
+
+def ensure_pools_exist() -> None:
+    """No-op — kept for import compatibility. Pools are now generated on demand."""
+    pass

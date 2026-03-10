@@ -13,10 +13,12 @@ To regenerate: delete the pool JSON file and restart the backend, or call
 
 Rule types
 ----------
-  property  — physicochemical filter: mw_max, logp_max, hbd_max, hba_max, ring_min
-  require   — SMARTS pattern that must match ≥1 time
-  exclude   — SMARTS pattern that must not match
-  sp2_min   — minimum sp2-atom fraction (heavy atoms); proxy for conjugation degree
+  property   — physicochemical filter: mw_max, logp_max, hbd_max, hba_max, ring_min
+  require    — SMARTS pattern that must match ≥1 time
+  exclude    — SMARTS pattern that must not match
+  sp2_min    — minimum sp2-atom fraction (heavy atoms)
+  rotb_max   — maximum rotatable bonds
+  tpsa_max   — maximum topological polar surface area
 """
 from __future__ import annotations
 
@@ -27,7 +29,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_POOL_DIR = Path(__file__).parent
+_POOL_DIR = Path(__file__).parent / "pools"
+_POOL_DIR.mkdir(parents=True, exist_ok=True)
 _PUBCHEM  = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
 
 # ── Per-pool configuration ──────────────────────────────────────────────────────
@@ -55,29 +58,52 @@ POOL_CONFIGS: dict[str, dict] = {
         "mw_max":  450.0,
         "target_n": 100,            # trim to this many after validation
         "rules": [
-            # physicochemical (Lipinski-inspired)
-            {"type": "property", "key": "logp_max",  "value": 5.0,
-             "desc": "Lipinski logP ≤ 5"},
-            {"type": "property", "key": "hbd_max",   "value": 5,
-             "desc": "H-bond donors ≤ 5"},
-            {"type": "property", "key": "hba_max",   "value": 10,
-             "desc": "H-bond acceptors ≤ 10"},
-            {"type": "property", "key": "ring_min",  "value": 2,
-             "desc": "≥ 2 rings (CNS drugs typically have polycyclic scaffolds)"},
-            # structural requirements
+            # ── physicochemical (CNS drug-like) ──
+
+            {"type": "property", "key": "logp_max", "value": 5.0,
+            "desc": "Lipinski logP ≤ 5"},
+
+            {"type": "property", "key": "hbd_max", "value": 3,
+            "desc": "H-bond donors ≤ 3 (CNS permeability)"},
+
+            {"type": "property", "key": "hba_max", "value": 8,
+            "desc": "H-bond acceptors ≤ 8"},
+
+            {"type": "property", "key": "ring_min", "value": 2,
+            "desc": "≥ 2 rings (CNS drugs typically polycyclic)"},
+
+            {"type": "property", "key": "rotb_max", "value": 7,
+            "desc": "rotatable bonds ≤ 7 (avoid floppy molecules)"},
+
+            {"type": "property", "key": "tpsa_max", "value": 90,
+            "desc": "TPSA ≤ 90 Å² (CNS penetration)"},
+
+            # ── structural requirements ──
+
             {"type": "require", "smarts": "[#7]",
-             "desc": "must contain nitrogen (virtually all CNS drugs)"},
+            "desc": "must contain nitrogen (common in CNS drugs)"},
+
             {"type": "require", "smarts": "a",
-             "desc": "must contain at least one aromatic ring"},
-            # structural exclusions — known intruder classes
+            "desc": "must contain aromatic ring"},
+
+            # ── toxicophore removal ──
+
+            {"type": "exclude", "smarts": "c[NH2]",
+            "desc": "primary aniline (toxicity risk)"},
+
+            {"type": "exclude", "smarts": "c[NH]c",
+            "desc": "diarylamine scaffold (often toxic / unstable)"},
+
+            # ── known intruder classes ──
+
             {"type": "exclude", "smarts": "[Cl,Br][CH2]C(=O)[NX3]",
-             "desc": "chloroacetamide herbicides (acetochlor / alachlor / butachlor)"},
+            "desc": "chloroacetamide herbicides"},
+
             {"type": "exclude", "smarts": "[Cl,Br][CX4](C(=O)[OX2H0])(c)c",
-             "desc": "organochlorine ester acaricides (chlorobenzilate / chloropropylate)"},
+            "desc": "organochlorine ester acaricides"},
+
             {"type": "exclude", "smarts": "[CX3;!R](~c)(~c)~c",
-             "desc": "triarylmethane dye core (Crystal Violet / Malachite Green)"},
-            {"type": "exclude", "smarts": "[F,Cl,Br,I][CH2]C(=O)N",
-             "desc": "haloalkyl amide pattern (additional herbicide catch-all)"},
+            "desc": "triarylmethane dye core"},
         ],
     },
 
@@ -241,6 +267,12 @@ def _validate(mol, mw: float, rules: list[dict]) -> tuple[bool, str]:
             elif key == "ring_min":
                 if rdMolDescriptors.CalcNumRings(mol) < value:
                     return False, rule["desc"]
+            elif key == "rotb_max":
+                if rdMolDescriptors.CalcNumRotatableBonds(mol) > value:
+                    return False, rule["desc"]
+            elif key == "tpsa_max":
+                if rdMolDescriptors.CalcTPSA(mol) > value:
+                    return False, rule["desc"]
 
         elif rtype == "require":
             from rdkit import Chem
@@ -287,6 +319,7 @@ def generate_pool(key: str) -> None:
     try:
         from rdkit import Chem
         from rdkit import RDLogger
+        from rdkit.Chem.Scaffolds import MurckoScaffold
         RDLogger.DisableLog("rdApp.*")
     except ImportError as e:
         raise RuntimeError("RDKit is required for pool generation.") from e
@@ -317,6 +350,8 @@ def generate_pool(key: str) -> None:
     seen_smiles: set[str] = set()
     compounds:   list[dict] = []
     rejection_counts: dict[str, int] = {}
+    scaffold_counts: dict[str, int] = {}
+    MAX_PER_SCAFFOLD = 3
 
     for p in raw_props:
         cid   = int(p.get("CID", 0))
@@ -342,15 +377,30 @@ def generate_pool(key: str) -> None:
             continue
         canon = Chem.MolToSmiles(mol, canonical=True)
 
+        # ── scaffold detection ──
+        try:
+            scaffold = MurckoScaffold.MurckoScaffoldSmiles(mol=mol)
+        except Exception:
+            scaffold = ""
+
         if canon in seen_smiles:
             rejection_counts["duplicate"] = rejection_counts.get("duplicate", 0) + 1
             continue
+
+        # ── scaffold diversity filter ──
+        if scaffold:
+            if scaffold_counts.get(scaffold, 0) >= MAX_PER_SCAFFOLD:
+                rejection_counts["scaffold_limit"] = rejection_counts.get("scaffold_limit", 0) + 1
+                continue
 
         # Per-pool rule validation
         ok, reason = _validate(mol, mw, rules)
         if not ok:
             rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
             continue
+
+        if scaffold:
+            scaffold_counts[scaffold] = scaffold_counts.get(scaffold, 0) + 1
 
         seen_smiles.add(canon)
         compounds.append({

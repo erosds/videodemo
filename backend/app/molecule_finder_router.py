@@ -27,7 +27,7 @@ from app.molecule_finder.candidate_pool import (
     get_druglike_pool, get_druglike_pool_meta,
     get_sweetness_pool, get_sweetness_pool_meta,
     get_colorant_pool, get_colorant_pool_meta,
-    ensure_pools_exist,
+    get_pool_status, generate_pool_on_demand,
 )
 from app.molecule_finder.molecular_utils import compute_properties, validate_smiles, ecfp4_bits
 from app.molecule_finder               import training_service
@@ -40,9 +40,6 @@ router = APIRouter()
 
 # Load any previously persisted models into memory when this module is imported.
 training_service.load_saved_models()
-
-# Generate any missing pool JSON files in a background thread (non-blocking).
-ensure_pools_exist()
 
 # ── Optimization results cache ─────────────────────────────────────────────────
 _OPT_CACHE_FILE = training_service.CACHE_DIR / "optimization_results.json"
@@ -249,31 +246,46 @@ def health():
 def candidates_meta():
     """Return metadata about all three compound pools.
 
-    Each key is either a full meta dict (pool file present) or a
-    {status:"pending", seeds, threshold, target_n, mw_range} dict (file absent,
-    generation running in background).  Always returns 200.
+    Each key is either:
+      - full meta dict                  (status implicit "ready")
+      - {status:"generating", ...}      (background generation in progress)
+      - {status:"missing", ...}         (file absent, not yet requested)
+    Always returns 200.
     """
     from app.molecule_finder.pool_generator import POOL_CONFIGS
 
-    def _meta_or_pending(loader, pool_key: str) -> dict:
-        try:
+    def _meta_for(loader, pool_key: str) -> dict:
+        status = get_pool_status(pool_key)
+        if status == "ready":
             return loader()
-        except FileNotFoundError:
-            cfg = POOL_CONFIGS.get(pool_key, {})
-            return {
-                "status":    "pending",
-                "seeds":     [s["name"] for s in cfg.get("seeds", [])],
-                "seed_cids": [s["cid"]  for s in cfg.get("seeds", [])],
-                "threshold": cfg.get("threshold"),
-                "target_n":  cfg.get("target_n"),
-                "mw_range":  [cfg.get("mw_min"), cfg.get("mw_max")],
-            }
+        cfg = POOL_CONFIGS.get(pool_key, {})
+        return {
+            "status":    status,           # "generating" | "missing"
+            "seeds":     [s["name"] for s in cfg.get("seeds", [])],
+            "seed_cids": [s["cid"]  for s in cfg.get("seeds", [])],
+            "threshold": cfg.get("threshold"),
+            "target_n":  cfg.get("target_n"),
+            "mw_range":  [cfg.get("mw_min"), cfg.get("mw_max")],
+        }
 
     return {
-        "solubility": _meta_or_pending(get_druglike_pool_meta, "aromatic"),
-        "sweetness":  _meta_or_pending(get_sweetness_pool_meta, "sweetness"),
-        "colorant":   _meta_or_pending(get_colorant_pool_meta,  "colorant"),
+        "solubility": _meta_for(get_druglike_pool_meta, "aromatic"),
+        "sweetness":  _meta_for(get_sweetness_pool_meta, "sweetness"),
+        "colorant":   _meta_for(get_colorant_pool_meta,  "colorant"),
     }
+
+
+@router.post("/candidates/generate/{pool_key}")
+def generate_pool_endpoint(pool_key: str):
+    """Trigger on-demand generation of a candidate pool.
+
+    Returns {"status": "started" | "already_generating" | "already_exists"}.
+    """
+    valid_keys = {"aromatic", "sweetness", "colorant"}
+    if pool_key not in valid_keys:
+        raise HTTPException(status_code=404, detail=f"Unknown pool key: {pool_key!r}")
+    result = generate_pool_on_demand(pool_key)
+    return {"status": result}
 
 
 @router.post("/regulatory-check")
