@@ -120,7 +120,7 @@ DATASETS: dict[str, dict] = {
         "tag": "SOLUBILITY",
         "model_name": "Random Forest",
         "description": (
-            "9,982 unique compounds with measured aqueous solubility (log S mol/L), "
+            "Compounds with measured aqueous solubility (log S mol/L), "
             "curated from 9 public sources. The most comprehensive open solubility reference set — "
             "a direct upgrade to the classic Delaney ESOL benchmark."
         ),
@@ -132,7 +132,6 @@ DATASETS: dict[str, dict] = {
         "target_col": "logS",       # after normalisation
         "task_type": "regression",
         "target_label": "log S (mol/L)",
-        "n_molecules": 9982,
         "domain": "Drug-like compounds",
         "color": "#ad7dff",
         "model_role": "solubility",
@@ -158,7 +157,6 @@ DATASETS: dict[str, dict] = {
         "target_col": "taste_label",
         "task_type": "classification",
         "target_label": "P(sweet)",
-        "n_molecules": 2000,      # approx — real count set after loading
         "domain": "Multi-source taste compounds",
         "color": "#7961ff",
         "model_role": "flavor",
@@ -170,7 +168,7 @@ DATASETS: dict[str, dict] = {
         "tag": "LIPOPHILICITY",
         "model_name": "LightGBM",
         "description": (
-            "4,200 compounds with experimental logD at pH 7.4 from ChEMBL, curated by MoleculeNet. "
+            "Compounds with experimental logD at pH 7.4 from ChEMBL, curated by MoleculeNet. "
             "LogD accounts for ionisation — unlike logP. "
             "Predicts how a flavour compound distributes between aqueous and lipid food phases."
         ),
@@ -179,7 +177,6 @@ DATASETS: dict[str, dict] = {
         "target_col": "exp",
         "task_type": "regression",
         "target_label": "logD (pH 7.4)",
-        "n_molecules": 4200,
         "max_samples": 4200,
         "domain": "Food-matrix lipid-water partitioning",
         "color": "#2dd4bf",
@@ -192,7 +189,7 @@ DATASETS: dict[str, dict] = {
         "tag": "SAFETY",
         "model_name": "Random Forest",
         "description": (
-            "7,255 compounds with binary AMES mutagenicity labels from the TDC benchmark "
+            "Compounds with binary AMES mutagenicity labels from the TDC benchmark "
             "(Therapeutics Data Commons, Harvard). "
             "The AMES test is the primary genotoxicity screen required by EFSA for all novel "
             "food flavouring substances (Reg. EC 2232/96). "
@@ -205,7 +202,6 @@ DATASETS: dict[str, dict] = {
         "target_col": "Y",
         "task_type": "classification",
         "target_label": "P(mutagenic)",
-        "n_molecules": 7255,
         "max_samples": 7255,
         "domain": "Food safety / regulatory genotoxicology",
         "color": "#f97316",
@@ -637,8 +633,13 @@ def train_model(dataset_id: str) -> dict:
         model.fit(X_train, y_train)
 
     # Top-10 feature importances
+    # LightGBM returns raw split counts; sklearn RF returns normalized MDI.
+    # Normalize to [0, 1] so the frontend can display consistent percentages.
     feat_names = [f"ECFP4 bit {i}" for i in range(2048)] + DESCRIPTOR_NAMES
-    importances = model.feature_importances_
+    importances = model.feature_importances_.astype(float)
+    total = importances.sum()
+    if total > 0:
+        importances = importances / total
     top_idx = np.argsort(importances)[::-1][:10]
     feature_importances = [
         {"name": feat_names[i], "importance": round(float(importances[i]), 4)}

@@ -1,7 +1,7 @@
 """Multi-pool compound loader for MoleculeFinder use cases.
 
 Three curated pools are available (auto-generated on first use if the JSON file is absent):
-  - aromatic_pool.json  : PubChem CNS drug-like compounds (lipophilicity use case)
+  - druglike_pool.json  : PubChem CNS drug-like compounds (lipophilicity use case)
   - sweetness_pool.json : DHC/isocoumarin/flavanone compounds seeded on sweet phenolics (sweetness use case)
   - colorant_pool.json  : natural yellow/orange pigments (colorant scaffold hopping)
 """
@@ -13,7 +13,7 @@ from pathlib import Path
 
 _POOL_DIR = Path(__file__).parent
 
-_AROMATIC_FILE  = _POOL_DIR / "aromatic_pool.json"
+_DRUGLIKE_FILE  = _POOL_DIR / "druglike_pool.json"
 _SWEETNESS_FILE = _POOL_DIR / "sweetness_pool.json"
 _COLORANT_FILE  = _POOL_DIR / "colorant_pool.json"
 
@@ -27,8 +27,8 @@ def _ensure_pool(key: str, path: Path) -> None:
 
 @lru_cache(maxsize=1)
 def _load_aromatic() -> dict:
-    _ensure_pool("aromatic", _AROMATIC_FILE)
-    return json.loads(_AROMATIC_FILE.read_text())
+    _ensure_pool("aromatic", _DRUGLIKE_FILE)
+    return json.loads(_DRUGLIKE_FILE.read_text())
 
 
 @lru_cache(maxsize=1)
@@ -43,7 +43,7 @@ def _load_colorant() -> dict:
     return json.loads(_COLORANT_FILE.read_text())
 
 
-def get_aromatic_pool() -> list[dict]:
+def get_druglike_pool() -> list[dict]:
     """PubChem CNS drug-like compounds — lipophilicity-guided design."""
     return _load_aromatic()["compounds"]
 
@@ -69,7 +69,7 @@ def _pool_meta(data: dict) -> dict:
     }
 
 
-def get_aromatic_pool_meta() -> dict:
+def get_druglike_pool_meta() -> dict:
     return _pool_meta(_load_aromatic())
 
 

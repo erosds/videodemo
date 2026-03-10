@@ -128,8 +128,12 @@ const FEAT_COLORS = [
   "#8b5cf6","#d946ef","#e879f9","#c084fc","#a3a3a3",
 ];
 
-const FeatureImportancePanel = ({ features }) => {
+const FeatureImportancePanel = ({ features, modelName }) => {
   const maxImp = features[0]?.importance ?? 1;
+  const isLGBM = modelName?.toLowerCase().includes("lightgbm") || modelName?.toLowerCase().includes("lgbm");
+  const footerText = isLGBM
+    ? "Normalized split-count importance across all LightGBM trees."
+    : "Mean decrease in impurity (MDI) across all trees.";
   return (
     <div className="rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col gap-1 h-full">
       <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
@@ -139,7 +143,7 @@ const FeatureImportancePanel = ({ features }) => {
         <FeatureBar key={f.name} {...f} maxImp={maxImp} color={FEAT_COLORS[i]} delay={i * 80} />
       ))}
       <p className="text-[9px] text-gray-700 mt-2 leading-snug">
-        Mean decrease in impurity (MDI) across all trees.
+        {footerText}
       </p>
     </div>
   );
@@ -300,7 +304,7 @@ const PropertyPrediction = () => {
   const elapsed      = elapseds[selectedId] ?? 0;
   const currentError = errors[selectedId];
   const globalError  = errors._global;
-  const trainedMolCount = results?.n_valid ?? selected?.max_samples ?? selected?.n_molecules;
+  const trainedMolCount = results?.n_valid ?? null;
 
   // How many datasets are queued or running (for queue badge)
   const activeCount = Object.values(statuses).filter(s => s === "loading" || s === "queued").length;
@@ -417,7 +421,7 @@ const PropertyPrediction = () => {
                 </div>
 
                 <div className="flex flex-col gap-1 text-[9px] text-gray-700 font-mono border-t border-gray-800/60 pt-3">
-                  <span><span className="text-gray-500">{trainedMolCount?.toLocaleString()}</span> molecules</span>
+                  <span><span className="text-gray-500">{trainedMolCount != null ? trainedMolCount.toLocaleString() : "—"}</span> molecules</span>
                   <span>target: <span className="text-gray-500">{selected.target_label}</span></span>
                   <span>task: <span className="text-gray-500">{selected.task_type}</span></span>
                   <span>model: <span className="text-gray-500">{selected.model_name ?? "Random Forest"}</span></span>
@@ -443,10 +447,7 @@ const PropertyPrediction = () => {
                 <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin"
                   style={{ borderColor: (selected?.color ?? "#a855f7") + "70", borderTopColor: "transparent" }} />
                 <div className="text-[11px] text-gray-400 text-center">
-                  Training on{" "}
-                  <span className="font-mono" style={{ color: selected?.color }}>
-                    {trainedMolCount?.toLocaleString()}
-                  </span>{" "}molecules…
+                  Training{trainedMolCount != null ? <>{" "}on{" "}<span className="font-mono" style={{ color: selected?.color }}>{trainedMolCount.toLocaleString()}</span>{" "}molecules</> : null}…
                 </div>
                 <div className="text-[9px] text-gray-600 text-center">
                   {selected?.model_name ?? "Random Forest"} on ECFP4 + descriptors
@@ -474,7 +475,7 @@ const PropertyPrediction = () => {
 
           {/* Col 3 — Feature importances */}
           {isDone
-            ? <FeatureImportancePanel features={results.feature_importances} />
+            ? <FeatureImportancePanel features={results.feature_importances} modelName={results.model_name} />
             : <Placeholder label="Top-10 feature importances" loading={isLoading} queued={isQueued} />
           }
 

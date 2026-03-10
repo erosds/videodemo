@@ -3,7 +3,7 @@
 Three pools, each auto-generated from PubChem 2D-similarity searches seeded on
 domain-specific reference compounds and validated with strict per-pool rules:
 
-  aromatic_pool.json  — Drug-like CNS compounds        (logD / SA-Score optimisation)
+  druglike_pool.json  — Drug-like CNS compounds        (logD / SA-Score optimisation)
   sweetness_pool.json — Phenolic / flavonoid compounds  (sweetness enhancer discovery)
   colorant_pool.json  — Conjugated natural pigments     (colorant scaffold hopping)
 
@@ -39,7 +39,7 @@ POOL_CONFIGS: dict[str, dict] = {
 
     # ── CNS lipophilicity-guided lead discovery ─────────────────────────────────
     "aromatic": {
-        "file":        "aromatic_pool.json",
+        "file":        "druglike_pool.json",
         "source":      "PubChem 2D-similarity search",
         "description": "Drug-like CNS compounds for logD / SA-Score Pareto optimisation",
         "seeds": [

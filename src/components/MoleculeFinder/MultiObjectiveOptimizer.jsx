@@ -110,13 +110,12 @@ const STEPS = [
     desc: "Any candidate beaten on every objective simultaneously by another is discarded. The survivors form the Pareto front — the set of pareto-optimal solutions.",
     details: [
       "Analogy: choosing a car — you want fast, efficient, and cheap. No car wins on all three. The Pareto front is the set where improving one spec always requires sacrificing another.",
-      "On the other hand, a dominated candidate is never the best choice: there is always a Pareto molecule that is better in at least one aspect.",
     ],
   },
   {
     n: 4, color: "#7c3aed",
     title: "Evolve and repeat",
-    desc: "Survivors are recombined and mutated to breed the next generation. Back to step 2, until the front stops improving.",
+    desc: "Survivors are recombined and mutated to breed the next generation: new individuals can be generated deterministically, by substituting atoms or functional groups, or via GenAI models based on similarity. Then, the algorithm goes back to step 2, until the front stops improving.",
   },
 ];
 

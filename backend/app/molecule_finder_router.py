@@ -3,7 +3,7 @@
 Three distinct use cases, each with SSE streaming + batch endpoints:
 
   /optimize-2obj  — logD (ChEMBL Lipophilicity LightGBM) + SA Score↓ — CNS lipophilicity-guided lead discovery
-                    Pool: aromatic_pool.json (drug-like CNS compounds). Requires lipophilicity model.
+                    Pool: druglike_pool.json (drug-like CNS compounds). Requires lipophilicity model.
 
   /optimize-3obj  — P(sweet)↑ + MW↓ + logS↑ (AqSolDB RF) — sweetness enhancer discovery
                     Pool: sweetness_pool.json (dihydrochalcone/flavanone compounds). Requires flavor_sensory + aqsoldb.
@@ -24,7 +24,7 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 from app.molecule_finder.candidate_pool import (
-    get_aromatic_pool, get_aromatic_pool_meta,
+    get_druglike_pool, get_druglike_pool_meta,
     get_sweetness_pool, get_sweetness_pool_meta,
     get_colorant_pool, get_colorant_pool_meta,
 )
@@ -246,7 +246,7 @@ def candidates_meta():
     """Return metadata about all three compound pools."""
     try:
         return {
-            "solubility": get_aromatic_pool_meta(),
+            "solubility": get_druglike_pool_meta(),
             "sweetness":  get_sweetness_pool_meta(),
             "colorant":   get_colorant_pool_meta(),
         }
@@ -400,7 +400,7 @@ def validate_smiles_endpoint(request: ValidateSmilesRequest):
 @router.get("/available-datasets")
 def available_datasets():
     safe_keys = {"id", "name", "subtitle", "tag", "description", "task_type",
-                 "target_label", "n_molecules", "max_samples", "domain", "color", "model_role",
+                 "target_label", "max_samples", "domain", "color", "model_role",
                  "model_name"}
     result = []
     for cfg in DATASETS.values():
@@ -444,7 +444,7 @@ async def train_endpoint(request: TrainRequest):
 @router.post("/optimize-2obj/stream")
 async def optimize_2obj_stream():
     """SSE: 2-obj NSGA-II — maximize logD (ChEMBL Lipophilicity LightGBM) + minimize SA Score.
-    Pool: aromatic_pool.json (93 drug-like CNS compounds, seeded on Diazepam / Lorazepam / Carbamazepine / Haloperidol / Phenytoin).
+    Pool: druglike_pool.json (93 drug-like CNS compounds, seeded on Diazepam / Lorazepam / Carbamazepine / Haloperidol / Phenytoin).
     Reference: Diazepam (logD ~2.82, CNS-optimal window 1-3).
     """
     REF = REFERENCE_COMPOUNDS["solubility"]
@@ -466,8 +466,8 @@ async def optimize_2obj_stream():
             lipo_cfg = DATASETS["lipophilicity"]
             oob_r2   = training_service._RESULTS_CACHE.get("lipophilicity", {}).get("metrics", {}).get("oob_r2")
 
-            candidates_raw = get_aromatic_pool()
-            pool_meta_ = get_aromatic_pool_meta()
+            candidates_raw = get_druglike_pool()
+            pool_meta_ = get_druglike_pool_meta()
 
             from rdkit import Chem
             valid_pool = [c for c in candidates_raw if Chem.MolFromSmiles(c["smiles"]) is not None]
@@ -488,7 +488,7 @@ async def optimize_2obj_stream():
                 "model_meta": {
                     "dataset":      lipo_cfg["name"],
                     "oob_r2":       oob_r2,
-                    "n_train":      lipo_cfg.get("n_molecules", 4200),
+                    "n_train":      training_service._RESULTS_CACHE.get("lipophilicity", {}).get("n_valid"),
                     "logD_method":  "ChEMBL Lipophilicity LightGBM",
                     "sa_method":    "RDKit SA Score",
                 },
@@ -894,7 +894,7 @@ async def safety_screen():
                 "Go to the Property Prediction tab and train it first."
             )
         rf = training_service._MODEL_CACHE["ames_mutagenicity"]
-        candidates = get_aromatic_pool()
+        candidates = get_druglike_pool()
         results = []
         for c in candidates:
             vec = training_service.featurize_smiles(c["smiles"])
