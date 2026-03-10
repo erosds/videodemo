@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import re
 from typing import Any, AsyncGenerator, Dict, List
 
@@ -22,8 +23,8 @@ try:
 except ImportError:
     _QDRANT_OK = False
 
-QDRANT_URL = "http://localhost:6333"
-OLLAMA_URL = "http://localhost:11434"
+QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 COLLECTION = "chemical_documents"
 LLM_MODEL = "llama3.1:8b"
 LLM_MODEL_FALLBACK = "llama3.2"

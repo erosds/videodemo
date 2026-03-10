@@ -64,8 +64,8 @@ except ImportError:
     _DOCX_OK = False
 
 
-QDRANT_URL = "http://localhost:6333"
-OLLAMA_URL = "http://localhost:11434"
+QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 COLLECTION = "chemical_documents"
 EMBED_DIM = 768
 CHUNK_SIZE = 600   # slightly larger to keep more context per chunk

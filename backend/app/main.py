@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 import asyncio
 import json
 import math
+import os
 import time
 from typing import List, Optional
 import traceback
@@ -16,10 +17,15 @@ from app.models import (
 
 app = FastAPI(title="ML Training API")
 
-# CORS
+# CORS — origins configurable via CORS_ORIGINS env var (comma-separated)
+_cors_origins = os.environ.get(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://localhost:3000,http://localhost,http://localhost:80",
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[o.strip() for o in _cors_origins],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

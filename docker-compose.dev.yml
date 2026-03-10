@@ -1,0 +1,35 @@
+###############################################################################
+#  Development overrides — hot-reload for frontend and backend
+#  Usage:
+#    docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+###############################################################################
+
+services:
+
+  backend:
+    volumes:
+      # Live-reload: mount source over the image copy
+      - ./backend:/app
+      # Keep volumes for dynamic data (don't override with local empty dirs)
+      - ml_datasets:/app/datasets/molecule_finder
+      - trained_models:/app/trained_models
+      - compliance_data:/app/datasets/chemical_compliance
+    command: >
+      sh -c "uvicorn app.main:app
+        --host 0.0.0.0
+        --port 8000
+        --reload"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: builder   # stop at node stage — no nginx
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+    environment:
+      - NODE_ENV=development
+    command: ["npx", "vite", "--host", "0.0.0.0", "--port", "5173"]

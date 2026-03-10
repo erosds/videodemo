@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
@@ -33,14 +34,14 @@ async def compliance_health():
     ollama_status = "ok"
 
     try:
-        resp = _r.get("http://localhost:6333/collections", timeout=3)
+        resp = _r.get(os.environ.get("QDRANT_URL", "http://localhost:6333") + "/collections", timeout=3)
         if not resp.ok:
             qdrant_status = f"error {resp.status_code}"
     except Exception as e:
         qdrant_status = f"unreachable: {e}"
 
     try:
-        resp = _r.get("http://localhost:11434/api/tags", timeout=3)
+        resp = _r.get(os.environ.get("OLLAMA_URL", "http://localhost:11434") + "/api/tags", timeout=3)
         if not resp.ok:
             ollama_status = f"error {resp.status_code}"
     except Exception as e:

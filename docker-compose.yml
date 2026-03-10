@@ -1,9 +1,128 @@
+###############################################################################
+#  DemoPlatform — full Docker Compose stack
+#  Usage:
+#    docker compose up --build         # first run (builds images, pulls models)
+#    docker compose up                 # subsequent runs (fast, uses cache)
+#    docker compose down               # stop (data volumes preserved)
+#    docker compose down -v            # stop + wipe all persistent data
+#
+#  Ports exposed to the host:
+#    80    → frontend  (nginx)
+#    8000  → backend   (FastAPI)
+#    6333  → qdrant    (optional, for direct inspection)
+#    11434 → ollama    (optional, for direct model management)
+###############################################################################
+
 services:
+
+  # ── Vector database ──────────────────────────────────────────────────────────
   qdrant:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:v1.13.6
+    restart: unless-stopped
     ports:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - ./qdrant_storage:/qdrant/storage
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # ── LLM server ───────────────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
     restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    # Uncomment the block below to enable Nvidia GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ── Ollama model initialiser (runs once, then exits) ─────────────────────────
+  # Downloads llama3.2 (~2 GB) and nomic-embed-text (~300 MB) on first run.
+  # Subsequent runs are instant because the volume already contains the models.
+  ollama-init:
+    image: ollama/ollama:latest
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "[ollama-init] Pulling llama3.2..."
+        ollama pull llama3.2
+        echo "[ollama-init] Pulling nomic-embed-text..."
+        ollama pull nomic-embed-text
+        echo "[ollama-init] Done."
+
+  # ── FastAPI backend ───────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - OLLAMA_URL=http://ollama:11434
+      - CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:5173,http://localhost:3000
+    volumes:
+      # Persist downloaded datasets, feature caches, and trained models
+      - ml_datasets:/app/datasets/molecule_finder
+      - trained_models:/app/trained_models
+      # Persist audit log separately (survives container rebuilds)
+      - compliance_data:/app/datasets/chemical_compliance
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  # ── React frontend (nginx) ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+# ── Named volumes (data survives container restarts) ─────────────────────────
+volumes:
+  qdrant_data:
+    driver: local
+  ollama_data:
+    driver: local
+  ml_datasets:
+    driver: local
+  trained_models:
+    driver: local
+  compliance_data:
+    driver: local

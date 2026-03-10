@@ -1,0 +1,23 @@
+# Python runtime artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Dynamic / generated files — served via Docker volumes at runtime
+datasets/molecule_finder/*.csv
+datasets/molecule_finder/*.npz
+datasets/molecule_finder/models/
+trained_models/
+datasets/chemical_compliance/audit_log.json
+
+# OS noise
+.DS_Store
+Thumbs.db

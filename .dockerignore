@@ -1,0 +1,28 @@
+# Node
+node_modules/
+dist/
+build/
+.npm/
+
+# Python
+backend/__pycache__/
+backend/**/*.pyc
+backend/.venv/
+backend/venv/
+backend/datasets/molecule_finder/*.csv
+backend/datasets/molecule_finder/*.npz
+backend/datasets/molecule_finder/models/
+backend/trained_models/
+
+# Docker runtime data
+qdrant_storage/
+
+# Git and OS
+.git/
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
