@@ -9,7 +9,7 @@ domain-specific reference compounds and validated with strict per-pool rules:
 
 Called automatically from candidate_pool.py when a pool file is absent.
 To regenerate: delete the pool JSON file and restart the backend, or call
-  generate_pool("<key>")   directly (key = "aromatic" | "sweetness" | "colorant").
+  generate_pool("<key>")   directly (key = "cnsdrug" | "sweetness" | "colorant").
 
 Rule types
 ----------
@@ -41,7 +41,7 @@ _PUBCHEM  = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
 POOL_CONFIGS: dict[str, dict] = {
 
     # ── CNS lipophilicity-guided lead discovery ─────────────────────────────────
-    "aromatic": {
+    "cnsdrug": {
         "file":        "druglike_pool.json",
         "source":      "PubChem 2D-similarity search",
         "description": "Drug-like CNS compounds for logD / SA-Score Pareto optimisation",
@@ -49,8 +49,7 @@ POOL_CONFIGS: dict[str, dict] = {
             {"name": "Diazepam",      "cid": 3016},
             {"name": "Lorazepam",     "cid": 3958},
             {"name": "Carbamazepine", "cid": 2554},
-            {"name": "Haloperidol",   "cid": 3559},
-            {"name": "Phenytoin",     "cid": 1775},
+            {"name": "Alprazolam",    "cid": 2118},
         ],
         "threshold":         70,    # Tanimoto 2D threshold (%)
         "max_hits_per_seed": 80,    # PubChem MaxRecords per seed query
@@ -80,8 +79,12 @@ POOL_CONFIGS: dict[str, dict] = {
 
             # ── structural requirements ──
 
-            {"type": "require", "smarts": "[#7]",
-            "desc": "must contain nitrogen (common in CNS drugs)"},
+            # Ring nitrogen is the key discriminator: all CNS drugs (benzodiazepines,
+            # hydantoins, barbiturates, succinimides, piperidines…) have at least one
+            # N as part of a ring.  Urea, guanidine, diarylamine and azo dye backbones
+            # have only exocyclic / acyclic N and are correctly excluded by this rule.
+            {"type": "require", "smarts": "[#7;R]",
+            "desc": "nitrogen must be in a ring (excludes ureas, guanidines, dyes)"},
 
             {"type": "require", "smarts": "a",
             "desc": "must contain aromatic ring"},
@@ -91,19 +94,21 @@ POOL_CONFIGS: dict[str, dict] = {
             {"type": "exclude", "smarts": "c[NH2]",
             "desc": "primary aniline (toxicity risk)"},
 
-            {"type": "exclude", "smarts": "c[NH]c",
-            "desc": "diarylamine scaffold (often toxic / unstable)"},
+            # ── acyclic N-C(=O)-N backbone (urea / carbamate intruders) ──
+            {"type": "exclude", "smarts": "[NX3;!R]C(=O)[NX3;!R]",
+            "desc": "acyclic urea/carbamate backbone (herbicides, not CNS drugs)"},
+
+            # ── unusual heavy elements ──
+            {"type": "exclude", "smarts": "[#34,#14,#33,#51,#52]",
+            "desc": "no Se / Si / As / Sb / Te"},
 
             # ── known intruder classes ──
 
             {"type": "exclude", "smarts": "[Cl,Br][CH2]C(=O)[NX3]",
             "desc": "chloroacetamide herbicides"},
 
-            {"type": "exclude", "smarts": "[Cl,Br][CX4](C(=O)[OX2H0])(c)c",
-            "desc": "organochlorine ester acaricides"},
-
             {"type": "exclude", "smarts": "[CX3;!R](~c)(~c)~c",
-            "desc": "triarylmethane dye core"},
+            "desc": "triarylmethane / cyanine dye core"},
         ],
     },
 

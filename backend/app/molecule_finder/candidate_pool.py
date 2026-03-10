@@ -28,7 +28,7 @@ _SWEETNESS_FILE = _POOL_DIR / "sweetness_pool.json"
 _COLORANT_FILE  = _POOL_DIR / "colorant_pool.json"
 
 _POOL_FILES: dict[str, Path] = {
-    "aromatic":  _DRUGLIKE_FILE,
+    "cnsdrug":  _DRUGLIKE_FILE,
     "sweetness": _SWEETNESS_FILE,
     "colorant":  _COLORANT_FILE,
 }
@@ -62,13 +62,13 @@ def _load_colorant() -> dict:
 
 
 _LOADERS = {
-    "aromatic":  _load_druglike,
+    "cnsdrug":  _load_druglike,
     "sweetness": _load_sweetness,
     "colorant":  _load_colorant,
 }
 
 _CACHE_CLEARS = {
-    "aromatic":  _load_druglike.cache_clear,
+    "cnsdrug":  _load_druglike.cache_clear,
     "sweetness": _load_sweetness.cache_clear,
     "colorant":  _load_colorant.cache_clear,
 }

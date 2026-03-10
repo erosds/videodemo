@@ -329,7 +329,7 @@ const CaseOne = () => {
   }, [poolMeta?.status]);
 
   const handleGeneratePool = async () => {
-    await fetch(`${BACKEND}/molecule-finder/candidates/generate/aromatic`, { method: "POST" }).catch(() => { });
+    await fetch(`${BACKEND}/molecule-finder/candidates/generate/cnsdrug`, { method: "POST" }).catch(() => { });
     setPoolMeta(prev => ({ ...prev, status: "generating" }));
   };
 
@@ -726,7 +726,7 @@ const CaseOne = () => {
                     </p>
                     <button
                       onClick={handleGeneratePool}
-                      className="self-start px-2.5 py-1 rounded border border-rose-700/50 bg-rose-900/20 text-rose-400 text-[9px] font-bold uppercase tracking-wide hover:bg-rose-800/30 transition-colors"
+                      className="self-end px-2.5 py-1 rounded border border-rose-700/50 bg-rose-900/20 text-rose-400 text-[9px] font-bold uppercase tracking-wide hover:bg-rose-800/30 transition-colors"
                     >
                       Generate pool
                     </button>

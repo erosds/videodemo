@@ -100,13 +100,13 @@ export default function App() {
     requestAnimationFrame(animate);
   };
 
-  const handleSelectWorkflow = (workflowId) => {
+  const handleSelectWorkflow = (workflowId, initialSection = 0) => {
     setCurrentWorkflow(workflowId);
-    setActiveIndex(0);
-    setScrollIndex(0);
-    // Reset scroll position
+    setActiveIndex(initialSection);
+    setScrollIndex(initialSection);
     if (containerRef.current) {
-      containerRef.current.scrollLeft = 0;
+      const w = containerRef.current.offsetWidth || window.innerWidth;
+      containerRef.current.scrollLeft = initialSection * w;
     }
   };
 

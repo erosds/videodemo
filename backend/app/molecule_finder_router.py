@@ -269,7 +269,7 @@ def candidates_meta():
         }
 
     return {
-        "solubility": _meta_for(get_druglike_pool_meta, "aromatic"),
+        "solubility": _meta_for(get_druglike_pool_meta, "cnsdrug"),
         "sweetness":  _meta_for(get_sweetness_pool_meta, "sweetness"),
         "colorant":   _meta_for(get_colorant_pool_meta,  "colorant"),
     }
@@ -281,7 +281,7 @@ def generate_pool_endpoint(pool_key: str):
 
     Returns {"status": "started" | "already_generating" | "already_exists"}.
     """
-    valid_keys = {"aromatic", "sweetness", "colorant"}
+    valid_keys = {"cnsdrug", "sweetness", "colorant"}
     if pool_key not in valid_keys:
         raise HTTPException(status_code=404, detail=f"Unknown pool key: {pool_key!r}")
     result = generate_pool_on_demand(pool_key)
@@ -482,7 +482,7 @@ async def train_endpoint(request: TrainRequest):
 @router.post("/optimize-2obj/stream")
 async def optimize_2obj_stream():
     """SSE: 2-obj NSGA-II — maximize logD (ChEMBL Lipophilicity LightGBM) + minimize SA Score.
-    Pool: druglike_pool.json (93 drug-like CNS compounds, seeded on Diazepam / Lorazepam / Carbamazepine / Haloperidol / Phenytoin).
+    Pool: druglike_pool.json (93 drug-like CNS compounds, seeded on Diazepam / Lorazepam / Carbamazepine / Alprazolam / Phenytoin).
     Reference: Diazepam (logD ~2.82, CNS-optimal window 1-3).
     """
     REF = REFERENCE_COMPOUNDS["solubility"]
@@ -510,7 +510,7 @@ async def optimize_2obj_stream():
             from rdkit import Chem
             valid_pool = [c for c in candidates_raw if Chem.MolFromSmiles(c["smiles"]) is not None]
             if len(valid_pool) < 10:
-                raise RuntimeError("Too few valid compounds in the aromatic pool.")
+                raise RuntimeError("Too few valid compounds in the cnsdrug pool.")
 
             name_lookup = _build_name_lookup(valid_pool)
             ref_logd = training_service.predict_logD(REF["smiles"])
@@ -922,7 +922,7 @@ async def delete_all_saved_optimization():
 
 @router.get("/safety-screen")
 async def safety_screen():
-    """AMES mutagenicity screen on aromatic pool compounds."""
+    """AMES mutagenicity screen on cnsdrug pool compounds."""
     def _run() -> dict:
         if not training_service.RDKIT_OK:
             raise RuntimeError("RDKit is not installed in this environment.")
