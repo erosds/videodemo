@@ -750,7 +750,7 @@ const CaseTwo = () => {
                     </p>
                     <button
                       onClick={handleGeneratePool}
-                      className="self-start px-2.5 py-1 rounded border border-violet-700/50 bg-violet-900/20 text-violet-400 text-[9px] font-bold uppercase tracking-wide hover:bg-violet-800/30 transition-colors"
+                      className="self-end px-2.5 py-1 rounded border border-violet-700/50 bg-violet-900/20 text-violet-400 text-[9px] font-bold uppercase tracking-wide hover:bg-violet-800/30 transition-colors"
                     >
                       Generate pool
                     </button>

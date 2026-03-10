@@ -62,14 +62,15 @@ const HomePage = ({ onSelectWorkflow }) => {
             );
           }
 
-          // MoleculeFinder row: main button + vertical connector + 3 case shortcuts
+          // MoleculeFinder: full-width button (same as others) + case shortcuts
+          // floating to the right, outside the column
           return (
-            <div key="moleculeFinder" className="flex items-stretch">
+            <div key="moleculeFinder" className="relative">
 
-              {/* Main button */}
+              {/* Main button — same dimensions as every other workflow button */}
               <button
                 onClick={() => onSelectWorkflow('moleculeFinder')}
-                className={`flex-1 px-8 py-5 rounded-xl text-white
+                className={`w-full px-8 py-5 rounded-xl text-white
                   bg-gradient-to-r ${workflow.gradient}
                   hover:shadow-2xl hover:scale-[1.03] transition-all duration-300`}
               >
@@ -77,36 +78,35 @@ const HomePage = ({ onSelectWorkflow }) => {
                 <div className="text-xs font-normal opacity-70 mt-0.5">{workflow.tagline}</div>
               </button>
 
-              {/* Horizontal bridge */}
-              <div className="w-4 self-stretch flex items-center flex-shrink-0">
-                <div className="w-full h-px bg-rose-800/40" />
-              </div>
+              {/* Case panel — absolutely positioned outside the column, to the right */}
+              <div className="absolute top-0 bottom-0 left-full flex items-stretch pointer-events-auto">
 
-              {/* Vertical connector + case buttons */}
-              <div className="flex items-stretch flex-shrink-0">
-                {/* Vertical bar with horizontal ticks */}
+                {/* Horizontal bridge */}
+                <div className="w-5 flex items-center flex-shrink-0">
+                  <div className="w-full h-px bg-gray-600/50" />
+                </div>
+
+                {/* Vertical bar with ticks */}
                 <div className="relative w-2.5 self-stretch flex-shrink-0">
-                  {/* Vertical line */}
-                  <div className="absolute left-0 top-[18%] bottom-[18%] w-px bg-rose-800/35" />
-                  {/* One tick per case, evenly distributed */}
+                  <div className="absolute left-0 top-[18%] bottom-[18%] w-px bg-gray-600/40" />
                   {mfCaseSections.map((_, i) => (
                     <div
                       key={i}
-                      className="absolute left-0 w-2.5 h-px bg-rose-800/35"
+                      className="absolute left-0 w-2.5 h-px bg-gray-600/40"
                       style={{ top: `${18 + i * (64 / (mfCaseSections.length - 1 || 1))}%` }}
                     />
                   ))}
                 </div>
 
                 {/* Case buttons */}
-                <div className="flex flex-col gap-1.5 justify-center w-44">
+                <div className="flex flex-col gap-1.5 justify-center w-44 pl-1.5">
                   {mfCaseSections.map((c) => (
                     <button
                       key={c.id}
                       onClick={() => onSelectWorkflow('moleculeFinder', c.id)}
-                      className="px-3 py-[7px] rounded-lg text-left bg-black/50 border border-rose-900/40
-                        text-rose-300/75 text-[10px] leading-tight
-                        hover:bg-rose-950/60 hover:text-rose-200 hover:border-rose-700/50
+                      className="px-3 py-[7px] rounded-lg text-left bg-black/50 border border-gray-700/50
+                        text-gray-400/80 text-[10px] leading-tight
+                        hover:bg-gray-800/60 hover:text-gray-200 hover:border-gray-500/60
                         transition-all duration-200"
                     >
                       {c.title.replace(/^case:\s*/i, '')}
