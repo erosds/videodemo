@@ -98,7 +98,7 @@ const AuditTrail = () => {
   return (
     <div
       className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto no-scrollbar px-12"
-      style={{ paddingTop: "220px", paddingBottom: "100px" }}
+      style={{ paddingTop: "clamp(60px, 10vh, 160px)", paddingBottom: "clamp(40px, 8vh, 120px)" }}
     >
       <div className="w-full max-w-2xl">
         {/* Header row */}

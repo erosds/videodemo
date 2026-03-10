@@ -94,16 +94,18 @@ const USE_CASES = [
 
 
 const Industries = () => (
-  <div
-    className="absolute inset-0 overflow-y-auto no-scrollbar px-12"
-    style={{ paddingTop: 200, paddingBottom: 100 }}
-  >
+  <div className="absolute inset-0 overflow-y-auto no-scrollbar">
+      <div
+        className="min-h-full flex flex-col justify-center px-12"
+        style={{ paddingTop: "clamp(60px, 10vh, 160px)", paddingBottom: "clamp(40px, 8vh, 120px)" }}
+      >
     <div className="max-w-6xl mx-auto w-full">
       <div className="grid grid-cols-2 gap-5">
         {USE_CASES.map((uc) => (
           <UseCard key={uc.title} {...uc} />
         ))}
       </div>
+    </div>
     </div>
   </div>
 );

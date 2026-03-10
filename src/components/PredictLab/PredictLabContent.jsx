@@ -5,7 +5,7 @@ import TrainingView from "./TrainingView";
 import FeatureImportanceView from "./FeatureImportanceView";
 import { getAnimationProgress } from "../../utils/animationConfig";
 
-const DigitalTwinContent = ({ activeIndex, scrollIndex, totalSections }) => {
+const PredictLabContent = ({ activeIndex, scrollIndex, totalSections }) => {
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [selectedModels, setSelectedModels] = useState([]);
   const [selectedFeatures, setSelectedFeatures] = useState(null);
@@ -90,4 +90,4 @@ const DigitalTwinContent = ({ activeIndex, scrollIndex, totalSections }) => {
   );
 };
 
-export default DigitalTwinContent;
+export default PredictLabContent;

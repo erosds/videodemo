@@ -117,8 +117,8 @@ export const workflows = {
       },
     ]
   },
-  digitalTwin: {
-    id: 'digitalTwin',
+  predictLab: {
+    id: 'predictLab',
     sections: [
       {
         id: 0,
@@ -194,7 +194,7 @@ export const workflows = {
       {
         id: 7,
         title: "case: CNS lead optimization",
-        subtitle: "2-objective NSGA-II starting from a pool of <strong>drug-like CNS (Central Nervous System) compounds</strong> seeded on known molecules. Maximizing <strong>lipophilicity (logD) at pH 7.4</strong> while minimizing <strong>SA Score</strong> (synthetic accessibility). Pareto front reveals the trade-off between penetration potential and ease of synthesis.",
+        subtitle: "NSGA-II starting from a pool of <strong>drug-like CNS (Central Nervous System) compounds</strong> seeded on known molecules. Maximizing <strong>lipophilicity (logD) at pH 7.4</strong> while minimizing <strong>SA Score</strong> (synthetic accessibility). Pareto front reveals the trade-off between penetration potential and ease of synthesis.",
         gradient: "from-orange-600 via-rose-600 to-pink-600",
       },
       {

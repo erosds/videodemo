@@ -210,7 +210,7 @@ const AnomalyDetection = ({ selectedFile, onFileChange }) => {
   if (!selectedFile) {
     return (
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-10 px-12"
-        style={{ paddingTop: "100px", paddingBottom: "100px" }}>
+        style={{ paddingTop: "clamp(60px, 10vh, 160px)", paddingBottom: "clamp(40px, 8vh, 120px)" }}>
         <div className="flex flex-col items-center gap-3" style={{ width: 280 }}>
           <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-1.5">
             LC-MS/MS input file
@@ -249,7 +249,7 @@ const AnomalyDetection = ({ selectedFile, onFileChange }) => {
 
   return (
     <div className="absolute inset-0 flex items-center justify-center px-12"
-      style={{ paddingTop: "200px", paddingBottom: "100px" }}>
+      style={{ paddingTop: "clamp(60px, 10vh, 160px)", paddingBottom: "clamp(40px, 8vh, 120px)" }}>
       <div className="flex flex-col w-full max-w-6xl rounded overflow-hidden border border-gray-800 bg-[#111111]"
         style={{ height: "min(calc(100vh - 300px), 780px)" }}>
 

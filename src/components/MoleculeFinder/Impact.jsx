@@ -65,10 +65,11 @@ const STACK_GROUPS = [
 ];
 
 const Impact = () => (
-  <div
-    className="absolute inset-0 overflow-y-auto no-scrollbar px-12"
-    style={{ paddingTop: 200, paddingBottom: 100 }}
-  >
+  <div className="absolute inset-0 overflow-y-auto no-scrollbar">
+      <div
+        className="min-h-full flex flex-col justify-center px-12"
+        style={{ paddingTop: "clamp(60px, 10vh, 160px)", paddingBottom: "clamp(40px, 8vh, 120px)" }}
+      >
     <div className="max-w-6xl mx-auto w-full">
 
       {/* Metrics — compact horizontal */}
@@ -138,6 +139,7 @@ const Impact = () => (
           </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 );

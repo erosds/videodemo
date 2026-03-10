@@ -7,7 +7,7 @@ const HomePage = ({ onSelectWorkflow }) => {
       gradient: 'from-purple-600 via-pink-600 to-red-600'
     },
     {
-      id: 'digitalTwin',
+      id: 'predictLab',
       label: 'PredictLab',
       tagline: 'testing station for predictive models',
       gradient: 'from-cyan-600 via-blue-600 to-indigo-600'

@@ -167,10 +167,11 @@ const Regulatory = () => {
   };
 
   return (
-    <div
-      className="absolute inset-0 overflow-y-auto no-scrollbar px-20"
-      style={{ paddingTop: 200, paddingBottom: 100 }}
-    >
+    <div className="absolute inset-0 overflow-y-auto no-scrollbar">
+        <div
+          className="min-h-full flex flex-col justify-center px-20"
+          style={{ paddingTop: "clamp(60px, 10vh, 160px)", paddingBottom: "clamp(40px, 8vh, 120px)" }}
+        >
       <div className="max-w-6xl mx-auto w-full flex flex-col gap-4">
 
         {/* ══ 1. TOP LEFT DROPDOWN ════════════════════════════════════════════ */}
@@ -227,7 +228,7 @@ const Regulatory = () => {
 
             </div>
 
-            <div className="bg-[#111111] border border-gray-800 rounded-xl overflow-hidden flex flex-col h-[calc(100vh-450px)]">
+            <div className="bg-[#111111] border border-gray-800 rounded-xl overflow-hidden flex flex-col" style={{ height: "min(calc(100vh - 520px), 360px)", minHeight: "200px" }}>
               <div className="h-20 p-4 border-b border-gray-800 bg-[#0e0e0e] grid grid-cols-4 gap-2 text-center items-center">
                 <div>
                   <div className="text-xl font-bold text-gray-300">{amesLoading ? "..." : (paretoCands.length || "—")}</div>
@@ -316,7 +317,7 @@ const Regulatory = () => {
           <div className="flex flex-col gap-2">
             <h3 className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Regulatory Compliance</h3>
 
-            <div className="bg-[#111111] border border-gray-800 rounded-xl overflow-hidden flex flex-col h-[calc(100vh-450px)]">
+            <div className="bg-[#111111] border border-gray-800 rounded-xl overflow-hidden flex flex-col" style={{ height: "min(calc(100vh - 520px), 360px)", minHeight: "200px" }}>
               <div className="h-20 p-4 border-b border-gray-800 bg-[#0e0e0e] flex items-center gap-2 flex-wrap">
                 {["all", "approved", "restricted", "not_evaluated"].map(k => (
                   <button key={k} onClick={() => setRegFilter(k)}
@@ -394,6 +395,7 @@ const Regulatory = () => {
           </div>
 
         </div>
+      </div>
       </div>
     </div>
   );

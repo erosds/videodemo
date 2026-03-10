@@ -494,10 +494,11 @@ const IngredientCheck = () => {
   const [mode, setMode] = useState("single");
 
   return (
-    <div
-      className="absolute inset-0 overflow-y-auto no-scrollbar px-12"
-      style={{ paddingTop: 140, paddingBottom: 100 }}
-    >
+    <div className="absolute inset-0 overflow-y-auto no-scrollbar">
+        <div
+          className="min-h-full flex flex-col justify-center px-12"
+          style={{ paddingTop: "clamp(60px, 10vh, 160px)", paddingBottom: "clamp(40px, 8vh, 120px)" }}
+        >
       <div className="w-full max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-5">
@@ -556,6 +557,7 @@ const IngredientCheck = () => {
           For demonstration purposes only. Always verify against official EU CosIng database and SCCS opinions.
           Not a substitute for formal Cosmetic Product Safety Report (CPSR).
         </div>
+      </div>
       </div>
     </div>
   );

@@ -48,7 +48,8 @@
       "Bash(ls:*)",
       "Bash(.venv/Scripts/pip install:*)",
       "Bash(.venv/Scripts/python:*)",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "Bash(do:*)"
     ]
   }
 }

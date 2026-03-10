@@ -45,7 +45,7 @@ const Card = ({ title, desc, tag, color }) => (
 // ─── Main ─────────────────────────────────────────────────────────────────────
 const FuturePerspective = () => (
   <div className="absolute inset-0 flex items-center justify-center px-12"
-    style={{ paddingTop: "200px", paddingBottom: "100px" }}>
+    style={{ paddingTop: "clamp(60px, 10vh, 160px)", paddingBottom: "clamp(40px, 8vh, 120px)" }}>
     <div className="flex flex-col w-full max-w-6xl rounded overflow-hidden border border-gray-800 bg-[#111111]"
       style={{ height: "min(calc(100vh - 300px), 820px)" }}>
 
