@@ -76,6 +76,7 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - OLLAMA_URL=http://ollama:11434
       - CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:5173,http://localhost:3000
+      - ML_DATASETS_DIR=/app/datasets/molecule_finder
     volumes:
       - ml_datasets:/app/datasets/molecule_finder
       - trained_models:/app/trained_models

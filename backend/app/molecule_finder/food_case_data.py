@@ -28,18 +28,19 @@ REFERENCE_COMPOUNDS: dict[str, dict] = {
             "run: candidates compete on P(sweet) ↑ + MW ↓ + logS ↑."
         ),
     },
-    "colorant": {
-        "name": "Curcumin",
-        "smiles": "COc1cc(/C=C/C(=O)CC(=O)/C=C/c2ccc(O)c(OC)c2)ccc1O",
-        "cid": 969516,
-        "cas": "458-37-7",
+    "citrus": {
+        "name": "p-Cymene",
+        "smiles": "Cc1ccc(C(C)C)cc1",
+        "cid": 7463,
+        "cas": "99-87-6",
         "description": (
-            "Polyphenolic yellow pigment from Curcuma longa (turmeric). "
-            "EU food colorant E100 (unrestricted use in most categories). "
-            "Extensive conjugated system (β-diketone + two cinnamoyl arms) "
-            "gives strong yellow-orange absorption (λmax ≈ 430 nm). "
-            "Used as reference for the colorant scaffold-hopping run: "
-            "candidates compete on conjugation score ↑ + MW ↓ + regulatory score ↑."
+            "p-Cymene (4-isopropyltoluene) — the core aromatic monoterpene of citrus essential oils, "
+            "present in lemon, orange, thyme and coriander. "
+            "FEMA GRAS 2356, EU FL 01.016. "
+            "Fully aromatic ring with no non-aromatic C=C bonds; high oxidation stability "
+            "relative to aliphatic monoterpenes such as limonene. "
+            "Reference for the citrus aroma NSGA-II run: "
+            "candidates compete on P(citrus) ↑ + MW ↓ + oxidation stability ↑."
         ),
     },
 }

@@ -49,9 +49,10 @@ try:
     LGBM_AVAILABLE = True
 except ImportError:
     LGBM_AVAILABLE = False
-    logger.warning("LightGBM not installed — falling back to RandomForest")
 
 logger = logging.getLogger(__name__)
+if not LGBM_AVAILABLE:
+    logger.warning("LightGBM not installed — falling back to RandomForest")
 logging.basicConfig(level=logging.INFO)
 
 try:
@@ -203,6 +204,42 @@ DATASETS: dict[str, dict] = {
         "domain": "Food safety / regulatory genotoxicology",
         "color": "#f97316",
         "model_role": "mutagenicity",
+    },
+    "citrus_aroma": {
+        "id": "citrus_aroma",
+        "name": "GoodScents",
+        "subtitle": "Aroma classification · citrus / non-citrus",
+        "tag": "AROMA",
+        "model_name": "Random Forest",
+        "description": (
+            "Merged dataset of aroma labels. "
+            "Binary classification: citrus, lemon, orange and lime labelled as citrus (1), "
+            "all other odor classes as non-citrus (0). "
+            "Once trained, predicts P(citrus aroma) as the primary objective for citrus flavour design."
+        ),
+        "source": "merged_pyrfume",
+        # Leffingwell — binary odor matrix, CID-indexed (negative ints)
+        "url_leff_molecules": "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/leffingwell/molecules.csv",
+        "url_leff_behavior":  "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/leffingwell/behavior.csv",
+        # GoodScents — semicolon-string odors, CAS-indexed; stimuli maps CAS→CID
+        "url_gs_molecules": "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/goodscents/molecules.csv",
+        "url_gs_stimuli":   "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/goodscents/stimuli.csv",
+        "url_gs_behavior":  "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/goodscents/behavior.csv",
+        # Sigma 2014 — binary odor matrix, Stimulus (negative int) → stimuli.csv → CID
+        "url_sigma_molecules": "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/sigma_2014/molecules.csv",
+        "url_sigma_stimuli":   "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/sigma_2014/stimuli.csv",
+        "url_sigma_behavior":  "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/sigma_2014/behavior.csv",
+        # FlavorDB — text percepts, Stimulus = positive CID directly
+        "url_fdb_molecules":   "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/flavordb/molecules.csv",
+        "url_fdb_behavior":    "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/flavordb/behavior.csv",
+        "citrus_labels": ["citrus", "lemon", "orange", "lime", "grapefruit", "mandarin"],
+        "smiles_col": "smiles",
+        "target_col": "citrus_label",
+        "task_type": "classification",
+        "target_label": "P(citrus)",
+        "domain": "Food-grade aromatic flavour compounds",
+        "color": "#f59e0b",
+        "model_role": "citrus",
     },
 }
 
@@ -366,17 +403,29 @@ def _load_hf_dataset(dataset_id: str, cfg: dict) -> pd.DataFrame:
 
         df = df[df[taste_col].isin(classes)].dropna(subset=[smiles_col]).copy()
 
-        # Balance: undersample larger class to match smaller class
+        # Balance: 20% class-1 / 80% class-0 when class-0 outnumbers class-1,
+        # otherwise 50/50 (symmetric case).
         rng = np.random.default_rng(42)
-        counts = df[taste_col].value_counts()
-        min_n  = counts.min()
-        parts  = []
-        for cls in classes:
-            cls_df = df[df[taste_col] == cls]
-            if len(cls_df) > min_n:
-                idx = rng.choice(len(cls_df), min_n, replace=False)
-                cls_df = cls_df.iloc[idx]
-            parts.append(cls_df)
+        pos_cls = max(label_map, key=label_map.get)   # class mapped to 1 (sweet)
+        neg_cls = min(label_map, key=label_map.get)   # class mapped to 0 (bitter)
+        pos_df  = df[df[taste_col] == pos_cls]
+        neg_df  = df[df[taste_col] == neg_cls]
+
+        n_pos = len(pos_df)
+        n_neg = len(neg_df)
+
+        if n_neg > n_pos:
+            # Class 0 dominates → target 20% pos, 80% neg
+            target_neg = min(n_neg, round(n_pos * 80 / 20))
+            neg_idx = rng.choice(n_neg, target_neg, replace=False)
+            parts = [pos_df, neg_df.iloc[neg_idx]]
+        else:
+            # Class 1 dominates or equal → standard 50/50
+            min_n = min(n_pos, n_neg)
+            parts = [
+                pos_df.iloc[rng.choice(n_pos, min_n, replace=False)],
+                neg_df.iloc[rng.choice(n_neg, min_n, replace=False)],
+            ]
 
         df = (
             pd.concat(parts, ignore_index=True)
@@ -396,6 +445,67 @@ def _load_hf_dataset(dataset_id: str, cfg: dict) -> pd.DataFrame:
 
     df.to_csv(cache_path, index=False)
     return df
+
+
+def _dataset_cache_key(cfg: dict) -> str:
+    """Return a short hash of the fields that determine dataset content.
+
+    If any URL, label list, or source type changes, the hash changes → old
+    cached CSV is automatically discarded and rebuilt on next training request.
+    """
+    import hashlib, json as _json
+    key_fields = {
+        k: cfg[k]
+        for k in sorted(cfg)
+        if k.startswith("url") or k in ("source", "citrus_labels", "target_col", "sep")
+    }
+    return hashlib.md5(_json.dumps(key_fields, sort_keys=True).encode()).hexdigest()[:12]
+
+
+def _check_and_invalidate_cache(dataset_id: str, cfg: dict) -> None:
+    """Delete the cached CSV (and its key file) if the config has changed since last build."""
+    cache_path = CACHE_DIR / f"{dataset_id}.csv"
+    key_path   = CACHE_DIR / f"{dataset_id}.cache_key"
+
+    if not cache_path.exists():
+        return  # nothing to invalidate
+
+    current_key = _dataset_cache_key(cfg)
+
+    if key_path.exists():
+        stored_key = key_path.read_text().strip()
+        if stored_key == current_key:
+            return  # cache is fresh
+        logger.info(
+            "Dataset '%s' config changed (%s → %s) — invalidating cache.",
+            dataset_id, stored_key, current_key,
+        )
+    else:
+        logger.info(
+            "Dataset '%s' has no cache key file — invalidating stale cache.",
+            dataset_id,
+        )
+
+    cache_path.unlink(missing_ok=True)
+    key_path.unlink(missing_ok=True)
+
+    # Also remove derived artefacts (feature matrix, model) so they are rebuilt
+    for pattern in (
+        f"{dataset_id}_features_v2.npz",
+        f"models/{dataset_id}.joblib",
+        f"models/{dataset_id}.json",
+        f"models/{dataset_id}_fps.npy",
+    ):
+        p = CACHE_DIR / pattern
+        if p.exists():
+            p.unlink()
+            logger.info("  removed %s", p)
+
+
+def _write_cache_key(dataset_id: str, cfg: dict) -> None:
+    """Persist the current config hash next to the cached CSV."""
+    key_path = CACHE_DIR / f"{dataset_id}.cache_key"
+    key_path.write_text(_dataset_cache_key(cfg))
 
 
 def _download_url_to_df(url: str, sep: str = ",") -> pd.DataFrame:
@@ -418,6 +528,266 @@ def _download_url_to_df(url: str, sep: str = ",") -> pd.DataFrame:
     return df
 
 
+def _load_leffingwell_frame(cfg: dict, citrus_cols: list[str]) -> "pd.DataFrame | None":
+    """Load Leffingwell binary-matrix dataset → DataFrame[smiles, citrus_label]."""
+    try:
+        mol_df = _download_url_to_df(cfg["url_leff_molecules"])
+        mol_df.columns = [c.strip() for c in mol_df.columns]
+        cid_col = next((c for c in mol_df.columns if c.upper() in ("CID", "STIMULUS")), None)
+        smiles_col = next((c for c in mol_df.columns if "SMILES" in c.upper()), None)
+        if cid_col is None or smiles_col is None:
+            raise RuntimeError(f"Cannot find CID/SMILES in Leffingwell molecules. Cols: {mol_df.columns.tolist()}")
+        mol_df = mol_df.rename(columns={cid_col: "CID", smiles_col: "smiles"})
+        mol_df = mol_df[["CID", "smiles"]].dropna()
+        mol_df["CID"] = mol_df["CID"].astype(int)
+
+        beh_df = _download_url_to_df(cfg["url_leff_behavior"])
+        beh_df.columns = [c.strip().lower() for c in beh_df.columns]
+        cid_beh = next((c for c in beh_df.columns if c in ("cid", "stimulus")), beh_df.columns[0])
+        beh_df = beh_df.rename(columns={cid_beh: "CID"})
+        beh_df["CID"] = beh_df["CID"].astype(int)
+
+        available = [l for l in citrus_cols if l in beh_df.columns]
+        if not available:
+            raise RuntimeError(f"No citrus columns found in Leffingwell behavior. Cols: {beh_df.columns.tolist()}")
+        beh_df["citrus_label"] = beh_df[available].max(axis=1).astype(float)
+
+        merged = mol_df.merge(beh_df[["CID", "citrus_label"]], on="CID", how="inner")
+        merged = merged[["smiles", "citrus_label"]].dropna()
+        logger.info("Leffingwell: %d compounds loaded", len(merged))
+        return merged
+    except Exception as exc:
+        logger.warning("Leffingwell loading failed: %s", exc)
+        return None
+
+
+def _load_goodscents_frame(cfg: dict, citrus_cols: list[str]) -> "pd.DataFrame | None":
+    """Load GoodScents (CAS-keyed, semicolon-string) dataset → DataFrame[smiles, citrus_label]."""
+    try:
+        # molecules: CID → SMILES
+        gs_mol = _download_url_to_df(cfg["url_gs_molecules"])
+        gs_mol.columns = [c.strip() for c in gs_mol.columns]
+        cid_col = next((c for c in gs_mol.columns if c.upper() == "CID"), None)
+        smi_col = next((c for c in gs_mol.columns if "SMILES" in c.upper()), None)
+        if cid_col is None or smi_col is None:
+            raise RuntimeError(f"Cannot find CID/SMILES in GoodScents molecules. Cols: {gs_mol.columns.tolist()}")
+        gs_mol = gs_mol.rename(columns={cid_col: "CID", smi_col: "smiles"})[["CID", "smiles"]].dropna()
+        gs_mol["CID"] = gs_mol["CID"].astype(int)
+
+        # stimuli: CAS → CID
+        gs_stim = _download_url_to_df(cfg["url_gs_stimuli"])
+        gs_stim.columns = [c.strip() for c in gs_stim.columns]
+        stim_cid_col = next((c for c in gs_stim.columns if c.upper() == "CID"), None)
+        if stim_cid_col is None:
+            raise RuntimeError(f"Cannot find CID in GoodScents stimuli. Cols: {gs_stim.columns.tolist()}")
+        cas_col = gs_stim.columns[0]  # first column = CAS (Stimulus)
+        gs_stim = gs_stim[[cas_col, stim_cid_col]].dropna()
+        gs_stim = gs_stim.rename(columns={cas_col: "CAS", stim_cid_col: "CID"})
+        gs_stim["CID"] = gs_stim["CID"].astype(int)
+
+        # behavior: CAS → semicolon-separated descriptor string
+        gs_beh = _download_url_to_df(cfg["url_gs_behavior"])
+        gs_beh.columns = [c.strip() for c in gs_beh.columns]
+        beh_cas_col = gs_beh.columns[0]
+        beh_desc_col = gs_beh.columns[1]
+        gs_beh = gs_beh.rename(columns={beh_cas_col: "CAS", beh_desc_col: "Descriptors"})
+
+        def _has_citrus(desc: str) -> float:
+            if not isinstance(desc, str):
+                return 0.0
+            parts = {d.strip().lower() for d in desc.split(";")}
+            return 1.0 if parts & set(citrus_cols) else 0.0
+
+        gs_beh["citrus_label"] = gs_beh["Descriptors"].apply(_has_citrus)
+
+        # join: behavior (CAS) → stimuli (CAS→CID) → molecules (CID→SMILES)
+        merged = (
+            gs_beh[["CAS", "citrus_label"]]
+            .merge(gs_stim, on="CAS", how="inner")
+            .merge(gs_mol, on="CID", how="inner")
+        )[["smiles", "citrus_label"]].dropna()
+        logger.info("GoodScents: %d compounds loaded", len(merged))
+        return merged
+    except Exception as exc:
+        logger.warning("GoodScents loading failed: %s", exc)
+        return None
+
+
+def _load_sigma2014_frame(cfg: dict, citrus_cols: list[str]) -> "pd.DataFrame | None":
+    """Load Sigma 2014 binary-matrix dataset → DataFrame[smiles, citrus_label].
+
+    behavior.csv Stimulus uses internal negative IDs; stimuli.csv maps them to PubChem CIDs.
+    """
+    try:
+        mol_df = _download_url_to_df(cfg["url_sigma_molecules"])
+        mol_df.columns = [c.strip() for c in mol_df.columns]
+        cid_col = next((c for c in mol_df.columns if c.upper() == "CID"), None)
+        smi_col = next((c for c in mol_df.columns if "SMILES" in c.upper()), None)
+        if cid_col is None or smi_col is None:
+            raise RuntimeError(f"Cannot find CID/SMILES in Sigma 2014 molecules. Cols: {mol_df.columns.tolist()}")
+        mol_df = mol_df.rename(columns={cid_col: "CID", smi_col: "smiles"})[["CID", "smiles"]].dropna()
+        mol_df["CID"] = mol_df["CID"].astype(int)
+
+        beh_df = _download_url_to_df(cfg["url_sigma_behavior"])
+        beh_df.columns = [c.strip().lower() for c in beh_df.columns]
+        stim_col = next((c for c in beh_df.columns if c in ("stimulus", "cid")), beh_df.columns[0])
+        beh_df = beh_df.rename(columns={stim_col: "stim_key"})
+        beh_df["stim_key"] = beh_df["stim_key"].astype(int)
+
+        available = [l for l in citrus_cols if l in beh_df.columns]
+        if not available:
+            raise RuntimeError(f"No citrus columns in Sigma 2014 behavior. Cols: {beh_df.columns[:30].tolist()}")
+        beh_df["citrus_label"] = beh_df[available].max(axis=1).astype(float)
+
+        # Try direct join (stim_key == CID)
+        merged = (beh_df[["stim_key", "citrus_label"]]
+                  .rename(columns={"stim_key": "CID"})
+                  .merge(mol_df, on="CID", how="inner"))
+
+        if len(merged) == 0:
+            # Fall back: use stimuli.csv to map stim_key → CID
+            stim_df = _download_url_to_df(cfg["url_sigma_stimuli"])
+            stim_df.columns = [c.strip() for c in stim_df.columns]
+            stim_cid_col = next((c for c in stim_df.columns if c.upper() == "CID"), None)
+            if stim_cid_col is None:
+                raise RuntimeError(f"Cannot find CID in Sigma 2014 stimuli. Cols: {stim_df.columns.tolist()}")
+            stim_key_col = stim_df.columns[0]
+            stim_df = stim_df[[stim_key_col, stim_cid_col]].dropna()
+            stim_df = stim_df.rename(columns={stim_key_col: "stim_key", stim_cid_col: "CID"})
+            stim_df["stim_key"] = stim_df["stim_key"].astype(int)
+            stim_df["CID"] = stim_df["CID"].astype(int)
+            merged = (beh_df[["stim_key", "citrus_label"]]
+                      .merge(stim_df, on="stim_key", how="inner")
+                      .merge(mol_df, on="CID", how="inner"))
+
+        result = merged[["smiles", "citrus_label"]].dropna()
+        logger.info("Sigma 2014: %d compounds loaded", len(result))
+        return result
+    except Exception as exc:
+        logger.warning("Sigma 2014 loading failed: %s", exc)
+        return None
+
+
+def _load_flavordb_frame(cfg: dict, citrus_cols: list[str]) -> "pd.DataFrame | None":
+    """Load FlavorDB (Pyrfume) text-percept dataset → DataFrame[smiles, citrus_label].
+
+    behavior.csv Stimulus = positive PubChem CID; odor percepts are semicolon-separated text.
+    """
+    import re as _re
+    try:
+        mol_df = _download_url_to_df(cfg["url_fdb_molecules"])
+        mol_df.columns = [c.strip() for c in mol_df.columns]
+        cid_col = next((c for c in mol_df.columns if c.upper() == "CID"), None)
+        smi_col = next((c for c in mol_df.columns if "SMILES" in c.upper()), None)
+        if cid_col is None or smi_col is None:
+            raise RuntimeError(f"Cannot find CID/SMILES in FlavorDB molecules. Cols: {mol_df.columns.tolist()}")
+        mol_df = mol_df.rename(columns={cid_col: "CID", smi_col: "smiles"})[["CID", "smiles"]].dropna()
+        mol_df["CID"] = mol_df["CID"].astype(int)
+
+        beh_df = _download_url_to_df(cfg["url_fdb_behavior"])
+        beh_df.columns = [c.strip() for c in beh_df.columns]
+        stim_col = beh_df.columns[0]
+        odor_col  = next((c for c in beh_df.columns if "Odor"   in c and "Percept" in c), None)
+        flavor_col = next((c for c in beh_df.columns if "Flavor" in c and "Percept" in c), None)
+        if odor_col is None and flavor_col is None:
+            raise RuntimeError(f"Cannot find Odor/Flavor Percept columns in FlavorDB behavior. Cols: {beh_df.columns.tolist()}")
+
+        # Vectorised citrus check on concatenated text
+        pattern = "|".join(_re.escape(kw) for kw in citrus_cols)
+        text = (beh_df[odor_col].fillna("") if odor_col else pd.Series("", index=beh_df.index))
+        if flavor_col:
+            text = text + ";" + beh_df[flavor_col].fillna("")
+        citrus_mask = text.str.lower().str.contains(pattern, regex=True, na=False)
+        beh_df["citrus_label"] = citrus_mask.astype(float)
+
+        beh_df = beh_df.rename(columns={stim_col: "CID"})
+        beh_df["CID"] = beh_df["CID"].astype(int)
+
+        merged = beh_df[["CID", "citrus_label"]].merge(mol_df, on="CID", how="inner")
+        result = merged[["smiles", "citrus_label"]].dropna()
+        logger.info("FlavorDB: %d compounds loaded", len(result))
+        return result
+    except Exception as exc:
+        logger.warning("FlavorDB loading failed: %s", exc)
+        return None
+
+
+def _load_citrus_aroma_dataset(dataset_id: str, cfg: dict) -> pd.DataFrame:
+    """Merge Pyrfume Leffingwell + GoodScents + Sigma 2014 + FlavorDB into a balanced citrus classifier dataset."""
+    _check_and_invalidate_cache(dataset_id, cfg)
+    cache_path = CACHE_DIR / f"{dataset_id}.csv"
+    if cache_path.exists():
+        return pd.read_csv(cache_path)
+
+    citrus_cols = [l.lower() for l in cfg["citrus_labels"]]
+
+    frames = []
+    for loader, name in [
+        (_load_leffingwell_frame, "Leffingwell"),
+        (_load_goodscents_frame,  "GoodScents"),
+        (_load_sigma2014_frame,   "Sigma 2014"),
+        (_load_flavordb_frame,    "FlavorDB"),
+    ]:
+        frame = loader(cfg, citrus_cols)
+        if frame is not None and len(frame) > 0:
+            frames.append(frame)
+
+    if not frames:
+        raise RuntimeError("Failed to load any citrus aroma data (Leffingwell and GoodScents both failed).")
+
+    combined = pd.concat(frames, ignore_index=True)
+    combined["citrus_label"] = combined["citrus_label"].astype(float)
+
+    # Canonicalize SMILES and deduplicate (OR-logic: keep positive label)
+    if RDKIT_OK:
+        def _canon(s: str) -> "str | None":
+            try:
+                mol = Chem.MolFromSmiles(str(s))
+                return Chem.MolToSmiles(mol) if mol else None
+            except Exception:
+                return None
+        combined["smiles"] = combined["smiles"].apply(_canon)
+        combined = combined.dropna(subset=["smiles"])
+
+    combined = combined.groupby("smiles", as_index=False).agg(
+        citrus_sum=("citrus_label", "sum"),
+        citrus_count=("citrus_label", "count")
+    )
+    combined["citrus_label"] = (combined["citrus_sum"] >= 2).astype(float)
+
+    pos = combined[combined["citrus_label"] == 1.0]
+    neg = combined[combined["citrus_label"] == 0.0]
+    if len(pos) < 20:
+        raise RuntimeError(
+            f"Too few citrus-labelled samples ({len(pos)}). "
+            "Check that the Pyrfume datasets are accessible."
+        )
+    n_pos, n_neg = len(pos), len(neg)
+    if n_neg > n_pos:
+        # Class 0 dominates → target 20% pos, 80% neg
+        target_neg = min(n_neg, round(n_pos * 80 / 20))
+        neg_sample = neg.sample(n=target_neg, random_state=42)
+        pos_sample = pos
+    else:
+        # Class 1 dominates or equal → standard 50/50
+        min_n = min(n_pos, n_neg)
+        pos_sample = pos.sample(n=min_n, random_state=42)
+        neg_sample = neg.sample(n=min_n, random_state=42)
+
+    df = (
+        pd.concat([pos_sample, neg_sample], ignore_index=True)
+        .sample(frac=1, random_state=42)
+        .reset_index(drop=True)
+    )
+    df.to_csv(cache_path, index=False)
+    _write_cache_key(dataset_id, cfg)
+    logger.info(
+        "citrus_aroma dataset (4-source merge): %d citrus + %d non-citrus = %d total (from %d raw)",
+        len(pos_sample), len(neg_sample), len(df), len(combined),
+    )
+    return df
+
+
 def _load_dataset(dataset_id: str) -> pd.DataFrame:
     """Return dataset as a DataFrame, downloading and caching if necessary."""
     cfg = DATASETS[dataset_id]
@@ -425,12 +795,17 @@ def _load_dataset(dataset_id: str) -> pd.DataFrame:
     if cfg.get("source") == "huggingface":
         return _load_hf_dataset(dataset_id, cfg)
 
+    if cfg.get("source") in ("multi_url", "merged_pyrfume"):
+        return _load_citrus_aroma_dataset(dataset_id, cfg)
+
+    _check_and_invalidate_cache(dataset_id, cfg)
     cache_path = CACHE_DIR / f"{dataset_id}.csv"
     if cache_path.exists():
         return pd.read_csv(cache_path)
     sep = cfg.get("sep", ",")
     df = _download_url_to_df(cfg["url"], sep=sep)
     df.to_csv(cache_path, index=False)
+    _write_cache_key(dataset_id, cfg)
     return df
 
 
@@ -548,12 +923,13 @@ def train_model(dataset_id: str) -> dict:
         np.savez_compressed(cache_file, X=X, y=y)
 
     # Optional sample cap (Lipo dataset is large — cap for demo speed)
-    max_n = cfg.get("max_samples", len(smiles))
-    if len(smiles) > max_n:
+    max_n = cfg.get("max_samples", len(X))
+    if len(X) > max_n:
         rng = np.random.default_rng(42)
-        idx = rng.choice(len(smiles), max_n, replace=False)
-        smiles = [smiles[i] for i in idx]
-        targets = targets[idx]
+        idx = rng.choice(len(X), max_n, replace=False)
+        X = X[idx]
+        y = y[idx]
+        smiles = [smiles[i] for i in idx] if len(smiles) == len(X) + (len(X) - max_n) else smiles[:max_n]
 
     if len(X) < 50:
         raise RuntimeError(
@@ -599,16 +975,39 @@ def train_model(dataset_id: str) -> dict:
         )
     else:
         ModelClass = RandomForestClassifier if is_clf else RandomForestRegressor
-        model = ModelClass(
-            n_estimators=500,
-            max_depth=None,
-            min_samples_leaf=2,
-            max_features="sqrt",
-            bootstrap=True,
-            oob_score=True,
-            random_state=42,
-            n_jobs=-1,
-        )
+        if is_clf:
+            # Compute class weights from the actual y_train distribution so the
+            # model adapts to whatever imbalance survives the dataset-level sampling
+            # (e.g. 20 % citrus / 80 % non-citrus after the merge step).
+            # sklearn "balanced" mode: w_c = n_samples / (n_classes * n_c)
+            classes, counts = np.unique(y_train, return_counts=True)
+            n_samples = len(y_train)
+            n_classes  = len(classes)
+            cw = {int(c): round(n_samples / (n_classes * cnt), 4)
+                  for c, cnt in zip(classes, counts)}
+            logger.info("RandomForest class weights (from y_train): %s", cw)
+            model = ModelClass(
+                n_estimators=500,
+                max_depth=None,
+                min_samples_leaf=2,
+                max_features="sqrt",
+                bootstrap=True,
+                oob_score=True,
+                class_weight=cw,
+                random_state=42,
+                n_jobs=-1,
+            )
+        else:
+            model = ModelClass(
+                n_estimators=500,
+                max_depth=None,
+                min_samples_leaf=2,
+                max_features="sqrt",
+                bootstrap=True,
+                oob_score=True,
+                random_state=42,
+                n_jobs=-1,
+            )
 
     cv_scores = cross_val_score(
         model,
@@ -987,28 +1386,6 @@ def predict_log_solubility(smiles: str) -> "float | None":
         return None
 
 
-def compute_conjugation_score(smiles: str) -> "float | None":
-    """Estimate chromophore extent: sp2 atom count normalised to curcumin (~20).
-
-    Counts all sp2-hybridised atoms (aromatic ring carbons, C=C, C=O carbons).
-    Curcumin baseline ≈ 20 sp2 atoms → score ≈ 1.0.
-    Returns None if the SMILES is invalid or RDKit is unavailable.
-    """
-    if not RDKIT_OK:
-        return None
-    mol = Chem.MolFromSmiles(str(smiles))
-    if mol is None:
-        return None
-    try:
-        from rdkit.Chem.rdchem import HybridizationType
-        sp2_count = sum(
-            1 for a in mol.GetAtoms()
-            if a.GetHybridization() == HybridizationType.SP2
-        )
-        return round(float(sp2_count) / 20.0, 3)
-    except Exception:
-        return None
-
 
 def predict_logD(smiles: str) -> "float | None":
     """Predict logD at pH 7.4 using the trained ChEMBL Lipophilicity model.
@@ -1076,6 +1453,57 @@ def get_model_by_role(role: str) -> "RandomForestRegressor | None":
         if cfg.get("model_role") == role and dataset_id in _MODEL_CACHE:
             return _MODEL_CACHE[dataset_id]
     return None
+
+
+def compute_oxidation_stability(smiles: str) -> "float | None":
+    """Estimate oxidation stability by penalising non-aromatic C=C double bonds.
+
+    Non-aromatic C=C bonds (as in terpenes/monoterpenes) are easily auto-oxidised,
+    which is the main source of off-flavour in citrus aroma compounds stored in
+    aqueous beverages.  Each such bond subtracts 0.25 from the score.
+
+    Returns 0.0–1.0, higher = more stable (fewer oxidisable alkene bonds).
+    Limonene baseline: 2 non-aromatic C=C → score ≈ 0.50.
+    """
+    if not RDKIT_OK:
+        return None
+    mol = Chem.MolFromSmiles(str(smiles))
+    if mol is None:
+        return None
+    try:
+        from rdkit.Chem import rdchem
+        n_unsat = sum(
+            1 for bond in mol.GetBonds()
+            if bond.GetBondType() == rdchem.BondType.DOUBLE
+            and not bond.GetIsAromatic()
+            and bond.GetBeginAtom().GetAtomicNum() == 6
+            and bond.GetEndAtom().GetAtomicNum() == 6
+        )
+        return round(max(0.0, 1.0 - n_unsat * 0.25), 3)
+    except Exception:
+        return None
+
+
+def predict_citrus_aroma(smiles: str) -> "float | None":
+    """Return P(citrus aroma) for a SMILES using the trained Leffingwell RF classifier.
+
+    Range: 0.0 (non-citrus) → 1.0 (strongly citrus).
+    Returns None if the model has not been trained yet.
+    """
+    if "citrus_aroma" not in _MODEL_CACHE:
+        return None
+    rf = _MODEL_CACHE["citrus_aroma"]
+    vec = featurize_smiles(smiles)
+    if vec is None:
+        return None
+    try:
+        proba = rf.predict_proba(vec.reshape(1, -1))[0]
+        classes = list(rf.classes_)
+        # citrus_label=1.0 is the positive class
+        p_idx = classes.index(1) if 1 in classes else (classes.index(1.0) if 1.0 in classes else 1)
+        return round(float(proba[p_idx]), 3)
+    except Exception:
+        return None
 
 
 def compute_tanimoto_to_ref(smiles_list: list[str], ref_smiles: str) -> "np.ndarray":

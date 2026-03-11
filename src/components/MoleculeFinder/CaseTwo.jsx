@@ -353,6 +353,11 @@ const CaseTwo = () => {
     setPoolMeta(prev => ({ ...prev, status: "generating" }));
   };
 
+  const handleDeletePool = async () => {
+    await fetch(`${BACKEND}/molecule-finder/candidates/pool/sweetness`, { method: "DELETE" }).catch(() => { });
+    setPoolMeta(prev => ({ ...prev, status: "missing" }));
+  };
+
   const clearAll = () => {
     phaseTimers.current.forEach(clearTimeout);
     phaseTimers.current = [];
@@ -767,16 +772,30 @@ const CaseTwo = () => {
                   </div>
                 ) : (
                   <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                    <span>
-                      <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>
-                        {poolMeta.n_after_filter ?? poolMeta.n_candidates}
-                      </span> sweet compounds · PubChem
-                    </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>
+                        <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>
+                          {poolMeta.n_after_filter ?? poolMeta.n_candidates}
+                        </span> sweet compounds · PubChem
+                      </span>
+                      <button
+                        onClick={handleDeletePool}
+                        title="Delete pool"
+                        className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-gray-700/60 text-gray-600 hover:text-gray-400 transition-colors"
+                      >
+                        <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                          <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
+                        </svg>
+                      </button>
+                    </div>
                     {(poolMeta.n_excluded ?? 0) > 0 && (
                       <span className="text-[9px] text-gray-600">
                         {poolMeta.n_excluded} excluded (halogens/metals)
                       </span>
                     )}
+                    <span className="text-[9px] text-gray-600 leading-snug">
+                      Selected by ≥{poolMeta.threshold}% structural similarity to {poolMeta.seeds?.join(", ")} — sweet reference compounds used as seeds.
+                    </span>
                   </div>
                 )}
               </div>

@@ -22,6 +22,7 @@ COPY . .
 
 # Ensure writable runtime dirs exist inside the image so volumes can overlay them
 RUN mkdir -p \
+        /app/datasets/molecule_finder/pools \
         /app/datasets/molecule_finder/models \
         /app/datasets/chemical_compliance \
         /app/trained_models

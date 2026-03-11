@@ -3,15 +3,15 @@ import { createPortal } from "react-dom";
 import MolImageButton from "./MolImageButton";
 
 const BACKEND = "http://localhost:8000";
-const DUR_POOL_MUTATION = 800;
-const DUR_PREDICTION = 1800;
-const DUR_NSGA2 = 1100;
+const DUR_POOL_MUTATION = 800;  // dots appear — not much to see
+const DUR_PREDICTION = 1800; // dots animate up — needs time to complete
+const DUR_NSGA2 = 1100; // colour sweep — 250ms delay + 650ms transition + 200ms settle
 
 // ── Step indicator bar ─────────────────────────────────────────────────────────
 const STEPS = [
   { n: 1, label: "Candidate Pool" },
   { n: 2, label: "NSGA-II Mutation" },
-  { n: 3, label: "Property Scoring" },
+  { n: 3, label: "Property Prediction" },
   { n: 4, label: "NSGA-II Sort" },
 ];
 
@@ -20,12 +20,12 @@ const StepBar = ({ activeStep, pulseStep }) => (
     {STEPS.map((s, i) => (
       <div key={s.n} className="flex items-center">
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-500
+          ${pulseStep === s.n ? "animate-pulse" : ""}
           ${activeStep === s.n
-            ? "bg-teal-900/40 border border-teal-700/50 text-teal-300"
-            : "bg-gray-900/40 border border-gray-800 text-gray-600"}
-          ${pulseStep === s.n ? "animate-pulse" : ""}`}>
+            ? "bg-amber-900/40 border border-amber-700/50 text-amber-300"
+            : "bg-gray-900/40 border border-gray-800 text-gray-600"}`}>
           <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold transition-all duration-500
-            ${activeStep === s.n ? "bg-teal-600 text-white" : "bg-gray-700 text-gray-500"}`}>
+            ${activeStep === s.n ? "bg-amber-600 text-white" : "bg-gray-700 text-gray-500"}`}>
             {s.n}
           </span>
           {s.label}
@@ -38,17 +38,22 @@ const StepBar = ({ activeStep, pulseStep }) => (
   </div>
 );
 
-// ── Animated scatter ───────────────────────────────────────────────────────────
-// X = MW, Y = conj_score (sp2 count / 20, curcumin baseline ~1.0)
-// Dot color encodes regulatory score (3rd objective) in all phases:
-//   gold (#fbbf24) = EU E-number approved (reg_score >= 1.0)
-//   teal (#14b8a6) = Pareto-optimal, not EU-approved
-//   indigo (#818cf8) = new offspring (mutation)
-//   dark gray (#374151) = dominated
-
-function regColor(reg_score) {
-  return (reg_score ?? 0) >= 1.0 ? "#fbbf24" : "#14b8a6";
+// ── Color helpers ──────────────────────────────────────────────────────────────
+function lerpColor(hex1, hex2, t) {
+  const r1 = parseInt(hex1.slice(1, 3), 16), g1 = parseInt(hex1.slice(3, 5), 16), b1 = parseInt(hex1.slice(5, 7), 16);
+  const r2 = parseInt(hex2.slice(1, 3), 16), g2 = parseInt(hex2.slice(3, 5), 16), b2 = parseInt(hex2.slice(5, 7), 16);
+  return `rgb(${Math.round(r1 + (r2 - r1) * t)},${Math.round(g1 + (g2 - g1) * t)},${Math.round(b1 + (b2 - b1) * t)})`;
 }
+function oxstabColor(v) {
+  // v = oxstab in [0, 1]. Higher is better (more stable).
+  // green ≥ 0.75, amber ≥ 0.5, red < 0.5
+  if (v == null) return "#6b7280";
+  if (v >= 0.75) return "#22c55e";
+  if (v >= 0.5) return "#f59e0b";
+  return "#ef4444";
+}
+
+// ── Animated scatter (3-objective: P(citrus), MW, OxStab) ─────────────────────
 const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, prevAllDots, prevPareto, bounds, parentColorMap }) => {
   const W = 380, H = 240;
   const pad = { l: 44, r: 16, t: 28, b: 30 };
@@ -61,47 +66,41 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
   const inNsga2 = animPhase === "nsga2" || animPhase === "done" || animPhase === "wait_mutation";
   const inPred = animPhase === "prediction";
 
+  // P(citrus) ∈ [0, 1] — fix Y-axis to full probability range.
   let mwMin, mwMax;
   if (bounds) {
     mwMin = bounds.mwMin;
     mwMax = bounds.mwMax;
   } else {
     const allCands = generations.flatMap(g => g.candidates ?? []);
-    const allMW = [...allCands.map(c => c.mw), reference?.mw ?? 368].filter(Boolean);
+    const allMW = [...allCands.map(c => c.mw), reference?.mw ?? 136].filter(Boolean);
     mwMin = Math.max(60, Math.min(...allMW) - 12);
     mwMax = Math.max(...allMW) + 20;
   }
   const ldMin = 0;
-  const ldMax = 1.5;
+  const ldMax = 1;
 
   const px = mw => pad.l + ((mw - mwMin) / (mwMax - mwMin)) * plotW;
-  const py = cs => pad.t + (1 - (cs - ldMin) / (ldMax - ldMin)) * plotH;
+  const py = ld => pad.t + (1 - (ld - ldMin) / (ldMax - ldMin)) * plotH;
 
   const [hovered, setHovered] = useState(null);
 
   const inMutation = animPhase === "mutation";
+  const getDotCy = c => (animPhase === "pool" || (inMutation && c.is_new)) ? axisY : py(c.pcitrus);
 
-  // dot y: pool phase → at baseline axis; otherwise use conj_score
-  const getDotCy = c => (animPhase === "pool" || (inMutation && c.is_new)) ? axisY : py(c.conj_score ?? 0);
-
-  // dot fill:
-  //   pool phase: gold if reg_score >= 1.0 (EU-approved), else gray
-  //   mutation/prediction: offspring=indigo, parents inherit previous sort color
-  //   nsga2: teal=Pareto, dark=dominated, indigo if new offspring
   const getDotFill = c => {
-    if (animPhase === "pool") return (c.reg_score ?? 0) >= 1.0 ? "#fbbf24" : "#6b7280";
     if (inMutation || inPred) {
-      if (c.is_new) return "#818cf8";
+      if (c.is_new) return "#818cf8";                               // this gen's offspring
       const prev = parentColorMap?.get(c.smiles);
-      if (prev) return prev.dominated ? "#374151" : regColor(prev.reg_score);
+      if (prev) return prev.dominated ? "#374151" : oxstabColor(prev.oxstab ?? 0.5);
       return "#6b7280";
     }
-    if (inNsga2) return c.dominated ? "#374151" : regColor(c.reg_score);
+    if (inNsga2) return c.dominated ? "#374151" : oxstabColor(c.oxstab ?? 0.5);
     return "#6b7280";
   };
   const getDotR = c => inNsga2 ? (c.dominated ? 3.5 : (c.is_new ? 5 : 5.5)) : 4;
   const getDotOp = c => {
-    if (animPhase === "pool") return (c.reg_score ?? 0) >= 1.0 ? 0.75 : 0.45;
+    if (animPhase === "pool") return 0.5;
     if (inMutation || inPred) {
       if (c.is_new) return inMutation ? 0.65 : 0.75;
       const prev = parentColorMap?.get(c.smiles);
@@ -115,10 +114,11 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
   const getDotTransition = i => {
     if (animPhase === "pool" || inMutation) return "none";
     if (animPhase === "prediction") return `cy 1.0s cubic-bezier(0.34,1.56,0.64,1) ${i * 5}ms, opacity 0.3s ease ${i * 5}ms`;
+    // nsga2: delay 250ms then slow colour sweep
     return "fill 0.65s ease 0.25s, opacity 0.55s ease 0.25s, r 0.4s ease 0.2s";
   };
 
-  const getLabelY = c => (animPhase === "pool") ? axisY - 9 : py(c.conj_score ?? 0) - 9;
+  const getLabelY = c => (animPhase === "pool") ? axisY - 9 : py(c.pcitrus) - 9;
   const getLabelOp = () => inPred ? 0.72 : 0;
   const getLabelTransition = i => {
     if (animPhase === "pool") return "none";
@@ -133,11 +133,11 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
     ? [...dots].filter(c => !c.dominated).sort((a, b) => a.mw - b.mw)
     : [];
   const frontPath = front.length > 1
-    ? front.map((c, j) => `${j === 0 ? "M" : "L"}${px(c.mw).toFixed(1)},${py(c.conj_score ?? 0).toFixed(1)}`).join(" ")
+    ? front.map((c, j) => `${j === 0 ? "M" : "L"}${px(c.mw).toFixed(1)},${py(c.pcitrus).toFixed(1)}`).join(" ")
     : "";
 
-  const mwTicks = [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600].filter(v => v >= mwMin && v <= mwMax + 4);
-  const ldTicks = [0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5].filter(v => v >= ldMin - 0.01 && v <= ldMax + 0.01);
+  const mwTicks = [80, 100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360, 380, 400, 450, 500].filter(v => v >= mwMin && v <= mwMax + 4);
+  const ldTicks = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0].filter(v => v >= ldMin - 0.01 && v <= ldMax + 0.01);
 
   return (
     <div className="relative">
@@ -150,21 +150,16 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
           <line key={v} x1={pad.l} y1={py(v)} x2={pad.l + plotW} y2={py(v)} stroke="#1f2937" strokeWidth={0.5} />
         ))}
 
-        {/* Ideal: top-left = high conj_score, low MW */}
-        <rect x={pad.l} y={pad.t} width={plotW * 0.22} height={plotH * 0.22}
-          fill="#14b8a6" opacity={0.06} rx={3} />
-        <text x={pad.l + 5} y={pad.t + 12} fontSize={7} fill="#14b8a6" opacity={0.45}>ideal</text>
-
         <line x1={pad.l} y1={pad.t} x2={pad.l} y2={axisY} stroke="#374151" strokeWidth={1} />
         <line x1={pad.l} y1={axisY} x2={pad.l + plotW} y2={axisY} stroke="#374151" strokeWidth={1} />
 
         {frontPath && (
-          <path d={frontPath} fill="none" stroke="#14b8a6" strokeWidth={1.5}
+          <path d={frontPath} fill="none" stroke="#f59e0b" strokeWidth={1.5}
             strokeDasharray="5 3" opacity={0.6} />
         )}
 
         {ghostDots.map((c, i) => {
-          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : regColor(c.reg_score));
+          const fill = c.is_new ? "#818cf8" : (c.dominated ? "#374151" : oxstabColor(c.oxstab ?? 0.5));
           const op = animPhase === "pool"
             ? (c.dominated ? 0.12 : 0.22)
             : (c.dominated ? 0.18 : 0.32);
@@ -172,7 +167,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
             <circle
               key={`ghost-${c.smiles ?? i}`}
               cx={px(c.mw)}
-              cy={py(c.conj_score ?? 0)}
+              cy={py(c.pcitrus)}
               r={c.dominated ? 3 : 4}
               fill={fill}
               opacity={op}
@@ -197,7 +192,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
               style={{ transition: getLabelTransition(i) }}
               pointerEvents="none"
             >
-              {(c.conj_score ?? 0).toFixed(2)}
+              {c.pcitrus?.toFixed(3)}
             </text>
 
             <circle
@@ -211,44 +206,54 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
 
             {hovered === i && animPhase !== "pool" && (
               <g>
-                <rect x={px(c.mw) + 9} y={py(c.conj_score ?? 0) - 26} width={170} height={38}
+                <rect x={px(c.mw) + 9} y={py(c.pcitrus) - 34} width={165} height={48}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(c.mw) + 13} y={py(c.conj_score ?? 0) - 13} fontSize={8} fill="#e5e7eb">
+                <text x={px(c.mw) + 13} y={py(c.pcitrus) - 21} fontSize={8} fill="#e5e7eb">
                   {c.cid == null ? (c.smiles?.length > 28 ? c.smiles.slice(0, 28) + "…" : c.smiles) : c.name}
                 </text>
-                <text x={px(c.mw) + 13} y={py(c.conj_score ?? 0) - 1} fontSize={7} fill="#9ca3af">
-                  Conj {(c.conj_score ?? 0).toFixed(3)} · MW {c.mw} Da · reg {(c.reg_score ?? 0).toFixed(1)}{c.is_new ? " · new" : ""}
+                <text x={px(c.mw) + 13} y={py(c.pcitrus) - 10} fontSize={7} fill="#9ca3af">
+                  P(citrus) {c.pcitrus?.toFixed(3)} · MW {c.mw} Da
+                </text>
+                <text x={px(c.mw) + 13} y={py(c.pcitrus) + 1} fontSize={7}
+                  fill={oxstabColor(c.oxstab ?? 0.5)}>
+                  OxStab {(c.oxstab ?? 0.5).toFixed(3)}{c.is_new ? " · new" : ""}
                 </text>
               </g>
             )}
             {hovered === i && animPhase === "pool" && (
               <g>
-                <rect x={px(c.mw) + 9} y={axisY - 36} width={140} height={26}
+                <rect x={px(c.mw) + 9} y={axisY - 36} width={120} height={26}
                   rx={4} fill="#111" stroke="#374151" />
                 <text x={px(c.mw) + 13} y={axisY - 23} fontSize={8} fill="#e5e7eb">
                   {c.cid == null ? (c.smiles?.length > 28 ? c.smiles.slice(0, 28) + "…" : c.smiles) : c.name}
                 </text>
-                <text x={px(c.mw) + 13} y={axisY - 11} fontSize={7} fill="#9ca3af">MW {c.mw} Da · reg {(c.reg_score ?? 0).toFixed(1)}</text>
+                <text x={px(c.mw) + 13} y={axisY - 11} fontSize={7} fill="#9ca3af">MW {c.mw} Da</text>
               </g>
             )}
           </g>
         ))}
 
-        {reference?.conj_score != null && reference?.mw != null && (
+        {reference?.pcitrus != null && reference?.mw != null && (
           <g style={{ cursor: "pointer" }}
             onMouseEnter={() => setHovered("ref")}
             onMouseLeave={() => setHovered(null)}>
-            <circle cx={px(reference.mw)} cy={py(reference.conj_score)} r={7}
+            <circle cx={px(reference.mw)} cy={py(reference.pcitrus)} r={7}
               fill="none" stroke="#fbbf24" strokeWidth={2} opacity={0.9} />
-            <circle cx={px(reference.mw)} cy={py(reference.conj_score)} r={3} fill="#fbbf24" opacity={0.9} />
+            <circle cx={px(reference.mw)} cy={py(reference.pcitrus)} r={3} fill="#fbbf24" opacity={0.9} />
             {hovered === "ref" && (
               <g>
-                <rect x={px(reference.mw) + 9} y={py(reference.conj_score) - 26} width={160} height={38}
+                <rect x={px(reference.mw) + 9} y={py(reference.pcitrus) - 34} width={175} height={48}
                   rx={4} fill="#111" stroke="#374151" />
-                <text x={px(reference.mw) + 13} y={py(reference.conj_score) - 13} fontSize={8} fill="#fbbf24">Curcumin E100 (reference)</text>
-                <text x={px(reference.mw) + 13} y={py(reference.conj_score) - 1} fontSize={7} fill="#9ca3af">
-                  Conj {reference.conj_score?.toFixed(3)} · MW {reference.mw} Da
+                <text x={px(reference.mw) + 13} y={py(reference.pcitrus) - 21} fontSize={8} fill="#fbbf24">p-Cymene (reference)</text>
+                <text x={px(reference.mw) + 13} y={py(reference.pcitrus) - 10} fontSize={7} fill="#9ca3af">
+                  P(citrus) {reference.pcitrus?.toFixed(3)} · MW {reference.mw} Da
                 </text>
+                {reference.oxstab != null && (
+                  <text x={px(reference.mw) + 13} y={py(reference.pcitrus) + 1} fontSize={7}
+                    fill={oxstabColor(reference.oxstab)}>
+                    OxStab {reference.oxstab?.toFixed(3)}
+                  </text>
+                )}
               </g>
             )}
           </g>
@@ -258,7 +263,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
           <text key={v} x={px(v)} y={axisY + 11} fontSize={7} fill="#6b7280" textAnchor="middle">{v}</text>
         ))}
         {ldTicks.map(v => (
-          <text key={v} x={pad.l - 4} y={py(v) + 3} fontSize={7} fill="#6b7280" textAnchor="end">{v.toFixed(2)}</text>
+          <text key={v} x={pad.l - 4} y={py(v) + 3} fontSize={7} fill="#6b7280" textAnchor="end">{v.toFixed(1)}</text>
         ))}
 
         <text x={pad.l + plotW / 2} y={axisY + 23} fontSize={8} fill="#6b7280" textAnchor="middle">
@@ -266,7 +271,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         </text>
         <text x={10} y={pad.t + plotH / 2} fontSize={8} fill="#6b7280" textAnchor="middle"
           transform={`rotate(-90,10,${pad.t + plotH / 2})`}>
-          Conjugation score — maximise →
+          P(citrus) — maximise →
         </text>
       </svg>
     </div>
@@ -284,6 +289,7 @@ const CaseThree = () => {
   const [currentGenIdx, setCurrentGenIdx] = useState(0);
   const [nGensTotal, setNGensTotal] = useState(0);
   const [error, setError] = useState(null);
+  const [modelReady, setModelReady] = useState(false);
   const [prevAllDots, setPrevAllDots] = useState([]);
   const [prevPareto, setPrevPareto] = useState([]);
   const [showResults, setShowResults] = useState(false);
@@ -303,9 +309,12 @@ const CaseThree = () => {
   useEffect(() => {
     Promise.all([
       fetch(`${BACKEND}/molecule-finder/candidates/meta`).then(r => r.ok ? r.json() : null),
-      fetch(`${BACKEND}/molecule-finder/saved-optimization/scaffold`).then(r => r.status === 204 ? null : r.ok ? r.json() : null),
-    ]).then(([meta, saved]) => {
-      if (meta) setPoolMeta(meta.colorant ?? null);
+      fetch(`${BACKEND}/molecule-finder/available-datasets`).then(r => r.ok ? r.json() : []),
+      fetch(`${BACKEND}/molecule-finder/saved-optimization/citrus`).then(r => r.status === 204 ? null : r.ok ? r.json() : null),
+    ]).then(([meta, datasets, saved]) => {
+      if (meta) setPoolMeta(meta.citrus_terpene ?? null);
+      const citrus = datasets.find(d => d.id === "citrus_aroma");
+      setModelReady(!!citrus?.n_cached);
       if (saved?.generations?.length > 0) {
         const gens = saved.generations;
         gensRef.current = gens;
@@ -329,15 +338,20 @@ const CaseThree = () => {
         const r = await fetch(`${BACKEND}/molecule-finder/candidates/meta`);
         if (!r.ok) return;
         const meta = await r.json();
-        setPoolMeta(meta.colorant ?? null);
+        setPoolMeta(meta.citrus_terpene ?? null);
       } catch { }
     }, 3000);
     return () => clearInterval(id);
   }, [poolMeta?.status]);
 
   const handleGeneratePool = async () => {
-    await fetch(`${BACKEND}/molecule-finder/candidates/generate/colorant`, { method: "POST" }).catch(() => { });
+    await fetch(`${BACKEND}/molecule-finder/candidates/generate/citrus_terpene`, { method: "POST" }).catch(() => { });
     setPoolMeta(prev => ({ ...prev, status: "generating" }));
+  };
+
+  const handleDeletePool = async () => {
+    await fetch(`${BACKEND}/molecule-finder/candidates/pool/citrus_terpene`, { method: "DELETE" }).catch(() => { });
+    setPoolMeta(prev => ({ ...prev, status: "missing" }));
   };
 
   const clearAll = () => {
@@ -347,15 +361,14 @@ const CaseThree = () => {
 
   const processNextGen = () => {
     if (animQueueRef.current.length === 0) {
+      isAnimatingRef.current = false;
       if (streamDoneRef.current) {
-        isAnimatingRef.current = false;
         setGenerations([...gensRef.current]);
         setNGensTotal(gensRef.current.length);
         setAnimPhase("done");
       } else {
-        isAnimatingRef.current = false;
-        pendingNextRef.current = true;
         setAnimPhase("wait_mutation");
+        pendingNextRef.current = true;
       }
       return;
     }
@@ -385,12 +398,13 @@ const CaseThree = () => {
     phaseTimers.current.push(t1);
   };
 
+  // Y-axis (P(citrus)) always [0, 1] inside AnimatedScatter.
   const scatterBounds = useMemo(() => {
     if (!propRange) return null;
-    const refMW = reference?.mw ?? 368;
+    const refMW = reference?.mw ?? 136;
     return {
       mwMin: Math.max(60, Math.min(propRange.mw_min ?? 100, refMW) - 18),
-      mwMax: Math.max(propRange.mw_max ?? 600, refMW) + 30,
+      mwMax: Math.max(propRange.mw_max ?? 400, refMW) + 30,
     };
   }, [propRange, reference]);
 
@@ -414,11 +428,17 @@ const CaseThree = () => {
     setParentColorMap(new Map());
 
     try {
-      const res = await fetch(`${BACKEND}/molecule-finder/optimize-scaffold/stream`, {
+      const res = await fetch(`${BACKEND}/molecule-finder/optimize-citrus/stream`, {
         method: "POST",
         signal: abortRef.current.signal,
       });
 
+      if (res.status === 409) {
+        setError("Models not ready.");
+        setAnimPhase("idle");
+        setModelReady(false);
+        return;
+      }
       if (!res.ok) throw new Error(await res.text());
 
       const reader = res.body.getReader();
@@ -448,6 +468,7 @@ const CaseThree = () => {
           try { data = JSON.parse(dataStr); } catch { continue; }
 
           if (eventType === "meta") {
+            setModelReady(true);
             setPoolMeta(data.pool_meta);
             setModelMeta(data.model_meta);
             setReference(data.reference);
@@ -496,8 +517,14 @@ const CaseThree = () => {
             }
 
           } else if (eventType === "error") {
-            setError(data.detail);
-            setAnimPhase("idle");
+            if (data.status === 409) {
+              setError(data.detail ?? "Models not ready.");
+              setAnimPhase("idle");
+              setModelReady(false);
+            } else {
+              setError(data.detail);
+              setAnimPhase("idle");
+            }
             return;
           }
         }
@@ -536,14 +563,13 @@ const CaseThree = () => {
 
   const exportCsv = () => {
     const rows = [
-      ["#", "Name/SMILES", "Conj Score ↑", "MW (Da) ↓", "Reg Score", "Regulatory", "QED", "SA", "PAINS", "Origin"],
+      ["#", "Name/SMILES", "P(citrus)", "MW (Da)", "OxStab", "QED", "SA Score", "PAINS", "Origin"],
       ...finalPareto.map((c, i) => [
         i + 1,
         c.cid == null ? c.smiles : c.name,
-        (c.conj_score ?? 0).toFixed(3),
+        (c.pcitrus ?? 0).toFixed(3),
         c.mw,
-        (c.reg_score ?? 0).toFixed(1),
-        (c.reg_score ?? 0) >= 1.0 ? "EU E-number" : "Not evaluated",
+        (c.oxstab ?? 0.5).toFixed(3),
         c.qed != null ? c.qed.toFixed(3) : "",
         c.sa_score != null ? c.sa_score.toFixed(2) : "",
         (c.pains?.length ?? 0) > 0 ? c.pains.join("; ") : "clean",
@@ -552,7 +578,7 @@ const CaseThree = () => {
     ];
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a = document.createElement("a"); a.href = url; a.download = "pareto_scaffold.csv"; a.click();
+    const a = document.createElement("a"); a.href = url; a.download = "pareto_citrus.csv"; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -571,10 +597,10 @@ const CaseThree = () => {
     }
   };
 
-  // Persist results
+  // Persist results whenever a live run completes
   useEffect(() => {
     if (animPhase !== "done" || generations.length === 0 || resultsFromCache) return;
-    fetch(`${BACKEND}/molecule-finder/save-optimization/scaffold`, {
+    fetch(`${BACKEND}/molecule-finder/save-optimization/citrus`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ generations, reference, poolMeta, modelMeta, propRange }),
@@ -582,7 +608,7 @@ const CaseThree = () => {
   }, [animPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClear = () => {
-    fetch(`${BACKEND}/molecule-finder/saved-optimization/scaffold`, { method: "DELETE" }).catch(() => { });
+    fetch(`${BACKEND}/molecule-finder/saved-optimization/citrus`, { method: "DELETE" }).catch(() => { });
     clearAll();
     abortRef.current?.abort();
     gensRef.current = [];
@@ -606,7 +632,7 @@ const CaseThree = () => {
     abortRef.current?.abort();
   }, []);
 
-  const isRunning = ["pool", "mutation", "prediction", "nsga2", "wait_mutation"].includes(animPhase);
+  const isRunning = ["pool", "mutation", "wait_mutation", "prediction", "nsga2"].includes(animPhase);
   const isActive = isRunning || animPhase === "done";
 
   const activeStep =
@@ -618,20 +644,24 @@ const CaseThree = () => {
 
   const currentGen = generations[currentGenIdx];
   const totalGens = nGensTotal || 1;
-  const progress = totalGens > 1 && currentGenIdx > 0
+  const progress = nGensTotal > 1 && currentGenIdx > 0
     ? (currentGenIdx / (totalGens - 1)) * 100
     : 0;
 
   const finalPareto = animPhase === "done"
     ? [...(generations[generations.length - 1]?.candidates ?? [])]
       .filter(c => !c.dominated)
-      .sort((a, b) => (b.conj_score ?? 0) - (a.conj_score ?? 0))
+      .sort((a, b) => (b.pcitrus ?? 0.5) - (a.pcitrus ?? 0.5))
     : [];
 
   const s1 = activeStep === 1;
   const s2 = activeStep === 2;
   const s3 = activeStep === 3;
   const s4 = activeStep === 4 || animPhase === "done";
+
+  const missingModels = [
+    !modelReady && "Pyrfume / Leffingwell Odors",
+  ].filter(Boolean);
 
   const handleSort = (key) => {
     setSortConfig(prev => prev.key === key && prev.dir === 'asc' ? { key, dir: 'desc' } : { key, dir: 'asc' });
@@ -640,10 +670,9 @@ const CaseThree = () => {
   const COLUMN_DEFS = [
     { label: "#", key: null },
     { label: "Name", key: "name" },
-    { label: "Conj ↑", key: "conj_score" },
+    { label: "P(citrus) ↑", key: "pcitrus" },
     { label: "MW (Da) ↓", key: "mw" },
-    { label: "Reg Score", key: "reg_score" },
-    { label: "Regulatory", key: null },
+    { label: "OxStab ↑", key: "oxstab" },
     { label: "QED", key: "qed" },
     { label: "SA", key: "sa_score" },
     { label: "PAINS", key: null },
@@ -690,20 +719,23 @@ const CaseThree = () => {
                 <div className="w-3 h-3 rounded-full border-2 border-amber-400" />
               </div>
               <div className="text-[10px] text-gray-500">
-                <span className="text-amber-300 font-semibold">Curcumin</span>
-                <span className="ml-1.5 text-gray-600">CAS 458-37-7 · E100 · 368.4 Da</span>
-                {reference?.conj_score != null && (
-                  <span className="ml-1.5 text-gray-600">· Conj {reference.conj_score.toFixed(2)}</span>
+                <span className="text-amber-300 font-semibold">p-Cymene</span>
+                <span className="ml-1.5 text-gray-600">CAS 99-87-6 · 134.22 Da</span>
+                {reference?.pcitrus != null && (
+                  <span className="ml-1.5 text-gray-600">· P(citrus) {reference.pcitrus.toFixed(2)}</span>
+                )}
+                {reference?.oxstab != null && (
+                  <span className="ml-1.5 text-gray-600">· OxStab {reference.oxstab?.toFixed(2)}</span>
                 )}
               </div>
             </div>
 
             <div className="h-px bg-gray-800/60 mb-3" />
 
-            {/* Step 1 */}
+            {/* Step 1 — Candidate Pool */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s1 ? "bg-teal-600 text-white" : "bg-gray-800 text-gray-500"}`}>1</span>
+                ${s1 ? "bg-amber-600 text-white" : "bg-gray-800 text-gray-500"}`}>1</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s1 ? "text-gray-200" : "text-gray-500"}`}>
                   Candidate Pool
@@ -713,11 +745,11 @@ const CaseThree = () => {
                 ) : poolMeta.status === "missing" ? (
                   <div className="flex flex-col gap-1.5">
                     <p className="text-[9px] text-gray-600 leading-snug">
-                      The pool is assembled from natural yellow/orange pigments on PubChem. Seed molecules and filters are pre-defined based on the optimization target (conjugation score / MW / regulatory status).
+                      The pool is assembled from PubChem aromatic citrus compounds. Seeds: p-Cymene, Thymol, Carvacrol, Piperonal, Coumarin — filtered by MW 100–300 Da, logP 1–5, no halogens.
                     </p>
                     <button
                       onClick={handleGeneratePool}
-                      className="self-start px-2.5 py-1 rounded border border-teal-700/50 bg-teal-900/20 text-teal-400 text-[9px] font-bold uppercase tracking-wide hover:bg-teal-800/30 transition-colors"
+                      className="self-end px-2.5 py-1 rounded border border-amber-700/50 bg-amber-900/20 text-amber-400 text-[9px] font-bold uppercase tracking-wide hover:bg-amber-800/30 transition-colors"
                     >
                       Generate pool
                     </button>
@@ -729,16 +761,34 @@ const CaseThree = () => {
                       generating pool…
                     </span>
                     <span className="text-[9px] text-gray-600 leading-snug">
-                      ~{poolMeta.target_n} natural pigment compounds · seeds: {poolMeta.seeds?.join(", ")}
+                      ~{poolMeta.target_n} citrus compounds · seeds: {poolMeta.seeds?.join(", ")}
                     </span>
                   </div>
                 ) : (
                   <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                    <span>
-                      <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>{poolMeta.n_candidates}</span> natural pigment compounds · PubChem
-                    </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>
+                        <span className={`font-semibold transition-colors duration-500 ${s1 ? "text-gray-300" : ""}`}>
+                          {poolMeta.n_after_filter ?? poolMeta.n_candidates}
+                        </span> citrus compounds · PubChem
+                      </span>
+                      <button
+                        onClick={handleDeletePool}
+                        title="Delete pool"
+                        className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-gray-700/60 text-gray-600 hover:text-gray-400 transition-colors"
+                      >
+                        <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                          <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
+                        </svg>
+                      </button>
+                    </div>
+                    {(poolMeta.n_excluded ?? 0) > 0 && (
+                      <span className="text-[9px] text-gray-600">
+                        {poolMeta.n_excluded} excluded (halogens/metals)
+                      </span>
+                    )}
                     <span className="text-[9px] text-gray-600 leading-snug">
-                      Yellow/orange colorants — curcuminoids, carotenoids, flavonoids, anthocyanins. EU E-number status pre-computed.
+                      Selected by ≥{poolMeta.threshold}% structural similarity to {poolMeta.seeds?.join(", ")} — aromatic citrus terpenes used as seeds.
                     </span>
                   </div>
                 )}
@@ -747,55 +797,57 @@ const CaseThree = () => {
 
             <div className="h-px bg-gray-800/60 mb-3" />
 
-            {/* Step 2 */}
+            {/* Step 2 — NSGA-II Mutation */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s2 ? "bg-teal-600 text-white" : "bg-gray-800 text-gray-500"}
-                ${animPhase === "wait_mutation" ? "animate-pulse" : ""}`}>2</span>
+                ${s2 ? "bg-amber-600 text-white" : "bg-gray-800 text-gray-500"}`}>2</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s2 ? "text-gray-200" : "text-gray-500"}`}>
                   NSGA-II Mutation
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>17 SMARTS reactions applied to selected parents</span>
-                  <span className="text-[9px] text-gray-600">add-OH · add-prenyl · OH→OAc · Me→Et · add-COOH · …</span>
-                  <span className="text-[9px] text-gray-600">Novel analogs · MW 60–350 Da · aromatic scaffold required</span>
+                  <span>13 SMARTS reactions applied to selected parents</span>
+                  <span className="text-[9px] text-gray-600">add-OH · OMe→OEt · Me→Et · CHO→CH2OH · …</span>
+                  <span className="text-[9px] text-gray-600">Novel analogs · offspring MW 60–350 Da · aromatic scaffold required</span>
                 </div>
               </div>
             </div>
 
             <div className="h-px bg-gray-800/60 mb-3" />
 
-            {/* Step 3 */}
+            {/* Step 3 — Property Prediction */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s3 ? "bg-teal-600 text-white" : "bg-gray-800 text-gray-500"}`}>3</span>
+                ${s3 ? "bg-amber-600 text-white" : "bg-gray-800 text-gray-500"}`}>3</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s3 ? "text-gray-200" : "text-gray-500"}`}>
-                  Property Scoring
+                  Property Prediction
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>Conj. score: <span className="text-gray-400">sp² count / 20 · RDKit</span></span>
-                  <span className={`text-[9px] leading-snug text-teal-400`}>
-                    Extended π-system proxy for colour intensity · no model training required
-                  </span>
-                  <span>Regulatory: <span className="text-gray-400">EU E-number lookup</span></span>
+                  <span>P(citrus): <span className="text-[9px] leading-snug transition-colors duration-500 text-indigo-400">Pyrfume/Leffingwell RF trained in Property Prediction Tab</span></span>
+                  <span>MW: <span className="text-gray-400">RDKit ExactMolWt</span></span>
+                  <span>OxStab: <span className="text-gray-400">non-aromatic C=C proxy</span></span>
+                  {propRange && (
+                    <span className="text-[9px] text-gray-600">
+                      P(citrus) {propRange.pcitrus_min}…{propRange.pcitrus_max} · MW {propRange.mw_min}–{propRange.mw_max} Da
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
 
             <div className="h-px bg-gray-800/60 mb-3" />
 
-            {/* Step 4 */}
+            {/* Step 4 — NSGA-II Sort */}
             <div className="flex items-start gap-2.5 pb-3">
               <span className={`w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-bold transition-all duration-500
-                ${s4 ? "bg-teal-600 text-white" : "bg-gray-800 text-gray-500"}`}>4</span>
+                ${s4 ? "bg-amber-600 text-white" : "bg-gray-800 text-gray-500"}`}>4</span>
               <div className="min-w-0 flex-1">
                 <div className={`text-[11px] font-semibold mb-1 transition-colors duration-500 ${s4 ? "text-gray-200" : "text-gray-500"}`}>
                   NSGA-II Sort
                 </div>
                 <div className="text-[10px] text-gray-500 flex flex-col gap-0.5">
-                  <span>Obj-1: Conj. score ↑ &nbsp;·&nbsp; Obj-2: MW ↓ &nbsp;·&nbsp; Obj-3: Reg. score ↑</span>
+                  <span>Obj-1: P(citrus) ↑ &nbsp;·&nbsp; Obj-2: MW ↓ &nbsp;·&nbsp; Obj-3: OxStab ↑</span>
                   <span className="text-[9px] text-gray-600">Non-dominated rank + crowding distance · selects top 100</span>
                 </div>
               </div>
@@ -816,7 +868,7 @@ const CaseThree = () => {
                 </div>
                 <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-teal-600 to-cyan-500 rounded-full transition-all duration-1000"
+                    className="h-full bg-gradient-to-r from-amber-600 to-orange-500 rounded-full transition-all duration-1000"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -825,12 +877,18 @@ const CaseThree = () => {
             <div className="flex-1 min-h-3" />
             <div className="h-px bg-gray-800/60 mb-3" />
 
+            {missingModels.length > 0 && (
+              <div className="mb-3 px-3 py-2.5 rounded-lg bg-amber-900/25 border border-amber-700/40 text-[11px] text-amber-300 leading-snug">
+                ⚠ Train first in <strong>Property Prediction</strong>: {missingModels.join(" · ")}.
+              </div>
+            )}
+
             <div className="flex gap-2">
               <button
                 onClick={handleOptimize}
-                disabled={isRunning || animPhase === "loading"}
+                disabled={!modelReady || isRunning || animPhase === "loading"}
                 className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all
-                  bg-teal-700/80 border border-teal-600/60 text-white hover:bg-teal-600/80
+                  bg-amber-700/80 border border-amber-600/60 text-white hover:bg-amber-600/80
                   disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {animPhase === "loading" ? "Loading…"
@@ -839,8 +897,8 @@ const CaseThree = () => {
                       : "▶ Run pipeline"}
               </button>
               {resultsFromCache && (
-                <div className="px-3 py-1.5 rounded-lg bg-teal-900/20 border border-teal-800/40 text-[10px] text-teal-400 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />
+                <div className="px-3 py-1.5 rounded-lg bg-indigo-900/20 border border-indigo-800/40 text-[10px] text-indigo-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />
                   Results loaded from previous run
                 </div>
               )}
@@ -859,13 +917,14 @@ const CaseThree = () => {
                 >×</button>
               )}
             </div>
-
           </div>
 
           {/* ── Right column — chart ── */}
           <div className="col-span-3 rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col">
             <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
-              {poolMeta?.n_candidates ? `${poolMeta.n_candidates} natural pigment compounds + generated analogs` : "Pareto space"}
+              {(poolMeta?.n_after_filter ?? poolMeta?.n_candidates)
+                ? `${poolMeta.n_after_filter ?? poolMeta.n_candidates} citrus compounds · colour = OxStab (oxidation stability)`
+                : "3-objective Pareto space"}
             </div>
             <div className="flex items-center">
               <StepBar activeStep={activeStep} pulseStep={animPhase === "wait_mutation" ? 2 : null} />
@@ -874,9 +933,9 @@ const CaseThree = () => {
                   <div className="h-px w-6 mx-1 bg-gray-800" />
                   <button
                     onClick={() => setShowResults(true)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-teal-900/40 border border-teal-700/50 text-teal-300 hover:bg-teal-800/40 transition-all whitespace-nowrap"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-amber-900/40 border border-amber-700/50 text-amber-300 hover:bg-amber-800/40 transition-all whitespace-nowrap"
                   >
-                    <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-teal-600 text-white">↗</span>
+                    <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-amber-600 text-white">↗</span>
                     Show results
                   </button>
                 </>
@@ -895,21 +954,32 @@ const CaseThree = () => {
                   bounds={scatterBounds}
                   parentColorMap={parentColorMap}
                 />
-                <div className="flex flex-wrap gap-4 mt-3">
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Pareto · EU E-number
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                    <div className="w-2.5 h-2.5 rounded-full bg-teal-500 opacity-85" />Pareto · not evaluated
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 opacity-85" />New offspring
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gray-600 opacity-60" />Dominated
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />Curcumin E100 (ref)
+
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-[9px] text-gray-600">OxStab (stability):</span>
+                  <svg width={90} height={10} viewBox="0 0 90 10">
+                    <defs>
+                      <linearGradient id="oxstabGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#ef4444" />
+                        <stop offset="50%" stopColor="#f59e0b" />
+                        <stop offset="100%" stopColor="#22c55e" />
+                      </linearGradient>
+                    </defs>
+                    <rect x={0} y={2} width={90} height={6} rx={3} fill="url(#oxstabGrad)" opacity={0.8} />
+                  </svg>
+                  <span className="text-[9px] text-red-400">low (0)</span>
+                  <span className="text-[9px] text-emerald-400 ml-1">high (1)</span>
+
+                  <div className="ml-3 flex flex-wrap gap-3">
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 opacity-85" />New offspring
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <div className="w-2.5 h-2.5 rounded-full bg-gray-600 opacity-60" />Dominated
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />p-Cymene (ref)
+                    </div>
                   </div>
                 </div>
               </>
@@ -917,8 +987,8 @@ const CaseThree = () => {
               <div className="flex-1 flex items-center justify-center min-h-48">
                 {animPhase === "loading" ? (
                   <div className="flex flex-col items-center gap-3">
-                    <div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-gray-600 text-sm">Scoring pool & running NSGA-II…</span>
+                    <div className="w-6 h-6 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-gray-600 text-sm">Evaluating pool & running NSGA-II…</span>
                   </div>
                 ) : (
                   <span className="text-gray-600 text-sm">Click Run pipeline to start</span>
@@ -929,11 +999,11 @@ const CaseThree = () => {
 
         </div>
 
-        {/* ── Results dialog ── */}
+        {/* ── Results dialog — rendered via portal to escape stacking context ── */}
         {showResults && finalPareto.length > 0 && createPortal(
           <div className="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-6"
             onClick={() => setShowResults(false)}>
-            <div className="bg-[#111111] border border-gray-800 rounded-xl max-w-5xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+            <div className="bg-[#111111] border border-gray-800 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col"
               onClick={e => e.stopPropagation()}>
               <div className="px-4 py-2.5 bg-[#0e0e0e] border-b border-gray-800 flex items-center justify-between flex-shrink-0">
                 <span className="text-[11px] uppercase tracking-widest text-gray-500">
@@ -974,57 +1044,54 @@ const CaseThree = () => {
                   <tbody>
                     {sortedPareto.map((c, i) => {
                       const isNew = c.cid == null;
-                      const refCS = reference?.conj_score ?? 1.0;
-                      const refMW = reference?.mw ?? 368;
-                      const dominates = (c.conj_score ?? 0) > refCS && c.mw < refMW;
-                      const isEU = (c.reg_score ?? 0) >= 1.0;
+                      const oxstabVal = c.oxstab ?? 0.5;
                       const lookup = smilesNames[c.smiles];
                       return (
-                        <tr key={i} className={`border-b border-gray-800/40 ${dominates ? "bg-teal-900/10" : ""}`}>
+                        <tr key={i} className={`border-b border-gray-800/40 ${oxstabVal >= 0.75 ? "bg-emerald-900/10" : ""}`}>
                           <td className="px-3 py-2 text-gray-600">{i + 1}</td>
-                          <td className="px-3 py-2 max-w-[200px]">
+                          <td className="px-3 py-2 max-w-[220px]">
                             {isNew ? (
                               <div>
                                 <div className="flex items-center gap-1.5">
                                   <span className="font-mono text-[9px] text-gray-400 break-all block">{c.smiles}</span>
                                   {!lookup && (
                                     <button onClick={() => lookupSmiles(c.smiles)}
-                                      className="flex-shrink-0 text-gray-500 hover:text-teal-400 transition-colors"
+                                      className="flex-shrink-0 text-gray-500 hover:text-amber-400 transition-colors text-[13px]"
                                       title="Search in PubChem">
                                       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                                         <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                                       </svg>
                                     </button>
                                   )}
-                                  <MolImageButton smiles={c.smiles} hoverColor="hover:text-teal-400" />
-                                  {lookup?.status === "loading" && <span className="text-[9px] text-gray-600">…</span>}
+                                  <MolImageButton smiles={c.smiles} hoverColor="hover:text-amber-400" />
+                                  {lookup?.status === "loading" && (
+                                    <span className="text-[9px] text-gray-600">…</span>
+                                  )}
                                 </div>
-                                {lookup?.status === "found" && <div className="text-[9px] text-emerald-400 mt-0.5">{lookup.name}</div>}
-                                {lookup?.status === "unknown" && <div className="text-[9px] text-gray-600 mt-0.5">not in PubChem</div>}
+                                {lookup?.status === "found" && (
+                                  <div className="text-[9px] text-emerald-400 mt-0.5">{lookup.name}</div>
+                                )}
+                                {lookup?.status === "unknown" && (
+                                  <div className="text-[9px] text-gray-600 mt-0.5">not in PubChem</div>
+                                )}
                               </div>
                             ) : (
                               <div className="flex items-center gap-1.5">
                                 <span className="font-medium text-gray-200">{c.name}</span>
-                                <MolImageButton cid={c.cid} smiles={c.smiles} hoverColor="hover:text-teal-400" />
+                                <MolImageButton cid={c.cid} smiles={c.smiles} hoverColor="hover:text-amber-400" />
                               </div>
                             )}
                           </td>
                           <td className="px-3 py-2 font-mono">
-                            <span style={{ color: (c.conj_score ?? 0) > refCS ? "#14b8a6" : "#9ca3af" }}>
-                              {(c.conj_score ?? 0).toFixed(3)}
+                            <span style={{ color: (c.pcitrus ?? 0) > (reference?.pcitrus ?? 0.5) ? "#22c55e" : "#9ca3af" }}>
+                              {(c.pcitrus ?? 0).toFixed(3)}
                             </span>
                           </td>
                           <td className="px-3 py-2 font-mono text-gray-400">{c.mw}</td>
                           <td className="px-3 py-2 font-mono">
-                            <span style={{ color: isEU ? "#fbbf24" : "#6b7280" }}>
-                              {(c.reg_score ?? 0).toFixed(1)}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">
-                            {isEU ? (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-900/30 border border-amber-700/40 text-amber-400 font-semibold">EU E-number ✓</span>
-                            ) : (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-800/40 border border-gray-700/40 text-gray-500">not evaluated</span>
+                            <span style={{ color: oxstabColor(oxstabVal) }}>{oxstabVal.toFixed(3)}</span>
+                            {oxstabVal >= 0.75 && (
+                              <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-emerald-900/30 text-emerald-400">stable</span>
                             )}
                           </td>
                           <td className="px-3 py-2 font-mono">
@@ -1065,11 +1132,10 @@ const CaseThree = () => {
                 </table>
               </div>
               <div className="px-4 py-2 border-t border-gray-800/60 text-[10px] text-gray-600 flex-shrink-0">
-                Seed pool: {poolMeta?.n_candidates ?? "—"} natural pigments · SMARTS mutation generated{" "}
-                {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_candidates ?? 0))} analogs ·{" "}
-                {generations[generations.length - 1]?.n_evaluated ?? 0} total evaluated ·
-                Conj. score = sp² count / 20 (RDKit) · Reg. score: 1.0 = EU E-number approved · 0.5 = not evaluated ·
-                <span className="ml-1 text-gray-700">In silico only — regulatory status of novel structures must be assessed.</span>
+                Seed pool: {poolMeta?.n_after_filter ?? poolMeta?.n_candidates ?? "—"} citrus compounds ·
+                SMARTS mutation generated {Math.max(0, (generations[generations.length - 1]?.n_evaluated ?? 0) - (poolMeta?.n_after_filter ?? poolMeta?.n_candidates ?? 0))} analogs ·{" "}
+                {generations[generations.length - 1]?.n_evaluated ?? 0} total evaluated.
+                P(citrus): Pyrfume/Leffingwell RF · OOB acc. {modelMeta?.oob_accuracy_citrus ?? "—"}.
               </div>
             </div>
           </div>,

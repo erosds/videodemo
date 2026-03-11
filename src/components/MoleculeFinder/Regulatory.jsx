@@ -8,7 +8,7 @@ const BACKEND = "http://localhost:8000";
 const RUN_OPTIONS = [
   { value: "2obj", label: "Case: Lipophilicity-Guided Design", sub: "CNS drug-like compounds · logD + SA Score" },
   { value: "3obj", label: "Case: Sweetness Enhancer Discovery", sub: "DHC/flavanone compounds · P(sweet) + MW + logS" },
-  { value: "scaffold", label: "Case: Colorant Scaffold Hopping", sub: "natural pigments · conj. score + MW + reg. score" },
+  { value: "citrus", label: "Case: Citrus Aroma for Beverages", sub: "aromatic citrus compounds · P(citrus) + MW + OxStab" },
 ];
 
 const STATUS_CONFIG = {
@@ -41,7 +41,7 @@ const AmesBar = ({ p }) => {
 
 const Regulatory = () => {
   const [selectedRun, setSelectedRun] = useState("2obj");
-  const [savedRuns, setSavedRuns] = useState({ "2obj": false, "3obj": false, "scaffold": false });
+  const [savedRuns, setSavedRuns] = useState({ "2obj": false, "3obj": false, "citrus": false });
   const [modelReady, setModelReady] = useState(false);
   const [paretoCands, setParetoCands] = useState([]);
   const [paretoLoading, setParetoLoading] = useState(false);
@@ -65,13 +65,13 @@ const Regulatory = () => {
       .catch(() => { });
 
     Promise.all(
-      ["2obj", "3obj", "scaffold"].map(rt =>
+      ["2obj", "3obj", "citrus"].map(rt =>
         fetch(`${BACKEND}/molecule-finder/saved-optimization/${rt}`)
           .then(r => r.status === 204 ? null : r.ok ? r.json() : null)
           .catch(() => null)
       )
-    ).then(([r2, r3, rs]) => {
-      setSavedRuns({ "2obj": !!(r2?.generations?.length), "3obj": !!(r3?.generations?.length), "scaffold": !!(rs?.generations?.length) });
+    ).then(([r2, r3, rc]) => {
+      setSavedRuns({ "2obj": !!(r2?.generations?.length), "3obj": !!(r3?.generations?.length), "citrus": !!(rc?.generations?.length) });
     });
   }, []);
 

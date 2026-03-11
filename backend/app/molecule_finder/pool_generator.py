@@ -5,11 +5,11 @@ domain-specific reference compounds and validated with strict per-pool rules:
 
   druglike_pool.json  — Drug-like CNS compounds        (logD / SA-Score optimisation)
   sweetness_pool.json — Sweet compounds (sugars, synthetic, semi-natural sweeteners)
-  colorant_pool.json  — Conjugated natural pigments     (colorant scaffold hopping)
+  citrus_terpene_pool.json — Aromatic citrus flavour compounds (citrus aroma optimisation)
 
 Called automatically from candidate_pool.py when a pool file is absent.
 To regenerate: delete the pool JSON file and restart the backend, or call
-  generate_pool("<key>")   directly (key = "cnsdrug" | "sweetness" | "colorant").
+  generate_pool("<key>")   directly (key = "cnsdrug" | "sweetness" | "citrus_terpene").
 
 Rule types
 ----------
@@ -27,9 +27,13 @@ import logging
 import time
 from pathlib import Path
 
+import os as _os
+
 logger = logging.getLogger(__name__)
 
-_POOL_DIR = Path(__file__).parent / "pools"
+# Write generated pools to the same persistent volume path used by candidate_pool.py.
+_VOLUME_BASE = Path(_os.environ.get("ML_DATASETS_DIR", "/app/datasets/molecule_finder"))
+_POOL_DIR = _VOLUME_BASE / "pools"
 _POOL_DIR.mkdir(parents=True, exist_ok=True)
 _PUBCHEM  = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
 
@@ -143,43 +147,72 @@ POOL_CONFIGS: dict[str, dict] = {
         ],
     },
 
-    # ── Colorant scaffold hopping ────────────────────────────────────────────────
-    "colorant": {
-        "file":        "colorant_pool.json",
-        "source":      "PubChem 2D-similarity search — natural yellow/orange conjugated pigments",
-        "description": "Natural conjugated pigments for colorant scaffold-hopping optimisation",
+    # ── Citrus aroma discovery ───────────────────────────────────────────────────
+    "citrus_terpene": {
+        "file":        "citrus_terpene_pool.json",
+        "source":      "PubChem 2D-similarity search — terpene citrus flavour compounds",
+        "description": (
+            "Terpene-based food-grade citrus flavour compounds for "
+            "P(citrus) / MW / oxidation-stability Pareto optimisation. "
+            "Seeds: Limonene, Linalool, Geraniol, Citral, gamma-Terpinene — "
+            "dominant aroma compounds of citrus essential oils."
+        ),
         "seeds": [
-            {"name": "Quercetin",         "cid": 5280343},
-            {"name": "Luteolin",          "cid": 5280445},
-            {"name": "Isoliquiritigenin", "cid": 638278},
-            {"name": "Aureusidin",        "cid": 5281680},
-            {"name": "Curcumin",          "cid": 969516},
+            {"name": "Limonene",        "cid": 440917},  # lemon/orange — #1 citrus terpene
+            {"name": "Linalool",        "cid": 6549},    # floral-citrus, bergamot/coriander
+            {"name": "Geraniol",        "cid": 637566},  # rose-citrus, neroli/lemongrass
+            {"name": "Citral",          "cid": 638011},  # lemon aldehyde (geranial+neral)
+            {"name": "gamma-Terpinene", "cid": 7461},    # citrus peel, key in lemon/lime
         ],
-        "threshold":         50,   # lowered from 55 — broader coverage of flavonoid space
-        "max_hits_per_seed": 100,  # raised from 50
-        "mw_min":  150.0,
-        "mw_max":  600.0,
-        "target_n": 60,
+        "threshold":         62,   # leggermente più basso per catturare terpeni simili
+        "max_hits_per_seed": 150,
+        "mw_min":  100.0,
+        "mw_max":  280.0,          # allargato per includere sesquiterpeni e esteri terpenici
+        "target_n": 100,
         "rules": [
-            {"type": "property", "key": "logp_max",  "value": 6.0,
-             "desc": "logP ≤ 6 (natural pigments can be somewhat hydrophobic)"},
-            {"type": "property", "key": "hbd_max",   "value": 8,
-             "desc": "H-bond donors ≤ 8"},
-            {"type": "require", "smarts": "c[OH1]",
-             "desc": "must have phenolic OH (natural polyphenol pigments)"},
-            {"type": "require", "smarts": "a",
-             "desc": "must contain an aromatic ring"},
-            # NOTE: [#6]=[#6] removed — RDKit represents aromatic C=C as aromatic bonds,
-            # not explicit double bonds, so the SMARTS would incorrectly reject flavones/flavonols.
-            # Conjugation is enforced via sp2_min instead.
-            {"type": "sp2_min", "value": 0.35,
-             "desc": "sp2-atom fraction ≥ 35 % (sufficient conjugation for colour)"},
+            # ── fisico-chimica (volatilità food-grade) ──
+            {"type": "property", "key": "logp_max", "value": 5.0,
+            "desc": "logP ≤ 5.0 (volatilità e solubilità in matrici cibo)"},
+            {"type": "property", "key": "logp_min", "value": 1.5,
+            "desc": "logP ≥ 1.5 (esclude zuccheri e amminoacidi)"},
+            {"type": "property", "key": "hbd_max",  "value": 2,
+            "desc": "H-bond donors ≤ 2"},
+            {"type": "property", "key": "hba_max",  "value": 4,
+            "desc": "H-bond acceptors ≤ 4"},
+            {"type": "property", "key": "rotb_max", "value": 8,
+            "desc": "rotatable bonds ≤ 8 (terpeni e loro esteri)"},
+
+            # ── sicurezza alimentare ──
             {"type": "exclude", "smarts": "[F,Cl,Br,I]",
-             "desc": "no halogens (rare in natural plant pigments)"},
-            {"type": "exclude", "smarts": "[#7]",
-             "desc": "no nitrogen (yellow/orange plant pigments are N-free)"},
+            "desc": "no alogeni"},
             {"type": "exclude", "smarts": "[#16]",
-             "desc": "no sulfur"},
+            "desc": "no zolfo"},
+            {"type": "exclude", "smarts": "OO",
+            "desc": "no perossidi"},
+            {"type": "exclude", "smarts": "[#34,#14,#33,#51,#52]",
+            "desc": "no metalloidi"},
+
+            # ── esclusione farmaci e tossici ──
+            # PAH: pattern per naftalene fuso (esclude naftaleni, antraceni, fluoreni)
+            {"type": "exclude", "smarts": "c1ccc2ccccc2c1",
+            "desc": "no naftaleni e PAH"},
+            # Chinoni reattivi
+            {"type": "exclude", "smarts": "O=C1C=CC(=O)c2ccccc12",
+            "desc": "no naftochinoni"},
+            {"type": "exclude", "smarts": "O=C1c2ccccc2C(=O)C1",
+            "desc": "no o-chinoni reattivi"},
+            # Steroidi
+            {"type": "exclude", "smarts": "[C@H]1CC[C@@H]2[C@@H]1CC[C@H]3[C@H]2CCC4CCCC[C@H]34",
+            "desc": "no steroidi"},
+            # Farmaci NSAID (acido arilpropinoico)
+            {"type": "exclude", "smarts": "c1ccc(cc1)[C@@H](C)C(=O)O",
+            "desc": "no NSAID (ibuprofene/naprossene-like)"},
+            # Indenoni anticoagulanti
+            {"type": "exclude", "smarts": "O=C1c2ccccc2CC1",
+            "desc": "no indenoni (fenindione/pindone)"},
+            # Safrolo (proibito)
+            {"type": "exclude", "smarts": "C=CCc1ccc2c(c1)OCO2",
+            "desc": "safrole — vietato come aroma alimentare"},
         ],
     },
 }
@@ -268,6 +301,9 @@ def _validate(mol, mw: float, rules: list[dict]) -> tuple[bool, str]:
                     return False, rule["desc"]
             elif key == "hba_max":
                 if Descriptors.NumHAcceptors(mol) > value:
+                    return False, rule["desc"]
+            elif key == "logp_min":
+                if Descriptors.MolLogP(mol) < value:
                     return False, rule["desc"]
             elif key == "ring_min":
                 if rdMolDescriptors.CalcNumRings(mol) < value:

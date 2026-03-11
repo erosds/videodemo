@@ -205,8 +205,8 @@ export const workflows = {
       },
       {
         id: 9,
-        title: "case: colorant scaffold hopping",
-        subtitle: "3-objective NSGA-II starting from a pool of <strong>natural yellow/orange pigments</strong> seeded on Curcumin (E100). Maximizing <strong>conjugation score</strong> (proxy for colour intensity) and <strong>regulatory score</strong> (EU E-number status) while minimizing <strong>MW</strong>. Discovers novel bio-based colorant scaffolds.",
+        title: "case: citrus aroma for beverages",
+        subtitle: "3-objective NSGA-II starting from a pool of <strong>citrus terpenes</strong> seeded on known compounds. Maximizing <strong>citrus aroma probability</strong> and <strong>oxidation stability</strong> while minimizing <strong>MW</strong>. The Pareto front helps identify candidates that offer the best trade-offs for long-lasting citrus notes.",
         gradient: "from-teal-600 via-emerald-600 to-green-600",
       },
       {

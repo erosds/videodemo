@@ -339,7 +339,7 @@ const PropertyPrediction = () => {
         )}
 
         {/* ── Top row: dataset selector buttons ── */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1 flex-wrap">
           {datasets.map(d => {
             const active  = d.id === selectedId;
             const st      = statuses[d.id] ?? "idle";
@@ -350,7 +350,7 @@ const PropertyPrediction = () => {
               <button
                 key={d.id}
                 onClick={() => setSelectedId(d.id)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-semibold transition-all"
+                className="flex items-center gap-2 px-2 py-2 rounded-lg border text-xs font-semibold transition-all"
                 style={active
                   ? { borderColor: d.color + "60", background: d.color + "12", color: d.color }
                   : { borderColor: "#1f2937", background: "#0a0a0a", color: "#6b7280" }

@@ -3,7 +3,7 @@
 Objectives (all ML-predicted or RDKit-computed — no domain-shift issues):
   2-obj: maximise logD at pH 7.4 (ChEMBL Lipophilicity RF), minimise SA Score (RDKit)
   3-obj: maximise P(sweet) (FartDB RF), minimise MW (RDKit), maximise logS (AqSolDB RF)
-  scaffold: maximise conjugation_score (RDKit sp2 count), minimise MW, maximise reg_score (EU E-number lookup)
+  citrus: maximise P(citrus aroma) (Pyrfume/Leffingwell RF), minimise MW, maximise oxidation_stability (non-aromatic C=C proxy)
 
 logD at pH 7.4 is predicted by the ChEMBL Lipophilicity RandomForest model
 (trained in the Property Prediction tab). Unlike Crippen logP, logD accounts

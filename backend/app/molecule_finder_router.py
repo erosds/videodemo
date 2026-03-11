@@ -8,8 +8,8 @@ Three distinct use cases, each with SSE streaming + batch endpoints:
   /optimize-3obj  — P(sweet)↑ + MW↓ + logS↑ (AqSolDB RF) — sweetness discovery
                     Pool: sweetness_pool.json (sweet compounds seeded on Glucose/Sucrose/Aspartame/Saccharin/Stevioside). Requires flavor_sensory + aqsoldb.
 
-  /optimize-scaffold — conjugation_score↑ + MW↓ + regulatory_score↑ — colorant scaffold hopping
-                    Pool: colorant_pool.json (natural yellow/orange pigments). No ML model required.
+  /optimize-citrus — P(citrus aroma)↑ + MW↓ + oxidation_stability↑ — citrus flavour optimisation
+                    Pool: citrus_terpene_pool.json. Requires citrus_aroma model.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from pydantic import BaseModel
 from app.molecule_finder.candidate_pool import (
     get_druglike_pool, get_druglike_pool_meta,
     get_sweetness_pool, get_sweetness_pool_meta,
-    get_colorant_pool, get_colorant_pool_meta,
+    get_citrus_terpene_pool, get_citrus_terpene_pool_meta,
     get_pool_status, generate_pool_on_demand,
 )
 from app.molecule_finder.molecular_utils import compute_properties, validate_smiles, ecfp4_bits
@@ -45,7 +45,7 @@ training_service.load_saved_models()
 _OPT_CACHE_FILE = training_service.CACHE_DIR / "optimization_results.json"
 _OPT_RESULTS: dict[str, dict] = {}
 
-_VALID_RUN_TYPES = ("2obj", "3obj", "scaffold")
+_VALID_RUN_TYPES = ("2obj", "3obj", "citrus")
 
 
 def _load_opt_cache() -> None:
@@ -177,18 +177,6 @@ def _build_name_lookup(candidates: list[dict]) -> dict[str, dict]:
     return lookup
 
 
-def _build_regulatory_lookup(colorant_pool: list[dict]) -> dict[str, float]:
-    """Build canonical-SMILES → regulatory_score from the colorant pool."""
-    from rdkit import Chem
-    lookup: dict[str, float] = {}
-    for c in colorant_pool:
-        mol = Chem.MolFromSmiles(c["smiles"])
-        if mol:
-            canon = Chem.MolToSmiles(mol, canonical=True)
-            lookup[canon] = float(c.get("regulatory", 0.5))
-    return lookup
-
-
 def _rename_2obj(candidates: list[dict]) -> list[dict]:
     """Rename optimizer key 'mw' → 'sa_score' for the 2-obj logD+SA run."""
     for c in candidates:
@@ -207,13 +195,13 @@ def _rename_3obj(candidates: list[dict]) -> list[dict]:
     return candidates
 
 
-def _rename_scaffold(candidates: list[dict]) -> list[dict]:
-    """Rename optimizer keys for scaffold: 'logD'→'conj_score', 'psweet'→'reg_score'."""
+def _rename_citrus(candidates: list[dict]) -> list[dict]:
+    """Rename optimizer keys for citrus: 'logD'→'pcitrus', 'psweet'→'oxstab'."""
     for c in candidates:
         if "psweet" in c:
-            c["reg_score"] = c.pop("psweet")
+            c["oxstab"] = c.pop("psweet")
         if "logD" in c:
-            c["conj_score"] = c.pop("logD")
+            c["pcitrus"] = c.pop("logD")
     return candidates
 
 
@@ -232,7 +220,7 @@ class RegulatoryCheckRequest(BaseModel):
     compounds: list[RegulatoryCompound]
 
 class SafetyScreenRequest(BaseModel):
-    run_type: str  # "2obj" | "3obj" | "scaffold"
+    run_type: str  # "2obj" | "3obj" | "citrus"
 
 
 # ── Core endpoints ─────────────────────────────────────────────────────────────
@@ -269,9 +257,9 @@ def candidates_meta():
         }
 
     return {
-        "solubility": _meta_for(get_druglike_pool_meta, "cnsdrug"),
-        "sweetness":  _meta_for(get_sweetness_pool_meta, "sweetness"),
-        "colorant":   _meta_for(get_colorant_pool_meta,  "colorant"),
+        "solubility":     _meta_for(get_druglike_pool_meta,       "cnsdrug"),
+        "sweetness":      _meta_for(get_sweetness_pool_meta,      "sweetness"),
+        "citrus_terpene": _meta_for(get_citrus_terpene_pool_meta, "citrus_terpene"),
     }
 
 
@@ -281,11 +269,30 @@ def generate_pool_endpoint(pool_key: str):
 
     Returns {"status": "started" | "already_generating" | "already_exists"}.
     """
-    valid_keys = {"cnsdrug", "sweetness", "colorant"}
+    valid_keys = {"cnsdrug", "sweetness", "citrus_terpene"}
     if pool_key not in valid_keys:
         raise HTTPException(status_code=404, detail=f"Unknown pool key: {pool_key!r}")
     result = generate_pool_on_demand(pool_key)
     return {"status": result}
+
+
+@router.delete("/candidates/pool/{pool_key}")
+def delete_pool_endpoint(pool_key: str):
+    """Delete the cached JSON file for a candidate pool.
+
+    Returns {"deleted": true} on success, 404 if not found, 409 if currently generating.
+    """
+    from app.molecule_finder.candidate_pool import _POOL_FILES, _CACHE_CLEARS, _generating
+    if pool_key not in _POOL_FILES:
+        raise HTTPException(status_code=404, detail=f"Unknown pool key: {pool_key!r}")
+    if pool_key in _generating:
+        raise HTTPException(status_code=409, detail="Pool is currently being generated.")
+    pool_path = _POOL_FILES[pool_key]
+    if not pool_path.exists():
+        raise HTTPException(status_code=404, detail="Pool file not found.")
+    pool_path.unlink()
+    _CACHE_CLEARS[pool_key]()
+    return {"deleted": True}
 
 
 @router.post("/regulatory-check")
@@ -337,7 +344,7 @@ def regulatory_check(req: RegulatoryCheckRequest):
 async def safety_screen_pareto(req: SafetyScreenRequest):
     """AMES mutagenicity screen on Pareto-optimal candidates from a saved run.
 
-    run_type: "2obj" | "3obj" | "scaffold"
+    run_type: "2obj" | "3obj" | "citrus"
     Loads the saved optimization result, extracts non-dominated candidates from
     the final generation, and predicts AMES mutagenicity for each.
     """
@@ -759,14 +766,15 @@ async def optimize_3obj_stream():
     )
 
 
-# ── Use case 3: Colorant scaffold hopping (conj_score + MW + regulatory) ──────
+# ── Use case 3: Citrus aroma optimisation (P(citrus) + MW + oxidation stability) ──
 
-@router.post("/optimize-scaffold/stream")
-async def optimize_scaffold_stream():
-    """SSE: 3-obj NSGA-II — conjugation_score↑ + MW↓ + regulatory_score↑.
-    Pool: colorant_pool.json (63 natural pigments). No ML model required.
+@router.post("/optimize-citrus/stream")
+async def optimize_citrus_stream():
+    """SSE: 3-obj NSGA-II — P(citrus aroma)↑ + MW↓ + oxidation_stability↑.
+    Pool: citrus_terpene_pool.json (aromatic citrus flavour compounds).
+    Requires citrus_aroma model (Pyrfume Leffingwell RF classifier).
     """
-    REF = REFERENCE_COMPOUNDS["colorant"]
+    REF = REFERENCE_COMPOUNDS["citrus"]
     loop = asyncio.get_running_loop()
     q: asyncio.Queue[str | None] = asyncio.Queue()
     result: dict = {}
@@ -775,28 +783,28 @@ async def optimize_scaffold_stream():
         try:
             if not training_service.RDKIT_OK:
                 raise RuntimeError("RDKit is not installed in this environment.")
+            if "citrus_aroma" not in training_service._MODEL_CACHE:
+                raise ValueError(
+                    "Citrus Aroma model not trained yet. "
+                    "Go to the Property Prediction tab, select 'Pyrfume / Leffingwell Odors', "
+                    "and click Train Model first."
+                )
 
-            colorant_pool = get_colorant_pool()
-            pool_meta_ = get_colorant_pool_meta()
+            citrus_cfg = DATASETS["citrus_aroma"]
+            oob_acc = training_service._RESULTS_CACHE.get("citrus_aroma", {}).get("metrics", {}).get("oob_accuracy")
+
+            candidates_raw = get_citrus_terpene_pool()
+            pool_meta_ = get_citrus_terpene_pool_meta()
 
             from rdkit import Chem
-            valid_pool = [c for c in colorant_pool if Chem.MolFromSmiles(c["smiles"]) is not None]
+            valid_pool = [c for c in candidates_raw if Chem.MolFromSmiles(c["smiles"]) is not None]
             if len(valid_pool) < 10:
-                raise RuntimeError("Too few valid compounds in the colorant pool.")
-
-            reg_lookup = _build_regulatory_lookup(valid_pool)
-
-            def regulatory_fn(smiles: str) -> float:
-                mol = Chem.MolFromSmiles(smiles)
-                if mol is None:
-                    return 0.5
-                canon = Chem.MolToSmiles(mol, canonical=True)
-                return reg_lookup.get(canon, 0.5)
+                raise RuntimeError("Too few valid compounds in the citrus_terpene pool.")
 
             name_lookup = _build_name_lookup(valid_pool)
-            ref_conj = training_service.compute_conjugation_score(REF["smiles"])
-            ref_mw   = training_service.get_mw(REF["smiles"])
-            ref_reg  = regulatory_fn(REF["smiles"])
+            ref_pcitrus = training_service.predict_citrus_aroma(REF["smiles"])
+            ref_mw      = training_service.get_mw(REF["smiles"])
+            ref_oxstab  = training_service.compute_oxidation_stability(REF["smiles"])
 
             loop.call_soon_threadsafe(q.put_nowait, _sse("meta", {
                 "pool_meta": {
@@ -806,17 +814,20 @@ async def optimize_scaffold_stream():
                     "threshold":    pool_meta_["threshold"],
                 },
                 "model_meta": {
-                    "conj_method": "RDKit sp2 atom count / 20 (curcumin baseline)",
-                    "reg_method":  "Colorant pool regulatory lookup (EU E-number)",
-                    "mw_method":   "RDKit ExactMolWt",
+                    "dataset":        citrus_cfg["name"],
+                    "oob_accuracy":   oob_acc,
+                    "n_train":        training_service._RESULTS_CACHE.get("citrus_aroma", {}).get("n_valid"),
+                    "pcitrus_method": "Pyrfume/Leffingwell RF classifier",
+                    "mw_method":      "RDKit ExactMolWt",
+                    "oxstab_method":  "RDKit non-aromatic C=C count (oxidation liability proxy)",
                 },
                 "reference": {
-                    "name":       REF["name"],
-                    "smiles":     REF["smiles"],
-                    "cas":        REF["cas"],
-                    "conj_score": round(ref_conj, 3) if ref_conj is not None else None,
-                    "mw":         round(ref_mw, 1)   if ref_mw   is not None else None,
-                    "reg_score":  round(ref_reg, 2),
+                    "name":    REF["name"],
+                    "smiles":  REF["smiles"],
+                    "cas":     REF["cas"],
+                    "pcitrus": round(ref_pcitrus, 3) if ref_pcitrus is not None else None,
+                    "mw":      round(ref_mw, 1)      if ref_mw      is not None else None,
+                    "oxstab":  round(ref_oxstab, 3)  if ref_oxstab  is not None else None,
                 },
                 "total_generations": 10,
             }))
@@ -824,25 +835,25 @@ async def optimize_scaffold_stream():
             last_gen = None
             for gen_data in iter_nsga2_generative(
                 initial_pool=valid_pool,
-                logD_fn=training_service.compute_conjugation_score,
+                logD_fn=training_service.predict_citrus_aroma,
                 mw_fn=training_service.get_mw,
                 name_lookup=name_lookup,
-                taste_fn=regulatory_fn,
+                taste_fn=training_service.compute_oxidation_stability,
                 n_generations=10,
                 pop_size=100,
                 seed=42,
             ):
-                _rename_scaffold(gen_data.get("candidates", []))
+                _rename_citrus(gen_data.get("candidates", []))
 
                 if gen_data["gen"] == 0:
                     cands = gen_data["candidates"]
-                    all_cs = [c["conj_score"] for c in cands if c.get("conj_score") is not None]
-                    all_mw = [c["mw"]         for c in cands]
+                    all_pc = [c["pcitrus"] for c in cands if c.get("pcitrus") is not None]
+                    all_mw = [c["mw"]      for c in cands]
                     gen_data["property_range"] = {
-                        "conj_min": round(min(all_cs), 3) if all_cs else None,
-                        "conj_max": round(max(all_cs), 3) if all_cs else None,
-                        "mw_min":   round(min(all_mw), 1),
-                        "mw_max":   round(max(all_mw), 1),
+                        "pcitrus_min": round(min(all_pc), 3) if all_pc else None,
+                        "pcitrus_max": round(max(all_pc), 3) if all_pc else None,
+                        "mw_min":      round(min(all_mw), 1),
+                        "mw_max":      round(max(all_mw), 1),
                     }
 
                 last_gen = gen_data
@@ -850,9 +861,13 @@ async def optimize_scaffold_stream():
 
             result["pareto"] = sorted(
                 [c for c in (last_gen or {}).get("candidates", []) if not c["dominated"]],
-                key=lambda c: -(c.get("conj_score") or 0),
+                key=lambda c: -(c.get("pcitrus") or 0),
             )
 
+        except ValueError as exc:
+            loop.call_soon_threadsafe(
+                q.put_nowait, _sse("error", {"detail": str(exc), "status": 409})
+            )
         except Exception as exc:
             loop.call_soon_threadsafe(
                 q.put_nowait, _sse("error", {"detail": str(exc), "status": 500})

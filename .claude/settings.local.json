@@ -50,7 +50,15 @@
       "Bash(.venv/Scripts/python:*)",
       "Bash(xargs cat:*)",
       "Bash(do:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(wc -l /Users/erosdesimone/VSProject/demoplatform/backend/app/molecule_finder/*.py /Users/erosdesimone/VSProject/demoplatform/backend/app/molecule_finder_router.py)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:cosylab.iiitd.edu.in)",
+      "WebFetch(domain:arxiv.org)",
+      "WebFetch(domain:academic.oup.com)",
+      "Bash(find /Users/erosdesimone/VSProject/demoplatform/backend -name \"citrus_aroma.csv\" -o -name \"citrus_aroma_*.npy\" 2>/dev/null | xargs rm -f && echo \"cache cleared\")",
+      "Bash(docker exec:*)",
+      "Bash(chmod +x /Users/erosdesimone/VSProject/demoplatform/start-local.sh)"
     ]
   }
 }
