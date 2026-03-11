@@ -166,7 +166,7 @@ POOL_CONFIGS: dict[str, dict] = {
         ],
         "threshold":         62,   # leggermente più basso per catturare terpeni simili
         "max_hits_per_seed": 150,
-        "mw_min":  100.0,
+        "mw_min":  120.0,
         "mw_max":  280.0,          # allargato per includere sesquiterpeni e esteri terpenici
         "target_n": 100,
         "rules": [
@@ -181,6 +181,10 @@ POOL_CONFIGS: dict[str, dict] = {
             "desc": "H-bond acceptors ≤ 4"},
             {"type": "property", "key": "rotb_max", "value": 8,
             "desc": "rotatable bonds ≤ 8 (terpeni e loro esteri)"},
+
+            # ── gruppo funzionale ossigenato obbligatorio ──
+            {"type": "require", "smarts": "[#8]",
+            "desc": "almeno un ossigeno (alcoli, aldeidi, esteri, chetoni) — esclude idrocarburi puri"},
 
             # ── sicurezza alimentare ──
             {"type": "exclude", "smarts": "[F,Cl,Br,I]",
