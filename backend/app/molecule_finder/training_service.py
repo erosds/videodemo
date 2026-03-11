@@ -232,6 +232,9 @@ DATASETS: dict[str, dict] = {
         # FlavorDB — text percepts, Stimulus = positive CID directly
         "url_fdb_molecules":   "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/flavordb/molecules.csv",
         "url_fdb_behavior":    "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/flavordb/behavior.csv",
+        # FlavorNet — 716 FEMA-GRAS compounds, semicolon descriptors, Stimulus = CID
+        "url_fn_molecules":    "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/flavornet/molecules.csv",
+        "url_fn_behavior":     "https://raw.githubusercontent.com/pyrfume/pyrfume-data/main/flavornet/behavior.csv",
         "citrus_labels": ["citrus", "lemon", "orange", "lime", "grapefruit", "mandarin"],
         "smiles_col": "smiles",
         "target_col": "citrus_label",
@@ -712,8 +715,49 @@ def _load_flavordb_frame(cfg: dict, citrus_cols: list[str]) -> "pd.DataFrame | N
         return None
 
 
+def _load_flavornet_frame(cfg: dict, citrus_cols: list[str]) -> "pd.DataFrame | None":
+    """Load FlavorNet (Pyrfume) semicolon-descriptor dataset → DataFrame[smiles, citrus_label].
+
+    behavior.csv: Stimulus = PubChem CID, Descriptors = semicolon-separated odor terms.
+    molecules.csv: CID → IsomericSMILES.
+    """
+    try:
+        mol_df = _download_url_to_df(cfg["url_fn_molecules"])
+        mol_df.columns = [c.strip() for c in mol_df.columns]
+        cid_col = next((c for c in mol_df.columns if c.upper() == "CID"), None)
+        smi_col = next((c for c in mol_df.columns if "SMILES" in c.upper()), None)
+        if cid_col is None or smi_col is None:
+            raise RuntimeError(f"Cannot find CID/SMILES in FlavorNet molecules. Cols: {mol_df.columns.tolist()}")
+        mol_df = mol_df.rename(columns={cid_col: "CID", smi_col: "smiles"})[["CID", "smiles"]].dropna()
+        mol_df["CID"] = mol_df["CID"].astype(int)
+
+        beh_df = _download_url_to_df(cfg["url_fn_behavior"])
+        beh_df.columns = [c.strip() for c in beh_df.columns]
+        stim_col = next((c for c in beh_df.columns if "Stimulus" in c or c.upper() == "CID"), beh_df.columns[0])
+        desc_col = next((c for c in beh_df.columns if "Descri" in c or "Odor" in c), None)
+        if desc_col is None:
+            raise RuntimeError(f"Cannot find descriptors column in FlavorNet behavior. Cols: {beh_df.columns.tolist()}")
+        beh_df = beh_df.rename(columns={stim_col: "CID"})
+        beh_df["CID"] = beh_df["CID"].astype(int)
+
+        def _has_citrus(desc: str) -> float:
+            if not isinstance(desc, str):
+                return 0.0
+            parts = {d.strip().lower() for d in desc.split(";")}
+            return 1.0 if parts & set(citrus_cols) else 0.0
+
+        beh_df["citrus_label"] = beh_df[desc_col].apply(_has_citrus)
+        merged = beh_df[["CID", "citrus_label"]].merge(mol_df, on="CID", how="inner")
+        result = merged[["smiles", "citrus_label"]].dropna()
+        logger.info("FlavorNet: %d compounds loaded", len(result))
+        return result
+    except Exception as exc:
+        logger.warning("FlavorNet loading failed: %s", exc)
+        return None
+
+
 def _load_citrus_aroma_dataset(dataset_id: str, cfg: dict) -> pd.DataFrame:
-    """Merge Pyrfume Leffingwell + GoodScents + Sigma 2014 + FlavorDB into a balanced citrus classifier dataset."""
+    """Merge Pyrfume Leffingwell + GoodScents + Sigma 2014 + FlavorDB + FlavorNet into a citrus classifier dataset."""
     _check_and_invalidate_cache(dataset_id, cfg)
     cache_path = CACHE_DIR / f"{dataset_id}.csv"
     if cache_path.exists():
@@ -727,6 +771,7 @@ def _load_citrus_aroma_dataset(dataset_id: str, cfg: dict) -> pd.DataFrame:
         (_load_goodscents_frame,  "GoodScents"),
         (_load_sigma2014_frame,   "Sigma 2014"),
         (_load_flavordb_frame,    "FlavorDB"),
+        (_load_flavornet_frame,   "FlavorNet"),
     ]:
         frame = loader(cfg, citrus_cols)
         if frame is not None and len(frame) > 0:
@@ -749,11 +794,9 @@ def _load_citrus_aroma_dataset(dataset_id: str, cfg: dict) -> pd.DataFrame:
         combined["smiles"] = combined["smiles"].apply(_canon)
         combined = combined.dropna(subset=["smiles"])
 
-    combined = combined.groupby("smiles", as_index=False).agg(
-        citrus_sum=("citrus_label", "sum"),
-        citrus_count=("citrus_label", "count")
-    )
-    combined["citrus_label"] = (combined["citrus_sum"] >= 2).astype(float)
+    agg = combined.groupby("smiles", as_index=False).agg(citrus_sum=("citrus_label", "sum"))
+    combined = agg[["smiles"]].copy()
+    combined["citrus_label"] = (agg["citrus_sum"] >= 2).astype(float)
 
     pos = combined[combined["citrus_label"] == 1.0]
     neg = combined[combined["citrus_label"] == 0.0]

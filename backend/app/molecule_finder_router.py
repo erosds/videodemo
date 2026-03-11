@@ -34,7 +34,7 @@ from app.molecule_finder               import training_service
 from app.molecule_finder.training_service import DATASETS
 from app.molecule_finder.food_case_data      import REFERENCE_COMPOUNDS
 from app.molecule_finder.food_regulatory_data import REGULATORY as REGULATORY_DB
-from app.molecule_finder.nsga2_optimizer import iter_nsga2_generative
+from app.molecule_finder.nsga2_optimizer import iter_nsga2_generative, _mutate_terpene
 
 router = APIRouter()
 
@@ -839,6 +839,7 @@ async def optimize_citrus_stream():
                 mw_fn=training_service.get_mw,
                 name_lookup=name_lookup,
                 taste_fn=training_service.compute_oxidation_stability,
+                mutation_fn=_mutate_terpene,
                 n_generations=10,
                 pop_size=100,
                 seed=42,
@@ -859,10 +860,29 @@ async def optimize_citrus_stream():
                 last_gen = gen_data
                 loop.call_soon_threadsafe(q.put_nowait, _sse("generation", gen_data))
 
-            result["pareto"] = sorted(
-                [c for c in (last_gen or {}).get("candidates", []) if not c["dominated"]],
+            raw_pareto = sorted(
+                [c for c in (last_gen or {}).get("candidates", [])
+                 if not c["dominated"] and 120 <= (c.get("mw") or 0) <= 280],
                 key=lambda c: -(c.get("pcitrus") or 0),
             )
+            # Stereo-naive dedup: collapse enantiomers (already done in optimizer,
+            # but guard against any remaining stereo variants in pool SMILES)
+            from rdkit import Chem as _Chem
+            def _stereo_key(smi: str) -> str:
+                mol = _Chem.MolFromSmiles(smi)
+                if mol is None:
+                    return smi
+                _Chem.RemoveStereochemistry(mol)
+                return _Chem.MolToSmiles(mol, canonical=True)
+
+            seen_stereo: set[str] = set()
+            deduped: list[dict] = []
+            for c in raw_pareto:
+                key = _stereo_key(c.get("smiles", ""))
+                if key not in seen_stereo:
+                    seen_stereo.add(key)
+                    deduped.append(c)
+            result["pareto"] = deduped
 
         except ValueError as exc:
             loop.call_soon_threadsafe(

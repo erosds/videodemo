@@ -58,7 +58,9 @@
       "WebFetch(domain:academic.oup.com)",
       "Bash(find /Users/erosdesimone/VSProject/demoplatform/backend -name \"citrus_aroma.csv\" -o -name \"citrus_aroma_*.npy\" 2>/dev/null | xargs rm -f && echo \"cache cleared\")",
       "Bash(docker exec:*)",
-      "Bash(chmod +x /Users/erosdesimone/VSProject/demoplatform/start-local.sh)"
+      "Bash(chmod +x /Users/erosdesimone/VSProject/demoplatform/start-local.sh)",
+      "mcp__ide__executeCode",
+      "WebFetch(domain:datasets-server.huggingface.co)"
     ]
   }
 }

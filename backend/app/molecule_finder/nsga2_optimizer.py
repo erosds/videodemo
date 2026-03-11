@@ -109,7 +109,7 @@ def _nsga2_select(F: np.ndarray, pop_size: int) -> list[int]:
 # Food-relevant aromatic substituent reactions.
 # All reactions operate on a single aromatic ring.
 # (SMIRKS string, label)
-_AROMATIC_MUTATIONS: list[tuple[str, str]] = [
+_AROMATIC_MUTATIONS: list[tuple[str, str]] = [  # noqa: E501
     # ── Single-atom/group additions ──
     ("[cH:1]>>[c:1][OH]",               "add-OH"),
     ("[cH:1]>>[c:1][O][CH3]",           "add-OMe"),
@@ -133,10 +133,11 @@ _AROMATIC_MUTATIONS: list[tuple[str, str]] = [
 ]
 
 _compiled_reactions = None
+_compiled_terpene_reactions = None
 
 
 def _get_reactions():
-    """Lazily compile SMARTS reactions (requires RDKit)."""
+    """Lazily compile aromatic SMARTS reactions (requires RDKit)."""
     global _compiled_reactions
     if _compiled_reactions is not None:
         return _compiled_reactions
@@ -151,6 +152,49 @@ def _get_reactions():
             pass
     _compiled_reactions = compiled
     return _compiled_reactions
+
+
+# ── SMARTS terpene mutation library ───────────────────────────────────────────
+# Reactions for aliphatic terpenoid scaffolds (citrus pool: limonene, linalool,
+# geraniol, citral, γ-terpinene analogues).  No aromatic ring required.
+_TERPENE_MUTATIONS: list[tuple[str, str]] = [
+    # Oxidation state: primary alcohol ↔ aldehyde  (geraniol ↔ geranial/neral)
+    ("[CX4H2:1][OH]>>[CX3H1:1]=O",             "primary-OH→CHO"),
+    ("[CX3H1:1]=O>>[CX4H2:1][OH]",             "CHO→primary-OH"),
+    # Esterification: alcohol → acetate  (linalyl/geranyl/citronellyl acetate)
+    ("[CX4:1][OH]>>[CX4:1]OC(=O)C",            "OH→OAc"),
+    ("[CX4:1]OC(=O)C>>[CX4:1][OH]",            "OAc→OH"),
+    # Ester homologation: acetate ↔ propanoate
+    ("[CX4:1]OC(=O)C>>[CX4:1]OC(=O)CC",        "OAc→OProp"),
+    ("[CX4:1]OC(=O)CC>>[CX4:1]OC(=O)C",        "OProp→OAc"),
+    # Formate ester  (citronellyl formate, geranyl formate — key citrus notes)
+    ("[CX4:1][OH]>>[CX4:1]OC=O",               "OH→OFor"),
+    ("[CX4:1]OC=O>>[CX4:1][OH]",               "OFor→OH"),
+    # Methyl homologation: terpenoid chain extension/contraction
+    ("[CH3:1]>>[CH2:1]CC",                      "Me→Prop"),
+    ("[CH2:1]CC>>[CH3:1]",                      "Prop→Me"),
+    # Secondary alcohol → ketone  (menthol → menthone; terpinen-4-ol → p-menth-1-en-4-one)
+    ("[CX4H1:1]([OH])[CX4]>>[CX3:1](=O)[CX4]", "sec-OH→ketone"),
+    ("[CX3:1](=O)[CX4]>>[CX4H1:1]([OH])[CX4]", "ketone→sec-OH"),
+]
+
+
+def _get_terpene_reactions():
+    """Lazily compile terpene SMARTS reactions (requires RDKit)."""
+    global _compiled_terpene_reactions
+    if _compiled_terpene_reactions is not None:
+        return _compiled_terpene_reactions
+    from rdkit.Chem import AllChem
+    compiled = []
+    for smirks, label in _TERPENE_MUTATIONS:
+        try:
+            rxn = AllChem.ReactionFromSmarts(smirks)
+            if rxn is not None:
+                compiled.append((rxn, label))
+        except Exception:
+            pass
+    _compiled_terpene_reactions = compiled
+    return _compiled_terpene_reactions
 
 
 def _mutate_aromatic(smiles: str, rng: np.random.Generator, n_attempts: int = 8) -> list[str]:
@@ -201,6 +245,54 @@ def _mutate_aromatic(smiles: str, rng: np.random.Generator, n_attempts: int = 8)
     return products
 
 
+def _mutate_terpene(smiles: str, rng: np.random.Generator, n_attempts: int = 8) -> list[str]:
+    """Apply random SMARTS terpene mutations; return valid unique products.
+
+    MW filter: 80–320 Da (food-relevant terpenoid range).
+    No aromatic ring required — targets aliphatic monoterpenes and sesquiterpenes.
+    """
+    from rdkit import Chem
+    from rdkit.Chem import Descriptors
+
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return []
+
+    reactions = _get_terpene_reactions()
+    if not reactions:
+        return []
+
+    idxs = rng.choice(len(reactions), size=min(n_attempts, len(reactions)), replace=False)
+    products: list[str] = []
+    seen: set[str] = set()
+    parent_canon = Chem.MolToSmiles(mol, canonical=True)
+
+    for idx in idxs:
+        rxn, _ = reactions[idx]
+        try:
+            raw_products = rxn.RunReactants((mol,))
+        except Exception:
+            continue
+        for prod_tuple in raw_products:
+            for prod_mol in prod_tuple:
+                try:
+                    Chem.SanitizeMol(prod_mol)
+                    canon = Chem.MolToSmiles(prod_mol, canonical=True)
+                    if canon in seen or canon == parent_canon:
+                        continue
+                    mw = Descriptors.ExactMolWt(prod_mol)
+                    if not (120 <= mw <= 280):
+                        continue
+                    if not any(a.GetAtomicNum() == 8 for a in prod_mol.GetAtoms()):
+                        continue  # reject pure hydrocarbons — no aroma value
+                    seen.add(canon)
+                    products.append(canon)
+                except Exception:
+                    continue
+
+    return products
+
+
 # ── Public API ─────────────────────────────────────────────────────────────────
 
 
@@ -210,6 +302,7 @@ def iter_nsga2_generative(
     mw_fn:   Callable[[str], "float | None"],
     name_lookup: dict[str, dict],
     taste_fn: "Callable[[str], float | None] | None" = None,
+    mutation_fn: "Callable[[str, Any, int], list[str]] | None" = None,
     n_generations: int = 30,
     pop_size: int = 100,
     seed: int = 42,
@@ -228,8 +321,12 @@ def iter_nsga2_generative(
     three_obj = taste_fn is not None
 
     def _canon(smiles: str) -> "str | None":
+        """Canonical SMILES with stereochemistry removed (enantiomers → same key)."""
         mol = Chem.MolFromSmiles(smiles)
-        return Chem.MolToSmiles(mol, canonical=True) if mol else None
+        if mol is None:
+            return None
+        Chem.RemoveStereochemistry(mol)
+        return Chem.MolToSmiles(mol, canonical=True)
 
     def _get_name_cid(canon: str) -> tuple[str, int | None]:
         info = name_lookup.get(canon)
@@ -316,9 +413,10 @@ def iter_nsga2_generative(
         selected_idxs = _nsga2_select(F_norm, pop_size)
         parents = [pop_records[i] for i in selected_idxs]
 
+        _mut = mutation_fn if mutation_fn is not None else _mutate_aromatic
         offspring_smiles: list[str] = []
         for parent in parents:
-            new_smi_list = _mutate_aromatic(parent["smiles"], rng, n_attempts=6)
+            new_smi_list = _mut(parent["smiles"], rng, n_attempts=6)
             for smi in new_smi_list:
                 if smi not in all_evaluated:
                     offspring_smiles.append(smi)
