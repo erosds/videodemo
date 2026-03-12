@@ -88,14 +88,14 @@ const OobCurvePanel = ({ data, targetLabel, taskType = "regression", modelName =
           </span>
         )}
       </div>
-      <p className="text-[11px] text-gray-600 leading-snug border-t border-gray-800/50 pt-2">
+      <p className="text-[11px] text-gray-500 leading-snug border-t border-gray-800/50 pt-2">
         {modelName === "LightGBM"
           ? <>Each point shows validation {scoreLabel} on the held-out scaffold-split test set
               as more boosting iterations are added — computed without retraining via
-              <span className="text-gray-500"> LightGBM num_iteration</span>.</>
+              <span className="text-gray-400"> LightGBM num_iteration</span>.</>
           : <>Each point shows how well the model predicts on molecules it never trained on — as
               more decision trees are added, the estimate stabilises. This is called an
-              <span className="text-gray-500"> OOB (Out-of-Bag) learning curve</span>: trees
+              <span className="text-gray-400"> OOB (Out-of-Bag) learning curve</span>: trees
               vote only on samples not used to build them, giving a free validation signal
               without a separate test set.</>
         }
@@ -118,12 +118,12 @@ const FeatureBar = ({ name, importance, maxImp, color, delay }) => {
 
   return (
     <div className="flex items-center gap-1.5 py-0.5">
-      <div className="text-[9px] text-gray-400 w-20 flex-shrink-0 truncate font-mono">{displayName}</div>
+      <div className="text-[9px] text-gray-300 w-20 flex-shrink-0 truncate font-mono">{displayName}</div>
       <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all duration-700"
           style={{ width: `${width}%`, background: color, transitionDelay: `${delay}ms` }} />
       </div>
-      <div className="text-[9px] font-mono text-gray-600 w-8 text-right flex-shrink-0">
+      <div className="text-[9px] font-mono text-gray-400 w-8 text-right flex-shrink-0">
         {(importance * 100).toFixed(1)}%
       </div>
     </div>
@@ -139,8 +139,8 @@ const FeatureImportancePanel = ({ features, modelName }) => {
   const maxImp = features[0]?.importance ?? 1;
   const isLGBM = modelName?.toLowerCase().includes("lightgbm") || modelName?.toLowerCase().includes("lgbm");
   const footerText = isLGBM
-    ? "Normalized split-count importance across all LightGBM trees."
-    : "Mean decrease in impurity (MDI) across all trees.";
+    ? "This graph shows basically how important is a feature to determine the prediction about the property. Normalized split-count importance across all LightGBM trees."
+    : "This graph shows basically how important is a feature to determine the prediction about the property. Mean decrease in impurity (MDI) across all trees.";
   return (
     <div className="rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col gap-1 h-full">
       <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
@@ -149,7 +149,7 @@ const FeatureImportancePanel = ({ features, modelName }) => {
       {features.map((f, i) => (
         <FeatureBar key={f.name} {...f} maxImp={maxImp} color={FEAT_COLORS[i]} delay={i * 80} />
       ))}
-      <p className="text-[9px] text-gray-700 mt-2 leading-snug">
+      <p className="text-[11px] text-gray-500 mt-2 leading-snug">
         {footerText}
       </p>
     </div>
@@ -184,7 +184,7 @@ const MetricsGrid = ({ metrics, n_train, n_test, n_valid, targetLabel, taskType 
           </div>
         ))}
       </div>
-      <div className="text-[9px] text-gray-700 font-mono leading-snug">
+      <div className="text-[9px] text-gray-500 font-mono leading-snug">
         {n_valid?.toLocaleString()} mol · {n_train?.toLocaleString()} train / {n_test?.toLocaleString()} test
       </div>
     </div>

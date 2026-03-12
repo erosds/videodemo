@@ -270,7 +270,7 @@ const AnimatedScatter = ({ animPhase, generations, currentGenIdx, reference, pre
         ))}
 
         <text x={pad.l + plotW / 2} y={axisY + 23} fontSize={8} fill="#6b7280" textAnchor="middle">
-          Molecular Weight (Da) — minimise →
+          Molecular Weight (Da) — minimise ←
         </text>
         <text x={10} y={pad.t + plotH / 2} fontSize={8} fill="#6b7280" textAnchor="middle"
           transform={`rotate(-90,10,${pad.t + plotH / 2})`}>

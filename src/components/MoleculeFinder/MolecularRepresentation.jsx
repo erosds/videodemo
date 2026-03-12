@@ -83,8 +83,8 @@ const CATEGORIES = ["Food & Flavour", "Fragrance", "Materials"];
 
 const CAT_COLOR = {
   "Food & Flavour": { text: "text-violet-300", bg: "bg-violet-900/30", border: "border-violet-800/40" },
-  "Fragrance":      { text: "text-violet-300", bg: "bg-violet-900/30", border: "border-violet-800/40" },
-  "Materials":      { text: "text-violet-300", bg: "bg-violet-900/30", border: "border-violet-800/40" },
+  "Fragrance": { text: "text-violet-300", bg: "bg-violet-900/30", border: "border-violet-800/40" },
+  "Materials": { text: "text-violet-300", bg: "bg-violet-900/30", border: "border-violet-800/40" },
 };
 
 // ── Category dropdown ───────────────────────────────────────────────────────
@@ -118,9 +118,8 @@ const CategoryDropdown = ({ activeCat, onChange }) => {
               <button
                 key={cat}
                 onClick={() => { onChange(cat); setOpen(false); }}
-                className={`w-full text-left px-3 py-2 text-xs font-semibold transition-all ${
-                  activeCat === cat ? `${cc.bg} ${cc.text}` : "text-gray-400 hover:bg-gray-800/60 hover:text-gray-200"
-                }`}
+                className={`w-full text-left px-3 py-2 text-xs font-semibold transition-all ${activeCat === cat ? `${cc.bg} ${cc.text}` : "text-gray-400 hover:bg-gray-800/60 hover:text-gray-200"
+                  }`}
               >
                 {cat}
               </button>
@@ -197,7 +196,7 @@ const DescRow = ({ label, value, unit, note, color }) => (
 // ── 2D structure image via backend proxy ───────────────────────────────────
 const StructureImage = ({ cid, name }) => {
   const [loaded, setLoaded] = useState(false);
-  const [error, setError]   = useState(false);
+  const [error, setError] = useState(false);
   const url = `${BACKEND}/molecule-finder/structure/${cid}`;
 
   return (
@@ -232,11 +231,11 @@ const StructureImage = ({ cid, name }) => {
 const MolecularRepresentation = () => {
   const [activeCat, setActiveCat] = useState("Food & Flavour");
   const [primaryId, setPrimaryId] = useState("vanillin");
-  const [fpBits, setFpBits]       = useState(null);
+  const [fpBits, setFpBits] = useState(null);
   const [fpLoading, setFpLoading] = useState(false);
 
-  const catMols   = ALL_MOLECULES.filter(m => m.category === activeCat);
-  const primary   = ALL_MOLECULES.find(m => m.id === primaryId) ?? ALL_MOLECULES[0];
+  const catMols = ALL_MOLECULES.filter(m => m.category === activeCat);
+  const primary = ALL_MOLECULES.find(m => m.id === primaryId) ?? ALL_MOLECULES[0];
   const catColors = CAT_COLOR[activeCat];
 
   // Fetch real ECFP4 fingerprint from backend whenever molecule changes
@@ -263,121 +262,123 @@ const MolecularRepresentation = () => {
 
   return (
     <div className="absolute inset-0 overflow-y-auto no-scrollbar">
-        <div
-          className="min-h-full flex flex-col justify-center px-20"
-          style={{ paddingTop: "clamp(60px, 10vh, 160px)", paddingBottom: "clamp(40px, 8vh, 120px)" }}
-        >
-      <div className="max-w-6xl mx-auto w-full flex flex-col gap-4">
+      <div
+        className="min-h-full flex flex-col justify-center px-20"
+        style={{ paddingTop: "clamp(60px, 10vh, 160px)", paddingBottom: "clamp(40px, 8vh, 120px)" }}
+      >
+        <div className="max-w-6xl mx-auto w-full flex flex-col gap-4">
 
-        {/* Single row: dropdown + molecule buttons + ellipsis */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <CategoryDropdown activeCat={activeCat} onChange={handleCatChange} />
+          {/* Single row: dropdown + molecule buttons + ellipsis */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <CategoryDropdown activeCat={activeCat} onChange={handleCatChange} />
 
-          {/* Divider */}
-          <span className="text-gray-700 text-xs">|</span>
+            {/* Divider */}
+            <span className="text-gray-700 text-xs">|</span>
 
-          {catMols.map(m => (
-            <button key={m.id} onClick={() => setPrimaryId(m.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
-                primaryId === m.id
-                  ? `${catColors.bg} ${catColors.border} ${catColors.text} font-medium`
-                  : "bg-[#111111] border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-300"
-              }`}>
-              {m.name}
-              <span className="ml-1.5 font-mono text-[9px] opacity-60">{m.formula}</span>
-            </button>
-          ))}
+            {catMols.map(m => (
+              <button key={m.id} onClick={() => setPrimaryId(m.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${primaryId === m.id
+                    ? `${catColors.bg} ${catColors.border} ${catColors.text} font-medium`
+                    : "bg-[#111111] border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-300"
+                  }`}>
+                {m.name}
+                <span className="ml-1.5 font-mono text-[9px] opacity-60">{m.formula}</span>
+              </button>
+            ))}
 
-          <span className="text-gray-700 text-xs font-mono tracking-widest px-1">···</span>
-        </div>
+            <span className="text-gray-700 text-xs font-mono tracking-widest px-1">···</span>
+          </div>
 
-        {/* Three-column detail */}
-        <div className="grid grid-cols-3 gap-4">
+          {/* Three-column detail */}
+          <div className="grid grid-cols-3 gap-4">
 
-          {/* Col 1 — SMILES + 2D structure */}
-          <div className="rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
+            {/* Col 1 — SMILES + 2D structure */}
+            <div className="rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-widest text-gray-300">
+                  SMILES / 2D Structure
+                </span>
+              </div>
+
+              <div className="font-mono text-xs text-rose-300 break-all leading-relaxed bg-gray-900/50 rounded-lg p-3">
+                {primary.smiles}
+              </div>
+
+              <p className="text-[11px] text-gray-500 leading-snug">
+                SMILES (Simplified Molecular-Input Line-Entry System) encodes the full molecule as a linear ASCII string — atoms, bond types, ring closures, and stereochemistry included.
+              </p>
+              <p className="text-[11px] text-gray-500 leading-snug">
+                2D structure images can be generated from SMILES using specific chemical libraries.
+              </p>
+
+              <StructureImage key={primary.cid} cid={primary.cid} name={primary.name} />
+              <div className="text-[9px] text-gray-400 text-center">
+                2D structure · source: PubChem CID {primary.cid}
+              </div>
+
+              <div className="mt-auto px-3 py-2 rounded-lg bg-gray-900/60 border border-gray-800/60">
+                <div className="text-[10px] text-gray-400 leading-snug">{primary.notes}</div>
+              </div>
+            </div>
+
+            {/* Col 2 — Morgan fingerprint */}
+            <div className="rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col gap-3">
               <span className="text-[11px] uppercase tracking-widest text-gray-300">
-                SMILES / 2D Structure
+                Morgan Fingerprint (ECFP4 · 2048 bits)
               </span>
+              <FingerprintGrid bits={fpBits} loading={fpLoading} />
             </div>
 
-            <div className="font-mono text-xs text-rose-300 break-all leading-relaxed bg-gray-900/50 rounded-lg p-3">
-              {primary.smiles}
-            </div>
+            {/* Col 3 — Physicochemical descriptors */}
+            <div className="rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col">
+              <span className="text-[11px] uppercase tracking-widest text-gray-300 mb-3">
+                Physicochemical Descriptors
+              </span>
 
-            <p className="text-[11px] text-gray-500 leading-snug">
-              SMILES (Simplified Molecular-Input Line-Entry System) encodes the full molecule as a linear ASCII string — atoms, bond types, ring closures, and stereochemistry included. 2D structure images can be generated from SMILES using specific chemical libraries. 
-            </p>
+              <DescRow
+                label="MW — Molecular Weight"
+                value={primary.mw} unit="Da"
+                color="#f43f5e"
+                note="Mass of one mole (in g/mol = Da). Larger molecules are generally less membrane-permeable and harder to synthesise."
+              />
+              <DescRow
+                label="logP — lipophilicity"
+                value={primary.logp} unit=""
+                color="#ec4899"
+                note="log₁₀ of the octanol/water partition coefficient. Higher logP → more fat-soluble; lower → more water-soluble. Drives absorption."
+              />
+              <DescRow
+                label="HBD — H-Bond Donors"
+                value={primary.hbd} unit=""
+                color="#a855f7"
+                note="Count of N–H and O–H groups. Donors form hydrogen bonds with biological targets; too many reduce membrane permeability."
+              />
+              <DescRow
+                label="HBA — H-Bond Acceptors"
+                value={primary.hba} unit=""
+                color="#7c3aed"
+                note="Count of electronegative N and O atoms with lone pairs. Acceptors interact with protein binding sites and influence aqueous solubility."
+              />
+              <DescRow
+                label="TPSA — Topological Polar Surface Area"
+                value={primary.tpsa} unit="Å²"
+                color="#6366f1"
+                note="Sum of surfaces of all polar atoms. Key predictor of intestinal absorption (TPSA < 140 Å²) and blood-brain barrier crossing (< 90 Å²)."
+              />
+              <DescRow
+                label="Ring count"
+                value={primary.rings} unit=""
+                color="#8b5cf6"
+                note="Number of distinct ring systems. Rings increase conformational rigidity and 3D shape complexity; also affect metabolic stability."
+              />
 
-            <StructureImage key={primary.cid} cid={primary.cid} name={primary.name} />
-            <div className="text-[9px] text-gray-400 text-center">
-              2D structure · source: PubChem CID {primary.cid}
-            </div>
-
-            <div className="mt-auto px-3 py-2 rounded-lg bg-gray-900/60 border border-gray-800/60">
-              <div className="text-[10px] text-gray-400 leading-snug">{primary.notes}</div>
+              <p className="text-[10px] text-gray-300 leading-snug pt-3">
+                All descriptors are computed directly from the SMILES string in &lt;1 ms using RDKit — no laboratory measurement required.
+              </p>
             </div>
           </div>
 
-          {/* Col 2 — Morgan fingerprint */}
-          <div className="rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col gap-3">
-            <span className="text-[11px] uppercase tracking-widest text-gray-300">
-              Morgan Fingerprint (ECFP4 · 2048 bits)
-            </span>
-            <FingerprintGrid bits={fpBits} loading={fpLoading} />
-          </div>
-
-          {/* Col 3 — Physicochemical descriptors */}
-          <div className="rounded-xl border border-gray-800 bg-[#111111] p-4 flex flex-col">
-            <span className="text-[11px] uppercase tracking-widest text-gray-300 mb-3">
-              Physicochemical Descriptors
-            </span>
-
-            <DescRow
-              label="MW — Molecular Weight"
-              value={primary.mw} unit="Da"
-              color="#f43f5e"
-              note="Mass of one mole (in g/mol = Da). Larger molecules are generally less membrane-permeable and harder to synthesise."
-            />
-            <DescRow
-              label="logP — lipophilicity"
-              value={primary.logp} unit=""
-              color="#ec4899"
-              note="log₁₀ of the octanol/water partition coefficient. Higher logP → more fat-soluble; lower → more water-soluble. Drives absorption."
-            />
-            <DescRow
-              label="HBD — H-Bond Donors"
-              value={primary.hbd} unit=""
-              color="#a855f7"
-              note="Count of N–H and O–H groups. Donors form hydrogen bonds with biological targets; too many reduce membrane permeability."
-            />
-            <DescRow
-              label="HBA — H-Bond Acceptors"
-              value={primary.hba} unit=""
-              color="#7c3aed"
-              note="Count of electronegative N and O atoms with lone pairs. Acceptors interact with protein binding sites and influence aqueous solubility."
-            />
-            <DescRow
-              label="TPSA — Topological Polar Surface Area"
-              value={primary.tpsa} unit="Å²"
-              color="#6366f1"
-              note="Sum of surfaces of all polar atoms. Key predictor of intestinal absorption (TPSA < 140 Å²) and blood-brain barrier crossing (< 90 Å²)."
-            />
-            <DescRow
-              label="Ring count"
-              value={primary.rings} unit=""
-              color="#8b5cf6"
-              note="Number of distinct ring systems. Rings increase conformational rigidity and 3D shape complexity; also affect metabolic stability."
-            />
-
-            <p className="text-[10px] text-gray-300 leading-snug pt-3">
-              All descriptors are computed directly from the SMILES string in &lt;1 ms using RDKit — no laboratory measurement required.
-            </p>
-          </div>
         </div>
-
-      </div>
       </div>
     </div>
   );

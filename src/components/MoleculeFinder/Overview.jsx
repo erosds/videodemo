@@ -285,7 +285,7 @@ const Overview = () => (
       {/* State of the art */}
       <div className="border border-purple-900/30 rounded-lg px-3 py-3 bg-purple-950/10 flex flex-col gap-3">
         <p className="text-sm text-gray-400 leading-relaxed">
-          Domain experts narrow down candidates running thousands of biochemical tests and long experimental campaigns. The harder challenge is <strong className="text-gray-300">multi-objective design</strong>: finding a molecule that is simultaneously active, safe, stable, and economically viable.
+          Domain experts narrow down candidates running thousands of biochemical tests and long experimental campaigns. The harder challenge is <strong className="text-gray-300">multi-objective design</strong>: finding a molecule that has a specific set of properties and is simultaneously safe, stable, and economically viable.
         </p>
         <div className="flex items-center gap-3 border-t border-purple-900/20 pt-3">
           <LuBrain className="w-4 h-4 text-purple-500/60 flex-shrink-0" />

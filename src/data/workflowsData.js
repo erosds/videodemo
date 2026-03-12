@@ -152,13 +152,13 @@ export const workflows = {
       {
         id: 0,
         title: "overview",
-        subtitle: "Finding a molecule with the right properties — for a medicine, a material, a fragrance, or a food ingredient — means searching a space <strong>too vast to explore by hand</strong>. The challenge isn't knowledge: it's scale, cost, time and the curse of <strong>competing design constraints</strong>.",
+        subtitle: "Finding a molecule with the right properties — for a medicine, a material, a fragrance, or a food ingredient — means searching a space <strong>too vast to explore by hand</strong>. How do structures and properties connect? The challenges are cost, time and the curse of <strong>competing design constraints</strong>.",
         gradient: "from-rose-700 via-pink-600 to-fuchsia-600",
       },
       {
         id: 1,
         title: "molecular representation",
-        subtitle: "Molecules are encoded as text strings or <strong>fingerprints</strong> — bit vectors that capture neighbourhood patterns at each atom. Combined with physicochemical descriptors (MW, logP, TPSA), they form the feature space that feeds the ML property-prediction model.",
+        subtitle: "Molecules are encoded as text strings or <strong>fingerprints</strong> — bit vectors that capture neighbourhood patterns at each atom. Combined with physicochemical descriptors (weight, surface area...), they form the feature space that a ML model has to connect to specific properties.",
         gradient: "from-fuchsia-700 via-purple-600 to-violet-600",
       },
       {
@@ -194,13 +194,13 @@ export const workflows = {
       {
         id: 7,
         title: "case: CNS lead optimization",
-        subtitle: "NSGA-II starting from a pool of <strong>drug-like CNS (Central Nervous System) compounds</strong> seeded on known molecules. Maximizing <strong>lipophilicity (logD) at pH 7.4</strong> while minimizing <strong>SA Score</strong> (synthetic accessibility). Pareto front reveals the trade-off between penetration potential and ease of synthesis.",
+        subtitle: "Starting from a pool of <strong>drug-like CNS (Central Nervous System) compounds</strong>, seeded on known molecules, we are maximizing <strong>lipophilicity (logD) at pH 7.4</strong> while minimizing <strong>SA Score</strong> (synthetic accessibility). Pareto front reveals the trade-off between penetration potential and ease of synthesis.",
         gradient: "from-orange-600 via-rose-600 to-pink-600",
       },
       {
         id: 8,
         title: "case: sweetness enhancer discovery",
-        subtitle: "3-objective NSGA-II on a pool of <strong>sweet compounds</strong> seeded on Glucose, Sucrose, Aspartame, Saccharin and Stevioside — spanning natural sugars, synthetic and semi-natural sweeteners. Simultaneously maximizing <strong>sweetness probability</strong> and <strong>logS</strong> while minimizing <strong>MW</strong>.",
+        subtitle: "3-objective NSGA-II on a pool of <strong>sweet compounds</strong> seeded on Glucose, Sucrose, Aspartame, Saccharin and Stevioside — spanning natural sugars, synthetic and semi-natural sweeteners. Simultaneously maximizing <strong>sweetness probability</strong> and <strong>logS</strong> (aqueous solubility) while minimizing <strong>MW</strong>.",
         gradient: "from-violet-600 via-purple-600 to-fuchsia-600",
       },
       {
