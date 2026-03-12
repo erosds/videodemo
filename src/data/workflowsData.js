@@ -182,7 +182,7 @@ export const workflows = {
       {
         id: 5,
         title: "impact",
-        subtitle: "AI-guided design compresses <strong>hit identification from 18–36 months to 4–8 weeks</strong> and cuts screening costs. From candidate pool generation to multi-objective Pareto optimisation, safety filtering, and regulatory compliance — the entire pipeline runs <strong>end-to-end</strong>.",
+        subtitle: "AI automates 57% of \"idea-generation\" tasks, reallocating researchers to the new task of guiding the design process. From candidate pool generation to multi-objective Pareto optimisation and safety filtering, the entire pipeline could discover 44% more materials.",
         gradient: "from-indigo-600 via-purple-600 to-pink-600",
       },
       {
