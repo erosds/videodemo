@@ -38,7 +38,7 @@ const MoleculeFinderContent = ({ activeIndex, scrollIndex, totalSections }) => {
       className="absolute inset-0 pointer-events-none"
       style={{ opacity: currentOpacity, willChange: "opacity" }}
     >
-      <div className="absolute inset-0 pointer-events-auto">
+      <div className="absolute inset-0 pointer-events-auto mt-16">
         {content}
       </div>
     </div>
